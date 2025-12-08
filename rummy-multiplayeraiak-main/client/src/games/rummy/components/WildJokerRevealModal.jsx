@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
-interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  wildJokerRank: string;
-}
-
-export const WildJokerRevealModal: React.FC<Props> = ({ isOpen, onClose, wildJokerRank }) => {
+export const WildJokerRevealModal = ({ isOpen, onClose, wildJokerRank }) => {
   const [isFlipping, setIsFlipping] = useState(false);
 
   // Start flip animation shortly after modal opens
@@ -19,18 +13,18 @@ export const WildJokerRevealModal: React.FC<Props> = ({ isOpen, onClose, wildJok
     }
   }, [isOpen]);
 
-  const formatCardDisplay = (rank: string) => {
+  const formatCardDisplay = (rank) => {
     // Extract suit from rank if present (e.g., "7S" -> rank="7", suit="S")
     const suitChar = rank.slice(-1);
     const suits = ['S', 'H', 'D', 'C'];
-    
+
     if (suits.includes(suitChar)) {
       const cardRank = rank.slice(0, -1);
       const suitSymbol = suitChar === "S" ? "♠" : suitChar === "H" ? "♥" : suitChar === "D" ? "♦" : "♣";
       const suitColor = suitChar === "H" || suitChar === "D" ? "text-red-600" : "text-gray-900";
       return { rank: cardRank, suitSymbol, suitColor };
     }
-    
+
     // Just rank without suit
     return { rank, suitSymbol: "♠", suitColor: "text-gray-900" };
   };
@@ -42,7 +36,7 @@ export const WildJokerRevealModal: React.FC<Props> = ({ isOpen, onClose, wildJok
       <DialogContent className="sm:max-w-md bg-gradient-to-b from-green-900 to-green-950 border-2 border-yellow-500">
         <div className="flex flex-col items-center justify-center py-8 gap-6">
           <h2 className="text-2xl font-bold text-yellow-400">Wild Joker Revealed!</h2>
-          
+
           {/* Card flip container */}
           <div className="perspective-1000">
             <div className={`flip-card ${isFlipping ? 'flipped' : ''}`}>
@@ -53,7 +47,7 @@ export const WildJokerRevealModal: React.FC<Props> = ({ isOpen, onClose, wildJok
                     <div className="text-4xl font-bold text-red-300">🃏</div>
                   </div>
                 </div>
-                
+
                 {/* Card Front */}
                 <div className="flip-card-front">
                   <div className="w-32 h-48 bg-white rounded-lg border-2 border-gray-800 flex flex-col items-center justify-center gap-2 shadow-2xl">

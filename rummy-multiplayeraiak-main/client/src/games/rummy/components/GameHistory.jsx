@@ -4,13 +4,9 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, X, Trophy, AlertTriangle } from 'lucide-react';
 
-interface Props {
-  tableId: string;
-}
-
-export const GameHistory: React.FC<Props> = ({ tableId }) => {
+export const GameHistory = ({ tableId }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [history, setHistory] = useState<any>(null);
+  const [history, setHistory] = useState < any > (null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -71,7 +67,7 @@ export const GameHistory: React.FC<Props> = ({ tableId }) => {
                       <AlertTriangle className="w-4 h-4" />
                       Disqualified
                     </h4>
-                    {history.disqualified_players.map((p: any) => (
+                    {history.disqualified_players.map((p) => (
                       <div key={p.user_id} className="text-sm text-red-300">
                         {p.email?.split('@')[0]} - {p.cumulative_score} pts
                       </div>
@@ -86,7 +82,7 @@ export const GameHistory: React.FC<Props> = ({ tableId }) => {
                       <AlertTriangle className="w-4 h-4" />
                       At Risk
                     </h4>
-                    {history.near_disqualification.map((p: any) => (
+                    {history.near_disqualification.map((p) => (
                       <div key={p.user_id} className="text-sm text-amber-300">
                         {p.email?.split('@')[0]} - {p.cumulative_score} pts
                       </div>
@@ -98,11 +94,11 @@ export const GameHistory: React.FC<Props> = ({ tableId }) => {
                 <div>
                   <h4 className="font-bold text-white mb-3">Rounds ({history.total_rounds})</h4>
                   <div className="space-y-4">
-                    {history.rounds?.map((round: any) => (
+                    {history.rounds?.map((round) => (
                       <div key={round.round} className="bg-slate-800 border border-slate-700 rounded-lg p-3">
                         <div className="font-bold text-green-400 mb-2">Round {round.round}</div>
                         <div className="space-y-1">
-                          {round.players?.map((p: any, idx: number) => (
+                          {round.players?.map((p, idx) => (
                             <div key={p.user_id} className="flex items-center justify-between text-sm">
                               <span className="flex items-center gap-2">
                                 {idx === 0 && <Trophy className="w-3 h-3 text-amber-400" />}

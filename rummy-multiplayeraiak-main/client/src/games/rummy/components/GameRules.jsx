@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import { X, ChevronRight, ChevronDown } from 'lucide-react';
 
-interface Props {
-  defaultOpen?: boolean;
-}
-
-export const GameRules: React.FC<Props> = ({ defaultOpen = false }) => {
+export const GameRules = ({ defaultOpen = false }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   if (!isOpen) {

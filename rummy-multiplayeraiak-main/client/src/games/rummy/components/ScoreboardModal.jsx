@@ -12,23 +12,11 @@ import { Trophy, Crown, ChevronDown, ChevronUp } from "lucide-react";
 import { PlayingCard } from "./PlayingCard";
 
 // FIXED PATH – now from apiclient
-import type { RevealedHandsResponse } from "../../../apiclient/data-contracts";
 import apiclient from "../../../apiclient";
 
 import { toast } from "sonner";
 
-export interface Props {
-  isOpen: boolean;
-  onClose: () => void;
-  data: RevealedHandsResponse | null;
-  players: Array<{ user_id: string; display_name?: string | null; profile_image_url?: string | null }>;
-  currentUserId: string;
-  tableId: string;
-  hostUserId: string;
-  onNextRound?: () => void;
-}
-
-export const ScoreboardModal: React.FC<Props> = ({
+export const ScoreboardModal = ({
   isOpen,
   onClose,
   data,
@@ -55,8 +43,8 @@ export const ScoreboardModal: React.FC<Props> = ({
     }))
     .sort((a, b) => a.score - b.score);
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const togglePlayer = (uid: string) =>
+  const [expanded, setExpanded] = useState({});
+  const togglePlayer = (uid) =>
     setExpanded((prev) => ({ ...prev, [uid]: !prev[uid] }));
 
   const winnerName =
@@ -69,7 +57,7 @@ export const ScoreboardModal: React.FC<Props> = ({
       toast.success("Starting next round...");
       onClose();
       onNextRound && onNextRound();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error?.error?.detail || "Failed to start next round");
     } finally {
       setStartingNextRound(false);
@@ -98,11 +86,10 @@ export const ScoreboardModal: React.FC<Props> = ({
             {sortedPlayers.map((p, idx) => (
               <div
                 key={p.user_id}
-                className={`rounded-lg border p-4 transition-all ${
-                  p.isWinner
-                    ? "bg-yellow-950/20 border-yellow-600/60 shadow-lg shadow-yellow-600/20"
-                    : "bg-slate-800/50 border-slate-700"
-                }`}
+                className={`rounded-lg border p-4 transition-all ${p.isWinner
+                  ? "bg-yellow-950/20 border-yellow-600/60 shadow-lg shadow-yellow-600/20"
+                  : "bg-slate-800/50 border-slate-700"
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -161,13 +148,13 @@ export const ScoreboardModal: React.FC<Props> = ({
                         </div>
                         <div className="space-y-2">
                           {p.organized.pure_sequences.map(
-                            (meld: any[], mIdx: number) => (
+                            (meld, mIdx) => (
                               <div
                                 key={mIdx}
                                 className="border border-emerald-600/40 bg-emerald-950/30 rounded-lg p-2"
                               >
                                 <div className="flex gap-1 flex-wrap">
-                                  {meld.map((c: any, idx: number) => (
+                                  {meld.map((c, idx) => (
                                     <div key={idx} className="transform scale-75 origin-top-left">
                                       <PlayingCard card={c} />
                                     </div>
@@ -187,13 +174,13 @@ export const ScoreboardModal: React.FC<Props> = ({
                         </div>
                         <div className="space-y-2">
                           {p.organized.impure_sequences.map(
-                            (meld: any[], mIdx: number) => (
+                            (meld, mIdx) => (
                               <div
                                 key={mIdx}
                                 className="border border-blue-600/40 bg-blue-950/30 rounded-lg p-2"
                               >
                                 <div className="flex gap-1 flex-wrap">
-                                  {meld.map((c: any, idx: number) => (
+                                  {meld.map((c, idx) => (
                                     <div key={idx} className="transform scale-75 origin-top-left">
                                       <PlayingCard card={c} />
                                     </div>
@@ -212,13 +199,13 @@ export const ScoreboardModal: React.FC<Props> = ({
                           SETS
                         </div>
                         <div className="space-y-2">
-                          {p.organized.sets.map((meld: any[], mIdx: number) => (
+                          {p.organized.sets.map((meld, mIdx) => (
                             <div
                               key={mIdx}
                               className="border border-purple-600/40 bg-purple-950/30 rounded-lg p-2"
                             >
                               <div className="flex gap-1 flex-wrap">
-                                {meld.map((c: any, idx: number) => (
+                                {meld.map((c, idx) => (
                                   <div key={idx} className="transform scale-75 origin-top-left">
                                     <PlayingCard card={c} />
                                   </div>
@@ -237,7 +224,7 @@ export const ScoreboardModal: React.FC<Props> = ({
                         </div>
                         <div className="border border-red-600/40 bg-red-950/30 rounded-lg p-2">
                           <div className="flex gap-1 flex-wrap">
-                            {p.organized.ungrouped.map((c: any, idx: number) => (
+                            {p.organized.ungrouped.map((c, idx) => (
                               <div key={idx} className="transform scale-75 origin-top-left">
                                 <PlayingCard card={c} />
                               </div>
@@ -249,7 +236,7 @@ export const ScoreboardModal: React.FC<Props> = ({
 
                     {!p.organized && (
                       <div className="flex gap-1 flex-wrap">
-                        {p.rawCards.map((c: any, idx: number) => (
+                        {p.rawCards.map((c, idx) => (
                           <div key={idx} className="transform scale-75 origin-top-left">
                             <PlayingCard card={c} />
                           </div>

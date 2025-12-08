@@ -1,19 +1,14 @@
 import React from 'react';
 
-interface Props {
-  children?: React.ReactNode;
-  tableColor?: 'green' | 'red-brown';
-}
-
-export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' }) => {
+export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
   console.log('🎨 CasinoTable3D rendering with color:', tableColor);
-  
+
   // Calculate colors directly - no useMemo to ensure instant updates
   const mainColor = tableColor === 'green' ? '#15803d' : '#6b2f2f';
-  const gradientColor = tableColor === 'green' 
+  const gradientColor = tableColor === 'green'
     ? 'linear-gradient(135deg, #15803d 0%, #16a34a 50%, #15803d 100%)'
     : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
-  
+
   // Edge/border color (darker than main)
   const edgeColor = tableColor === 'green'
     ? 'linear-gradient(135deg, #14532d 0%, #15803d 50%, #14532d 100%)'
@@ -24,14 +19,14 @@ export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' 
       {/* Ambient lighting effects */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/20 via-transparent to-transparent pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-amber-900/10 via-transparent to-transparent pointer-events-none" />
-      
+
       {/* 3D Table Container */}
       <div className="relative w-full h-full flex items-center justify-center px-8" style={{
         perspective: '1200px',
         perspectiveOrigin: '50% 50%'
       }}>
         {/* Main Casino Table - GREEN/RED-BROWN FELT */}
-        <div 
+        <div
           className="relative w-full max-w-3xl aspect-square max-h-[500px] rounded-[40px] shadow-2xl"
           style={{
             transform: 'rotateX(20deg) rotateZ(0deg)',
@@ -46,7 +41,7 @@ export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' 
           }}
         >
           {/* Felt Texture Overlay */}
-          <div 
+          <div
             className="absolute inset-0 rounded-[40px] opacity-30 mix-blend-overlay pointer-events-none"
             style={{
               backgroundImage: `
@@ -67,9 +62,9 @@ export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' 
               `,
             }}
           />
-          
+
           {/* Table Edge (Padded Leather) */}
-          <div 
+          <div
             className="absolute -inset-4 rounded-[44px] -z-10"
             style={{
               background: edgeColor,
@@ -79,7 +74,7 @@ export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' 
               `
             }}
           />
-          
+
           {/* Game Area Markings with Gold Lines - REMOVE EMPTY BOXES */}
           <div className="absolute inset-0 rounded-[40px] overflow-hidden">
             {/* Center playing field */}
@@ -97,14 +92,14 @@ export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' 
                 </div>
               </div>
             </div>
-            
+
             {/* Corner decorative lines */}
             <div className="absolute top-8 left-8 w-16 h-16 border-l-2 border-t-2 border-amber-500/30 rounded-tl-2xl" />
             <div className="absolute top-8 right-8 w-16 h-16 border-r-2 border-t-2 border-amber-500/30 rounded-tr-2xl" />
             <div className="absolute bottom-8 left-8 w-16 h-16 border-l-2 border-b-2 border-amber-500/30 rounded-bl-2xl" />
             <div className="absolute bottom-8 right-8 w-16 h-16 border-r-2 border-b-2 border-amber-500/30 rounded-br-2xl" />
           </div>
-          
+
           {/* Content Layer - Game UI */}
           <div className="relative w-full h-full" style={{
             transform: 'translateZ(20px)',
@@ -112,9 +107,9 @@ export const CasinoTable3D: React.FC<Props> = ({ children, tableColor = 'green' 
           }}>
             {children}
           </div>
-          
+
           {/* Table Lighting - Spotlight effect */}
-          <div 
+          <div
             className="absolute inset-0 rounded-[40px] pointer-events-none"
             style={{
               background: 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%)',

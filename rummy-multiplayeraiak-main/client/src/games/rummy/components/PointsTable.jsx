@@ -1,27 +1,16 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Trophy } from 'lucide-react';
-import type { TableInfoResponse } from '../../../apiclient/data-contracts';
 
-
-export interface Props {
-  info: TableInfoResponse;
-  roundHistory: Array<{
-    round_number: number;
-    winner_user_id: string | null;
-    scores: Record<string, number>;
-  }>;
-}
-
-export const PointsTable: React.FC<Props> = ({ info, roundHistory }) => {
+export const PointsTable = ({ info, roundHistory }) => {
   const [isOpen, setIsOpen] = useState(true);
 
   // Calculate cumulative scores
-  const cumulativeScores: Record<string, number[]> = {};
+  const cumulativeScores = {};
   info.players.forEach(player => {
     cumulativeScores[player.user_id] = [];
   });
 
-  let runningTotals: Record<string, number> = {};
+  let runningTotals = {};
   info.players.forEach(player => {
     runningTotals[player.user_id] = 0;
   });
