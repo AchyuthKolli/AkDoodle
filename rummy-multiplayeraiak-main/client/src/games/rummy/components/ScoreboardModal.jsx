@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Trophy, Crown, ChevronDown, ChevronUp } from "lucide-react";
 
 // FIXED PATH – now from games/rummy/components
-import { PlayingCard } from "./PlayingCard";
+import PlayingCard from "./PlayingCard";
 
 // FIXED PATH – now from apiclient
 import apiclient from "../../../apiclient";

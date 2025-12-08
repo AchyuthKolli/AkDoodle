@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PlayingCard } from "./PlayingCard";
+import PlayingCard from "./PlayingCard";
 
 export const HandStrip = ({
   hand,
