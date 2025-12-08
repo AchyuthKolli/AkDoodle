@@ -1,0 +1,202 @@
+/* --------------------------------------------------
+   MELDBOARD — Final Production Dark UI
+   Supports: Desktop + Mobile
+---------------------------------------------------*/
+
+/* -------------------------------
+   Main Container
+--------------------------------*/
+.meld-board-container {
+  width: 100%;
+  margin-top: 15px;
+  padding: 16px;
+  background: rgba(18, 20, 35, 0.85);
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 12px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.4);
+  backdrop-filter: blur(6px);
+}
+
+/* -------------------------------
+   Rows (3 melds + 1 meld row)
+--------------------------------*/
+.meld-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* -------------------------------
+   Individual Meld Box
+--------------------------------*/
+.meld-box {
+  flex: 1;
+  min-width: 260px;
+  background: rgba(35, 38, 60, 0.9);
+  border: 1px dashed rgba(160,160,220,0.35);
+  border-radius: 10px;
+  padding: 12px;
+  transition: border-color 0.2s ease, transform 0.15s ease;
+}
+
+.meld-box:hover {
+  border-color: rgba(200,200,255,0.65);
+  transform: translateY(-1px);
+}
+
+/* -------------------------------
+   Meld Header + Lock Button
+--------------------------------*/
+.meld-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: #9eb7ff;
+  font-weight: 500;
+}
+
+.lock-btn {
+  background: rgba(120,120,160,0.15);
+  border: 1px solid rgba(150,150,200,0.4);
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #e3e3e3;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.lock-btn:hover {
+  background: rgba(160,160,210,0.25);
+  border-color: rgba(200,200,255,0.6);
+}
+
+.lock-btn:disabled,
+.lock-btn.locked {
+  background: rgba(120,120,160,0.35);
+  border-color: rgba(160,160,220,0.5);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* -------------------------------
+   Meld Slots
+--------------------------------*/
+.meld-cards {
+  display: flex;
+  gap: 10px;
+}
+
+.meld-slot {
+  width: 60px;
+  height: 84px;
+  border: 1px dashed rgba(255,255,255,0.18);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.02);
+  transition: background 0.15s ease;
+  overflow: hidden;
+}
+
+.meld-slot:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+/* Empty slot number */
+.empty-slot {
+  color: rgba(255,255,255,0.22);
+  font-size: 16px;
+  user-select: none;
+}
+
+/* -------------------------------
+   Leftover Box
+--------------------------------*/
+.leftover-box {
+  background: rgba(18, 20, 40, 0.85);
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px dashed rgba(160,160,220,0.35);
+}
+
+/* Header + Green Button */
+.leftover-header, .left-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  color: #7cb8ff;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+/* GREEN PURE-LOCK button */
+.seq-lock-btn {
+  background: rgba(30, 90, 30, 0.85);
+  border: 1px solid rgba(60, 170, 60, 0.8);
+  color: #c7ffd4;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.seq-lock-btn:hover {
+  background: rgba(40, 120, 40, 0.95);
+  transform: translateY(-1px);
+}
+
+.seq-lock-btn.on {
+  background: rgba(70, 160, 70, 0.95);
+  border-color: rgba(80, 190, 80, 1);
+}
+
+.seq-lock-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* -------------------------------
+   Leftover Cards
+--------------------------------*/
+.leftover-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* -------------------------------
+   RESPONSIVE DESIGN
+--------------------------------*/
+@media (max-width: 768px) {
+  .meld-row {
+    flex-direction: column;
+  }
+
+  .meld-box {
+    min-width: 100%;
+  }
+
+  .meld-slot {
+    width: 54px;
+    height: 76px;
+  }
+}
+
+@media (max-width: 480px) {
+  .meld-slot {
+    width: 48px;
+    height: 70px;
+  }
+
+  .meld-cards {
+    gap: 7px;
+  }
+
+  .leftover-cards {
+    gap: 6px;
+  }
+}
