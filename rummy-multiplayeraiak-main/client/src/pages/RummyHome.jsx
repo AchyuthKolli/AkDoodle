@@ -79,7 +79,8 @@ const gameVariants = [
 // ----------------------------------------------------
 export default function Home() {
   const navigate = useNavigate();
-  const user = useUser();
+  // const user = useUser(); // Stackframe context missing
+  const user = null; // Prevent crash until Stackframe is configured
 
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");

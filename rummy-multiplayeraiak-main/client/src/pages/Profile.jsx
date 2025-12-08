@@ -5,7 +5,8 @@ import { LogOut, ArrowLeft, UserPlus, Trash2 } from "lucide-react";
 
 export default function Profile() {
   const navigate = useNavigate();
-  const user = useUser();
+  // const user = useUser(); // Stackframe context missing
+  const user = null; // Prevent crash until Stackframe is configured
 
   // Static Friend List
   const staticFriends = [
