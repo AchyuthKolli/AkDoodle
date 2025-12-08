@@ -4,8 +4,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui/Dialog";
+import { Button } from "@/components/ui/Button";
 import { Trophy, Crown, ChevronDown, ChevronUp } from "lucide-react";
 
 // FIXED PATH – now from games/rummy/components

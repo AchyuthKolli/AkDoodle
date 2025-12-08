@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import apiClient from "../apiclient";
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageCircle, X, Send, Lock, MessageSquare, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';

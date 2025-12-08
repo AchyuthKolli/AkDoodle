@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 // UI Components (your Vite-correct imports)
-import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
 
 // Icons
 import {
@@ -24,7 +24,7 @@ import apiclient from "../apiclient";
 
 // Auth (Stackframe) — keep as is, Vite-compatible
 import { useUser } from "@stackframe/react";
-import { stackClientApp } from "../auth/stackClientApp"; 
+import { stackClientApp } from "../auth/stackClientApp";
 // ⚠ Make sure you place stackClientApp here: client/src/auth/stackClientApp.js
 
 
@@ -149,7 +149,7 @@ export default function Home() {
   // ----------------------------------------------------
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      
+
       {/* Header */}
       <div className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -163,16 +163,18 @@ export default function Home() {
 
             {/* Auth */}
             <div className="flex items-center gap-4">
-              <div
-  className="w-10 h-10 rounded-full border-2 border-green-500 overflow-hidden cursor-pointer"
-  onClick={() => navigate("/profile")}
->
-  <img
-    src={user.profilePictureUrl || user.picture || user.photoUrl}
-    className="w-full h-full object-cover"
-    alt="profile"
-  />
-</div>
+              {user ? (
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-10 h-10 rounded-full border-2 border-green-500 overflow-hidden cursor-pointer"
+                    onClick={() => navigate("/profile")}
+                  >
+                    <img
+                      src={user.profilePictureUrl || user.picture || user.photoUrl}
+                      className="w-full h-full object-cover"
+                      alt="profile"
+                    />
+                  </div>
 
 
 
@@ -318,6 +320,6 @@ export default function Home() {
         </div>
 
       </div>
-    </div>
+    </div >
   );
 }

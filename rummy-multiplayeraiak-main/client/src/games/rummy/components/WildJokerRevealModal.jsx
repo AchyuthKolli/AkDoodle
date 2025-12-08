@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/Dialog";
 
 export const WildJokerRevealModal = ({ isOpen, onClose, wildJokerRank }) => {
   const [isFlipping, setIsFlipping] = useState(false);
