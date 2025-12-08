@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db"); // returns { pool, fetchrow, fetch, execute }
 const { requireAuth } = require("../auth");
+console.log("Loading chat.js. requireAuth type:", typeof requireAuth);
+console.log("chat.js router created:", !!router);
 
 // ------------------------------
 // SEND MESSAGE

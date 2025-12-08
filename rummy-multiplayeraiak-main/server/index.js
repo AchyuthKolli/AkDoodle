@@ -47,7 +47,8 @@ if (fs.existsSync(apisDir)) {
         }
       }
     } catch (e) {
-      console.error("Failed to mount API file", file, e.message || e);
+      console.error("Failed to mount API file", file, e);
+      if (e.stack) console.error(e.stack);
     }
   }
 } else {

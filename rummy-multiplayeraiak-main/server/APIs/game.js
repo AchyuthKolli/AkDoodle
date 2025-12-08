@@ -6,6 +6,8 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { requireAuth } = require("../auth");
+console.log("Loading game.js. requireAuth type:", typeof requireAuth);
+console.log("game.js router created:", !!router);
 const { v4: uuidv4 } = require("uuid");
 
 /* ---------------------------

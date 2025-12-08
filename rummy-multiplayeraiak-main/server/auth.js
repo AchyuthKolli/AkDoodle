@@ -99,6 +99,7 @@ async function requireAuth(req, res, next) {
   }
 }
 
+console.log("Exporting requireAuth from auth.js. Type:", typeof requireAuth);
 module.exports = {
   requireAuth,
   verifyGoogleIdToken,
