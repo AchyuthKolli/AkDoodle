@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useTableSocket } from "../../../../../apiclient/socket";
+import { socket } from "../../../socket"; // FIXED PATH
 import PlayingCard from "./PlayingCard";
 import "./meldboard.css";
 
@@ -13,7 +13,7 @@ import "./meldboard.css";
  * - LocalStorage persistence
  */
 export default function MeldBoard({ tableId, userId, hand, onMeldChange }) {
-  const socket = useTableSocket();
+  // socket imported directly
 
   const [melds, setMelds] = useState([[], [], [], []]);
   const [locked, setLocked] = useState([false, false, false, false]);
@@ -31,7 +31,7 @@ export default function MeldBoard({ tableId, userId, hand, onMeldChange }) {
       if (m) setMelds(JSON.parse(m));
       if (l) setLocked(JSON.parse(l));
       if (seq === "true") setSequenceLocked(true);
-    } catch {}
+    } catch { }
   }, []);
 
   const saveLS = (m, l, seq) => {
@@ -39,7 +39,7 @@ export default function MeldBoard({ tableId, userId, hand, onMeldChange }) {
       localStorage.setItem(`melds_${tableId}_${userId}`, JSON.stringify(m));
       localStorage.setItem(`locks_${tableId}_${userId}`, JSON.stringify(l));
       localStorage.setItem(`seqLock_${tableId}_${userId}`, seq ? "true" : "false");
-    } catch {}
+    } catch { }
   };
 
   /* --------------------------------------------------

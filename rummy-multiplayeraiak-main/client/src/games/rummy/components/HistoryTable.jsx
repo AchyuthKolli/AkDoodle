@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { apiClient } from "../../apiclient"; // adjust if needed
+import apiClient from "../../../apiclient";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Trophy, Crown, XCircle } from "lucide-react";
 import { toast } from "sonner";

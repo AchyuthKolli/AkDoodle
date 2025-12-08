@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useTableSocket } from "../../apiclient/socket";
+import { socket } from "../socket";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
@@ -15,7 +15,7 @@ import { MessageCircle, Send, X } from "lucide-react";
  *  - onToggle()
  */
 export default function ChatPanel({ tableId, userId, isOpen, onToggle }) {
-  const socket = useTableSocket();
+  // socket imported directly
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -125,13 +125,12 @@ export default function ChatPanel({ tableId, userId, isOpen, onToggle }) {
               {messages.map((msg, i) => (
                 <div
                   key={i}
-                  className={`p-3 rounded-lg ${
-                    msg.userId === userId
+                  className={`p-3 rounded-lg ${msg.userId === userId
                       ? "bg-green-600/20 border border-green-600/40 ml-8"
                       : msg.isSystem
-                      ? "bg-amber-600/20 border border-amber-500/40 text-center"
-                      : "bg-slate-800 border border-slate-700 mr-8"
-                  }`}
+                        ? "bg-amber-600/20 border border-amber-500/40 text-center"
+                        : "bg-slate-800 border border-slate-700 mr-8"
+                    }`}
                 >
                   {/* username */}
                   {!msg.isSystem && (
@@ -145,11 +144,10 @@ export default function ChatPanel({ tableId, userId, isOpen, onToggle }) {
 
                   {/* message */}
                   <div
-                    className={`text-sm ${
-                      msg.isSystem
+                    className={`text-sm ${msg.isSystem
                         ? "text-amber-300 font-semibold"
                         : "text-white"
-                    }`}
+                      }`}
                   >
                     {msg.message}
                   </div>
