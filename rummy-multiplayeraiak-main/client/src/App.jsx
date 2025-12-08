@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import CreateTable from "./pages/CreateTable";
 import Table from "./pages/Table";
 import Profile from "./pages/Profile";
+import RummyHome from "./pages/RummyHome";
 
 export default function App() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function App() {
       <Route path="/CreateTable" element={<CreateTable />} />
       <Route path="/Table" element={<Table />} />
       <Route path="/profile" element={<Profile />} />
+      <Route path="/rummy/home" element={<RummyHome />} />
     </Routes>
   );
 }

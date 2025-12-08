@@ -51,16 +51,25 @@ export default function Profile() {
   };
 
   if (!user) {
+    // Fallback for development/unauthenticated state
+    // Provide a mock user so the page does not crash while "Loading..."
+    // or you can just show loading.
+    // If the dummy stackClientApp is used, user is null.
+    // Let's degrade gracefully.
     return (
-      <div className="text-center text-white p-10">
-        Loading profile…
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Guest Profile</h2>
+          <p className="mb-6">You are browsing as a guest.</p>
+          <button onClick={() => navigate("/")} className="px-4 py-2 bg-blue-600 rounded-lg">Back to Home</button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-5 text-white">
-      
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -81,7 +90,7 @@ export default function Profile() {
 
       {/* Profile Card */}
       <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 shadow-xl max-w-xl mx-auto">
-        
+
         <div className="flex flex-col items-center">
           {/* Profile Pic */}
           <img
