@@ -1063,3 +1063,5 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
   }
 });
 
+module.exports = router;
+
