@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from 'app';
+import apiClient from '../../../apiclient';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, X, Trophy, AlertTriangle } from 'lucide-react';

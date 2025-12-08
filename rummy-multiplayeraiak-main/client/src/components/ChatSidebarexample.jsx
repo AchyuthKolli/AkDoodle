@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiClient } from 'app';
-import { ChatMessage } from 'types';
+import apiClient from "../apiclient";
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,20 +8,16 @@ import { MessageCircle, X, Send, Lock, MessageSquare, ChevronRight } from 'lucid
 import { toast } from 'sonner';
 import { useNavigate } from "react-router-dom";   // ✅ ADDED
 
-interface Props {
-  tableId: string;
-  currentUserId: string;
-  players: Array<{ userId: string; displayName: string }>;
-}
 
-export default function ChatSidebar({ tableId, currentUserId, players }: Props) {
+
+export default function ChatSidebar({ tableId, currentUserId, players }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
-  const [recipient, setRecipient] = useState<string | null>(null);
+  const [recipient, setRecipient] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef(null);
+  const inputRef = useRef(null);
 
   const navigate = useNavigate();   // ✅ ADDED
 
@@ -39,12 +35,12 @@ export default function ChatSidebar({ tableId, currentUserId, players }: Props) 
       try {
         const response = await apiClient.get_messages({ table_id: tableId });
         const data = await response.json();
-        
+
         setMessages(data.messages || []);
-        
+
         if (!isOpen) {
-          const newMessages = (data.messages || []).filter((msg: ChatMessage) => 
-            msg.user_id !== currentUserId && 
+          const newMessages = (data.messages || []).filter((msg) =>
+            msg.user_id !== currentUserId &&
             new Date(msg.timestamp).getTime() > Date.now() - 4000
           );
           setUnreadCount(prev => prev + newMessages.length);
@@ -84,20 +80,20 @@ export default function ChatSidebar({ tableId, currentUserId, players }: Props) 
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
       sendMessage();
+      e.preventDefault();
     }
   };
 
-  const handleInputChange = (value: string) => {
+  const handleInputChange = (value) => {
     setMessageText(value);
     const mentionMatch = value.match(/^@(\w+)/);
 
     if (mentionMatch) {
       const mentionedName = mentionMatch[1].toLowerCase();
-      const player = players.find(p => 
+      const player = players.find(p =>
         p.displayName.toLowerCase().startsWith(mentionedName)
       );
       if (player && player.userId !== currentUserId) {
@@ -113,7 +109,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }: Props) 
     return players.find(p => p.userId === recipient)?.displayName;
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
@@ -142,7 +138,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }: Props) 
       {/* Sidebar */}
       {isOpen && (
         <div className="fixed right-0 top-0 h-full w-80 bg-background border-l border-border shadow-lg z-50 flex flex-col">
-          
+
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -186,9 +182,8 @@ export default function ChatSidebar({ tableId, currentUserId, players }: Props) 
                     </div>
 
                     <div
-                      className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                        isOwnMessage ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                      } ${isPrivate ? 'border-2 border-yellow-500 dark:border-yellow-600' : ''}`}
+                      className={`max-w-[85%] rounded-lg px-3 py-2 ${isOwnMessage ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        } ${isPrivate ? 'border-2 border-yellow-500 dark:border-yellow-600' : ''}`}
                     >
                       {isPrivate && (isSender || isRecipient) && (
                         <div className="text-xs italic opacity-80 mb-1">
@@ -224,7 +219,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }: Props) 
                 </Button>
               </div>
             )}
-            
+
             <div className="flex items-center gap-2">
               <Input
                 ref={inputRef}

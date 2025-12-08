@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Eye, Check, X } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient } from "app";
+import apiClient from "../apiclient";
 
 export default function SpectateControls({
   tableId,
