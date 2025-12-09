@@ -4,8 +4,9 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Profiles
-CREATE TABLE IF NOT EXISTS profiles (
-  user_id VARCHAR(255) PRIMARY KEY, -- Google sub or similar
+-- 1. Profiles
+CREATE TABLE IF NOT EXISTS rummy_profiles (
+  id VARCHAR(255) PRIMARY KEY, -- Google sub
   display_name VARCHAR(255),
   avatar_url TEXT,
   created_at TIMESTAMP DEFAULT NOW(),

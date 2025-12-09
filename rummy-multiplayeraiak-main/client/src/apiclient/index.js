@@ -53,6 +53,11 @@ export const join_table = async (body) => {
   return api.post("/api/tables/join", body);
 };
 
+// POST /api/tables/join-by-code
+export const join_table_by_code = async (body) => {
+  return api.post("/api/tables/join-by-code", body);
+};
+
 // POST /api/start-game
 export const start_game = async (body) => {
   return api.post("/api/start-game", body);
@@ -143,6 +148,7 @@ export default {
   get_table_info,
   create_table,
   join_table,
+  join_table_by_code,
   start_game,
   get_round_me,
   draw_stock,
