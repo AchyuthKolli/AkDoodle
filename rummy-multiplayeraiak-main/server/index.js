@@ -61,6 +61,25 @@ app.get("/api/me", requireAuth, (req, res) => {
 });
 
 // =====================================================
+// 📦 SERVE FRONTEND (Production)
+// =====================================================
+const clientDistPath = path.join(__dirname, "../client/dist");
+if (fs.existsSync(clientDistPath)) {
+  console.log("Serving static files from:", clientDistPath);
+  app.use(express.static(clientDistPath));
+
+  // SPA Fallback: API routes marked above; anything else -> index.html
+  app.get("*", (req, res) => {
+    if (req.path.startsWith("/api")) {
+      return res.status(404).json({ error: "API route not found" });
+    }
+    res.sendFile(path.join(clientDistPath, "index.html"));
+  });
+} else {
+  console.log("❌ No client build found at:", clientDistPath);
+}
+
+// =====================================================
 // 🚀 CREATE HTTP SERVER + SOCKET.IO SERVER
 // =====================================================
 const server = http.createServer(app);

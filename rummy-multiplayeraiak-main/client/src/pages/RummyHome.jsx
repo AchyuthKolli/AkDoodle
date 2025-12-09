@@ -153,21 +153,24 @@ export default function Home() {
 
       {/* Header */}
       <div className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
 
-            {/* Title */}
-            <div>
-              <h1 className="text-4xl font-bold text-white tracking-tight">Rummy Room</h1>
-              <p className="text-slate-400 mt-2">Choose your game variant</p>
+            {/* Title / Logo Area */}
+            <div className="flex items-center gap-3">
+              {/* Optional: Add Logo IMG here if available */}
+              <div>
+                <h1 className="text-3xl font-bold text-white tracking-tight">Rummy Room</h1>
+                <p className="text-slate-400 text-sm">Multiplayer Card Game</p>
+              </div>
             </div>
 
-            {/* Auth */}
-            <div className="flex items-center gap-4">
+            {/* Auth Buttons */}
+            <div className="flex items-center gap-3">
               {user ? (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 bg-slate-800/50 p-1.5 pr-4 rounded-full border border-slate-700">
                   <div
-                    className="w-10 h-10 rounded-full border-2 border-green-500 overflow-hidden cursor-pointer"
+                    className="w-9 h-9 rounded-full border border-green-500 overflow-hidden cursor-pointer"
                     onClick={() => navigate("/profile")}
                   >
                     <img
@@ -177,33 +180,39 @@ export default function Home() {
                     />
                   </div>
 
-
-
-                  {/* User Info */}
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium text-white">
-                      {user.displayName || "Player"}
+                    <span className="text-sm font-bold text-white leading-none">
+                      {user.displayName?.split(" ")[0] || "Player"}
                     </span>
-                    <span className="text-xs text-slate-400">{user.primaryEmail}</span>
+                    <span className="text-[10px] text-green-400 font-mono">ONLINE</span>
                   </div>
 
-                  {/* Logout */}
-                  <Button
+                  <div className="h-4 w-px bg-slate-700 mx-1"></div>
+
+                  <button
                     onClick={handleSignOut}
-                    className="border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white px-3 py-1"
+                    className="text-slate-400 hover:text-white transition-colors"
+                    title="Sign Out"
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </Button>
+                    <LogOut className="w-4 h-4" />
+                  </button>
                 </div>
               ) : (
-                <Button
-                  onClick={handleSignIn}
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90 text-white font-semibold px-4 py-2"
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Sign In
-                </Button>
+                <div className="flex items-center gap-3">
+                  {/* Sign Up / Sign In buttons usually do the same with Google Auth */}
+                  <Button
+                    onClick={handleSignIn}
+                    className="bg-transparent hover:bg-slate-800 text-white border border-slate-600 font-semibold px-4 py-2"
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    onClick={handleSignIn}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white font-bold px-5 py-2 shadow-lg shadow-blue-900/20"
+                  >
+                    Sign Up
+                  </Button>
+                </div>
               )}
             </div>
           </div>

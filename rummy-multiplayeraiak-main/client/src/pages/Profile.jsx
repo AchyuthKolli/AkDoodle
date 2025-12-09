@@ -47,17 +47,35 @@ export default function Profile() {
   };
 
   if (!user) {
-    // Fallback for development/unauthenticated state
-    // Provide a mock user so the page does not crash while "Loading..."
-    // or you can just show loading.
-    // If the dummy stackClientApp is used, user is null.
-    // Let's degrade gracefully.
+    // Guest View
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Guest Profile</h2>
-          <p className="mb-6">You are browsing as a guest.</p>
-          <button onClick={() => navigate("/")} className="px-4 py-2 bg-blue-600 rounded-lg">Back to Home</button>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white p-6">
+        <div className="text-center max-w-md w-full bg-slate-900 border border-slate-800 p-8 rounded-xl shadow-2xl">
+          <div className="w-20 h-20 bg-slate-800 rounded-full mx-auto flex items-center justify-center mb-4 border border-slate-700">
+            <User2 className="w-10 h-10 text-slate-500" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Guest Mode</h2>
+          <p className="text-slate-400 mb-8">Sign in to save your game history, stats, and play with friends.</p>
+
+          <div className="space-y-3">
+            {/* We can't easily sign in from here without AuthContext exposing login directly or redirecting to Home where button exists. 
+                 Since login() in AuthContext expects interaction, we'll redirect to Home with a toast or suggestion.
+                 Or ideally, Profile should have access to login(). 
+                 AuthContext exposes: { user, login, logout, token } 
+              */}
+            <button
+              onClick={() => navigate("/")}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 rounded-lg font-semibold transition"
+            >
+              Back to Home & Sign In
+            </button>
+            <button
+              onClick={() => navigate("/")}
+              className="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-lg font-semibold text-slate-300 transition"
+            >
+              Continue as Guest
+            </button>
+          </div>
         </div>
       </div>
     );
