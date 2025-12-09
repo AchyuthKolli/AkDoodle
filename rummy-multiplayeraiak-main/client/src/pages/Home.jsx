@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { User, Gamepad2, ChevronRight } from "lucide-react";
+import { useAuth } from "../auth/AuthContext";
 
 /**
  * Home — Akadoodle (final)
@@ -14,6 +15,7 @@ import { User, Gamepad2, ChevronRight } from "lucide-react";
  */
 
 export default function Home() {
+  const { user, login } = useAuth();
   const canvasRef = useRef(null);
   const rafRef = useRef(null);
 
@@ -34,7 +36,7 @@ export default function Home() {
           // @vite-ignore
           const mod = await import(p);
           const fn = mod.default || mod.initSparkles || mod.init || mod.start;
-          if (typeof fn === "function") { try { fn(); } catch(e){}; break; }
+          if (typeof fn === "function") { try { fn(); } catch (e) { }; break; }
         } catch (e) {
           // ignore
         }
@@ -151,7 +153,7 @@ export default function Home() {
   function goTo(to) {
     try {
       if (typeof window !== "undefined" && typeof window.__AKADOODLE_NAVIGATE === "function") { window.__AKADOODLE_NAVIGATE(to); return; }
-    } catch (e) {}
+    } catch (e) { }
     if (typeof window !== "undefined") window.location.href = to;
   }
 
@@ -244,14 +246,26 @@ export default function Home() {
       {/* HEADER */}
       <div className="flex items-center justify-between px-6 pt-6 mb-10">
         <div className="flex items-center gap-3 text-4xl sm:text-5xl font-black select-none relative">
-          {/* Logo Image Only */}
           <img src="/assets/logo.png" alt="Akadoodle Logo" className="w-28 h-14 object-contain animate-logo-pop drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
         </div>
 
-        <button onClick={() => goTo("/profile")} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/10 transition-all">
-          <User className="w-5 h-5" />
-          <span className="text-sm font-medium">Profile</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {user ? (
+            <button onClick={() => goTo("/profile")} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl border border-white/10 transition-all backdrop-blur-md">
+              <img
+                src={user.profileImageUrl || user.picture || user.photoUrl}
+                className="w-6 h-6 rounded-full border border-white/30"
+                alt="user"
+              />
+              <span className="text-sm font-medium text-white">{user.displayName?.split(" ")[0]}</span>
+            </button>
+          ) : (
+            <button onClick={() => login()} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 px-5 py-2 rounded-xl text-white font-bold shadow-lg shadow-blue-500/20 transition-all">
+              <User className="w-5 h-5" />
+              <span>Sign In</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <h2 className="text-2xl sm:text-3xl font-bold px-6 mb-4 flex items-center gap-2 drop-shadow-lg">
