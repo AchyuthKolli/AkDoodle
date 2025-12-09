@@ -30,21 +30,26 @@ if (fs.existsSync(apisDir)) {
       const mod = require(routerPath);
 
       if (mod && mod.router) {
+        // Standard export: const router = express.Router(); module.exports = { router };
         app.use("/api", mod.router);
         console.log("Mounted router (router exported prop):", file);
-      } else if (mod && mod instanceof express.Router) {
-        app.use("/api", mod);
-        console.log("Mounted router (router default):", file);
-      } else if (mod && mod.default && mod.default instanceof express.Router) {
-        app.use("/api", mod.default);
-        console.log("Mounted router (router default export):", file);
-      } else {
-        if (typeof mod === "function") {
-          mod(app, requireAuth);
-          console.log("Mounted API function:", file);
+      } else if (mod && (mod.name === "router" || typeof mod === "function")) {
+        // Express routers are functions, but we must check if it's an API init function or actual Router
+        // Best guess: check if it has .get, .post, .stack
+        if (mod.stack && mod.use) {
+          app.use("/api", mod);
+          console.log("Mounted router (export is router):", file);
         } else {
-          console.warn(`Skipped ${file}: not an express router or initializer`);
+          // It's a custom initializer function: func(app, requireAuth)
+          try {
+            mod(app, requireAuth);
+            console.log("Mounted API initializer function:", file);
+          } catch (err) {
+            console.error(`Error initializing ${file}:`, err);
+          }
         }
+      } else {
+        console.warn(`Skipped ${file}: unknown export format`);
       }
     } catch (e) {
       console.error("Failed to mount API file", file, e);
