@@ -133,7 +133,7 @@ const MeldSlotBox = ({
       const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
       const body = { table_id: tableId, meld: meldCards };
       const res = await apiclient.lock_sequence(body);
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         toast.success(data.message);
         if (onToggleLock) onToggleLock();
@@ -270,7 +270,7 @@ const LeftoverSlotBox = ({
       const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
       const body = { table_id: tableId, meld: meldCards };
       const res = await apiclient.lock_sequence(body);
-      const data = await res.json();
+      const data = res.data;
       if (data.success) {
         toast.success(data.message);
         if (onToggleLock) onToggleLock();
@@ -550,13 +550,8 @@ export default function Table() {
     try {
       const query = { table_id: tableId };
       const res = await apiclient.get_table_info(query);
-      if (!res.ok) {
-        console.error("❌ get_table_info failed with status:", res.status);
-        toast.error("Failed to refresh table info");
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
+      // If error status, apiclient interceptor throws, caught in catch block
+      const data = res.data;
 
       // detect player leaves (compare previous players)
       try {
@@ -600,7 +595,7 @@ export default function Table() {
           setLoading(false);
           return;
         }
-        const roundData = await rr.json();
+        const roundData = rr.data;
         setMyRound(roundData);
         const newHasDrawn = roundData.hand.length === 14;
         setHasDrawn(newHasDrawn);
@@ -617,7 +612,7 @@ export default function Table() {
     if (!info?.table_id) return;
     try {
       const response = await apiclient.get_round_history({ table_id: info.table_id });
-      const data = await response.json();
+      const data = response.data;
       setRoundHistory(data.rounds || []);
     } catch (error) {
       console.error("Failed to fetch round history:", error);
@@ -679,7 +674,7 @@ export default function Table() {
         toast.error(`Failed to start game: ${errorText}`);
         return;
       }
-      const data = await res.json();
+      const data = res.data;
       toast.success(`Round #${data.number} started`);
       await refresh();
     } catch (e) {
@@ -702,7 +697,7 @@ export default function Table() {
         setActing(false);
         return;
       }
-      const data = await res.json();
+      const data = res.data;
       setMyRound(data);
       try {
         const prevHand = myRound?.hand || [];
@@ -735,7 +730,7 @@ export default function Table() {
         setActing(false);
         return;
       }
-      const data = await res.json();
+      const data = res.data;
       setMyRound(data);
       try {
         const prevHand = myRound?.hand || [];
@@ -776,7 +771,7 @@ export default function Table() {
         setActing(false);
         return;
       }
-      const data = await res.json();
+      const data = res.data;
       toast.success("Card discarded. Next player's turn.");
       socket.emit("game_update", { tableId });
       setTimeout(() => refresh(), 120);
@@ -813,7 +808,7 @@ export default function Table() {
             break;
           }
         }
-        const data = await resp.json();
+        const data = resp.data;
         console.log("✅ Revealed hands fetched:", data);
         setRevealedHands(data);
         setShowScoreboardModal(true);
@@ -892,7 +887,7 @@ export default function Table() {
       const body = { table_id: tableId, groups: discardGroups };
       const res = await apiclient.declare(body);
       if (res.ok) {
-        const data = await res.json();
+        const data = res.data;
         socket.emit("declare_made", { tableId });
 
         if (data.status === "valid") {
@@ -904,7 +899,7 @@ export default function Table() {
       } else {
         let errorMessage = "Failed to declare";
         try {
-          const errorData = await res.json();
+          const errorData = res.data;
           errorMessage = errorData.detail || errorData.message || errorMessage;
         } catch {
           const errorText = await res.text();
@@ -948,7 +943,7 @@ export default function Table() {
         setStarting(false);
         return;
       }
-      const data = await res.json();
+      const data = res.data;
       toast.success(`Round #${data.number} started!`);
       await refresh();
     } catch (e) {
@@ -981,7 +976,7 @@ export default function Table() {
         setDroppingGame(false);
         return;
       }
-      await res.json();
+      const data = res.data;
       toast.success("You have dropped from the game (20 point penalty)");
       await refresh();
     } catch (e) {

@@ -122,7 +122,7 @@ export default function Home() {
         return;
       }
 
-      const data = await res.json();
+      const data = res.data;
 
       toast.success(`Joined table! Seat ${data.seat}`);
       navigate(`/Table?tableId=${data.table_id}`);
