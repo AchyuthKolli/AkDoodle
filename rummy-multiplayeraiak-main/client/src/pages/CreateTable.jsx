@@ -42,7 +42,7 @@ const variantConfigs = {
   close_wildcard: {
     id: "close_wildcard",
     title: "Close Wild Card",
-    wildJokerMode: "close_joker",
+    wildJokerMode: "closed_joker",
     description: "Advanced variant - wild card reveals after first sequence",
     color: "from-purple-500 to-pink-500",
   },
