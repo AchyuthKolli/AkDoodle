@@ -118,13 +118,17 @@ router.post("/tables/join", requireAuth, async (req, res) => {
     if (seat > tbl.max_players)
       return res.status(400).json({ error: "Table is full" });
 
+    // Get user name
+    const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
+    const name = profile?.display_name || req.user.name || "Host";
+
     await db.execute(
       `
       INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
-      VALUES ($1, $2, $3, $2)
+      VALUES ($1, $2, $3, $4)
       ON CONFLICT DO NOTHING
     `,
-      [table_id, req.user.sub, seat]
+      [table_id, req.user.sub, seat, name]
     );
 
     res.json({ table_id, seat });

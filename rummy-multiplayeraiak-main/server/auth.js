@@ -56,24 +56,25 @@ async function requireAuth(req, res, next) {
     } catch (e) {
       // Not an ID token, try verification as Access Token
       const tokenInfo = await client.getTokenInfo(token);
-      // Map TokenInfo to payload-like object
-      // Access Tokens don't always have names/pictures, but we can't fetch them here without extra request.
-      // But verifyGoogleIdToken returns sub. getTokenInfo returns sub (user_id).
       if (!tokenInfo.sub && !tokenInfo.user_id) throw new Error("Invalid Access Token");
+
+      // Fetch Profile from Google UserInfo (since AccessToken doesn't have it)
+      let profileData = {};
+      try {
+        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        profileData = await userInfoRes.json();
+      } catch (fError) {
+        console.warn("Failed to fetch Google UserInfo:", fError.message);
+      }
 
       googlePayload = {
         sub: tokenInfo.sub || tokenInfo.user_id,
-        email: tokenInfo.email,
-        // Name/Picture are not part of TokenInfo.
-        // We accept this because we might have the user in DB, 
-        // OR we just use the ID. Profile upsert might fail on nulls but that's caught.
-        name: null,
-        picture: null
+        email: tokenInfo.email || profileData.email,
+        name: profileData.name || null,
+        picture: profileData.picture || null
       };
-
-      // Since we don't have name/picture in AccessToken validation, 
-      // we might want to fetch it? 
-      // But for now, ensuring we have a valid 'sub' is enough to authorize.
     }
 
     // googlePayload contains sub, email, name, picture, email_verified etc.
@@ -84,9 +85,9 @@ async function requireAuth(req, res, next) {
     if (googlePayload.name || googlePayload.picture) {
       try {
         await execute(
-          `INSERT INTO profiles (user_id, display_name, avatar_url)
+          `INSERT INTO rummy_profiles (id, display_name, avatar_url)
            VALUES ($1, $2, $3)
-           ON CONFLICT (user_id) DO UPDATE
+           ON CONFLICT (id) DO UPDATE
            SET display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url`,
           userId,
           googlePayload.name || null,

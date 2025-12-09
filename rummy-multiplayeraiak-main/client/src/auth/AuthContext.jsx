@@ -15,63 +15,39 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Load persisted session
         const savedToken = localStorage.getItem("auth_token");
-        console.log("🔐 AuthContext Init. Token found?", !!savedToken);
-        if (savedToken) {
+        const savedUser = localStorage.getItem("auth_user");
+
+        console.log("🔐 AuthContext Init. Token?", !!savedToken, "User?", !!savedUser);
+
+        if (savedToken && savedUser) {
             try {
-                const decoded = jwtDecode(savedToken);
-                console.log("✅ Token decoded:", decoded);
-                // Check expiry if needed
-                setUser(decoded);
+                // Do NOT jwtDecode the Google Access Token (it's opaque).
+                // Just trust the stored user profile for now.
+                // (In a real app, we'd verify the token with the backend here, but for now this fixes persistence)
+                setUser(JSON.parse(savedUser));
                 setToken(savedToken);
+                console.log("✅ Session restored from storage");
             } catch (e) {
-                console.error("❌ Token decode failed:", e);
+                console.error("❌ Session restore failed:", e);
                 localStorage.removeItem("auth_token");
+                localStorage.removeItem("auth_user");
             }
         }
     }, []);
-
-    const login = (accessToken) => {
-        // In a real flow, we might send this to backend to exchange for JWT
-        // But user wants "google verify".
-        // We will assume backend accepts the ID token or we verify it here.
-        // Use useGoogleLogin (implicit flow) or ID token flow?
-        // Backend verifyGoogleIdToken expects an ID TOKEN.
-        // flow: 'auth-code' is best but 'implicit' gives access token.
-        // We want ID token.
-    };
 
     const logout = () => {
         setUser(null);
         setToken(null);
         localStorage.removeItem("auth_token");
+        localStorage.removeItem("auth_user");
         toast.success("Signed out");
     };
 
-    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === "YOUR_GOOGLE_CLIENT_ID_HERE") {
-        console.warn("⚠️ VITE_GOOGLE_CLIENT_ID is not set! Google Login will not function.");
-        return (
-            <AuthContext.Provider value={{ user, login: () => toast.error("Google Login Config Missing"), logout, token }}>
-                {children}
-            </AuthContext.Provider>
-        );
-    }
+    // ... (rest of provider)
 
-    return (
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-            <AuthContextInner user={user} setUser={setUser} token={token} setToken={setToken} logout={logout}>
-                {children}
-            </AuthContextInner>
-        </GoogleOAuthProvider>
-    );
-};
-
-const AuthContextInner = ({ children, user, setUser, token, setToken, logout }) => {
+    // ... (Inner)
     const login = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
-            // This gives Access Token (not ID Token) by default unless flow is configured?
-            // Actually, for simple profile info, we can fetch from Google UserInfo endpoint using Access Token.
-            // OR use 'id_token' flow.
-            // Let's fetch user info for "Google Name/Pic" requirement.
             try {
                 const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
                     headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
@@ -85,14 +61,15 @@ const AuthContextInner = ({ children, user, setUser, token, setToken, logout }) 
                     displayName: profile.name,
                     email: profile.email,
                     picture: profile.picture,
-                    profileImageUrl: profile.picture // for compatibility
+                    profileImageUrl: profile.picture
                 };
 
                 setUser(userPayload);
-                setToken(tokenResponse.access_token); // store access token as "auth" for now, ideally backend exchanges it
-                // WARNING: Storing Access Token as JWT storage source is risky if code assumes it's JWT. 
-                // But catching existing logic.
+                setToken(tokenResponse.access_token);
+
+                // Persist both
                 localStorage.setItem("auth_token", tokenResponse.access_token);
+                localStorage.setItem("auth_user", JSON.stringify(userPayload));
 
                 toast.success(`Welcome, ${profile.given_name}!`);
             } catch (err) {

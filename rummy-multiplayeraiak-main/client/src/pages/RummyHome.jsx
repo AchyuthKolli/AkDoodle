@@ -127,7 +127,9 @@ export default function Home() {
       toast.success(`Joined table! Seat ${data.seat}`);
       navigate(`/Table?tableId=${data.table_id}`);
     } catch (e) {
-      toast.error("Failed to join room. Try again.");
+      console.error("Join error:", e);
+      const msg = e.response?.data?.error || e.message || "Failed to join room";
+      toast.error(`Join failed: ${msg}`);
     } finally {
       setJoining(false);
     }
