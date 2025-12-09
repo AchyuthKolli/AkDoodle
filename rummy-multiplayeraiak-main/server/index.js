@@ -11,6 +11,19 @@ dotenv.config();
 
 const { requireAuth } = require("./auth");
 const applySocketHandlers = require("./sockethandlers");   // ✅ IMPORTANT
+const { pool } = require("./db"); // Import pool for schema init
+
+// Auto-run schema.sql to ensure DB tables exist
+const schemaPath = path.join(__dirname, "schema.sql");
+if (fs.existsSync(schemaPath)) {
+  const schemaSql = fs.readFileSync(schemaPath, "utf-8");
+  console.log("Initializing Database Schema...");
+  pool.query(schemaSql)
+    .then(() => console.log("✅ Database Schema Applied (Tables Created if missing)"))
+    .catch(err => console.error("❌ Database Schema Init Failed:", err));
+} else {
+  console.warn("⚠️ server/schema.sql not found (skipping DB init)");
+}
 
 const app = express();
 app.use(cors());
