@@ -27,7 +27,11 @@ export const AppProvider = ({ children }) => {
   //  ✓ table lost on refresh
   // -----------------------------------
   useEffect(() => {
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_SERVER_URL || (import.meta.env.PROD ? "/" : "http://localhost:3001");
+    // If PROD, force relative path to avoid "localhost" env var overrides
+    const SOCKET_URL = import.meta.env.PROD
+      ? "/"
+      : (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_SERVER_URL || "http://localhost:3001");
+
     const socket = io(SOCKET_URL, {
       transports: ["websocket"],
       reconnection: true,
