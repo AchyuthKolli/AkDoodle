@@ -27,7 +27,8 @@ export const AppProvider = ({ children }) => {
   //  ✓ table lost on refresh
   // -----------------------------------
   useEffect(() => {
-    const socket = io(import.meta.env.VITE_SERVER_URL, {
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_SERVER_URL || (import.meta.env.PROD ? "/" : "http://localhost:3001");
+    const socket = io(SOCKET_URL, {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: Infinity,

@@ -1,7 +1,8 @@
 import { io } from "socket.io-client";
 
 // ✅ Vite environment variable
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
+// ✅ Vite environment variable
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_SERVER_URL || (import.meta.env.PROD ? "/" : "http://localhost:3001");
 
 export const socket = io(SOCKET_URL, {
   transports: ["websocket"],
