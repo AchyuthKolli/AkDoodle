@@ -671,7 +671,6 @@ export default function Table() {
       console.error("Start game error:", e);
       toast.error(e?.response?.data?.error || e?.message || "Failed to start game");
     } finally {
-    } finally {
       setStarting(false);
     }
   };
