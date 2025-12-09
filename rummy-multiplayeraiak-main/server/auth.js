@@ -49,23 +49,52 @@ async function requireAuth(req, res, next) {
   }
 
   try {
-    const googlePayload = await verifyGoogleIdToken(token);
+    let googlePayload;
+    try {
+      // Try treating as ID Token
+      googlePayload = await verifyGoogleIdToken(token);
+    } catch (e) {
+      // Not an ID token, try verification as Access Token
+      const tokenInfo = await client.getTokenInfo(token);
+      // Map TokenInfo to payload-like object
+      // Access Tokens don't always have names/pictures, but we can't fetch them here without extra request.
+      // But verifyGoogleIdToken returns sub. getTokenInfo returns sub (user_id).
+      if (!tokenInfo.sub && !tokenInfo.user_id) throw new Error("Invalid Access Token");
+
+      googlePayload = {
+        sub: tokenInfo.sub || tokenInfo.user_id,
+        email: tokenInfo.email,
+        // Name/Picture are not part of TokenInfo.
+        // We accept this because we might have the user in DB, 
+        // OR we just use the ID. Profile upsert might fail on nulls but that's caught.
+        name: null,
+        picture: null
+      };
+
+      // Since we don't have name/picture in AccessToken validation, 
+      // we might want to fetch it? 
+      // But for now, ensuring we have a valid 'sub' is enough to authorize.
+    }
+
     // googlePayload contains sub, email, name, picture, email_verified etc.
     const userId = googlePayload.sub; // use Google's sub as stable id
+
     // Optional: upsert user profile into profiles table for display_name and picture
-    try {
-      // create profiles table if not exists is outside scope; we assume it's present
-      await execute(
-        `INSERT INTO profiles (user_id, display_name, avatar_url)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (user_id) DO UPDATE
-         SET display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url`,
-        userId,
-        googlePayload.name || null,
-        googlePayload.picture || null
-      );
-    } catch (e) {
-      console.warn("profile upsert failed:", e.message || e);
+    // ONLY if we have name/picture (ID Token case)
+    if (googlePayload.name || googlePayload.picture) {
+      try {
+        await execute(
+          `INSERT INTO profiles (user_id, display_name, avatar_url)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id) DO UPDATE
+           SET display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url`,
+          userId,
+          googlePayload.name || null,
+          googlePayload.picture || null
+        );
+      } catch (e) {
+        console.warn("profile upsert failed:", e.message || e);
+      }
     }
 
     // Issue a local JWT for subsequent calls
@@ -83,13 +112,14 @@ async function requireAuth(req, res, next) {
     // Attach user info to request
     req.user = {
       id: userId,
+      sub: userId, // Ensure sub is present for game.js
       email: googlePayload.email,
       name: googlePayload.name,
       picture: googlePayload.picture,
       jwt: localJwt,
     };
 
-    // For convenience, send the new JWT header back (if API clients want to catch it)
+    // For convenience, send the new JWT header back
     res.setHeader("X-Auth-Token", localJwt);
 
     return next();

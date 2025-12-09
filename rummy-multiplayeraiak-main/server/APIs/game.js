@@ -87,8 +87,8 @@ router.post("/tables", requireAuth, async (req, res) => {
 
     res.json({ table_id, code });
   } catch (e) {
-    console.log(e);
-    res.status(500).json({ error: "Create table failed" });
+    console.error("Create Table Error:", e);
+    res.status(500).json({ error: "Create table failed", details: e.message });
   }
 });
 
