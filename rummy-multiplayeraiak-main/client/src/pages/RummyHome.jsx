@@ -128,7 +128,7 @@ export default function Home() {
       navigate(`/Table?tableId=${data.table_id}`);
     } catch (e) {
       console.error("Join error:", e);
-      const msg = e.response?.data?.error || e.message || "Failed to join room";
+      const msg = e.response?.data?.error || e.response?.data?.detail || e.message || "Failed to join room";
       toast.error(`Join failed: ${msg}`);
     } finally {
       setJoining(false);
