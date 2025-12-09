@@ -33,6 +33,18 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Health
 app.get("/health", (req, res) => res.json({ status: "ok", ts: Date.now() }));
 
+// DB Health Check - Critical for debugging
+app.get("/health/db", async (req, res) => {
+  try {
+    const { pool } = require("./db");
+    // Check if table exists
+    const result = await pool.query("SELECT count(*) FROM rummy_tables");
+    res.json({ status: "connected", tables_count: result.rows[0].count });
+  } catch (e) {
+    res.status(500).json({ status: "error", message: e.message, stack: e.stack });
+  }
+});
+
 // Auto-load routers from server/APIs/*.js
 const apisDir = path.join(__dirname, "APIs");
 if (fs.existsSync(apisDir)) {

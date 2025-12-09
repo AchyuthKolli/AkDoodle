@@ -13,6 +13,8 @@ const pool = new Pool({
   // optionally tune these
   max: 10,
   idleTimeoutMillis: 30000,
+  // Required for Render / Cloud Postgres
+  ssl: process.env.DB_SSL === "false" ? false : { rejectUnauthorized: false },
 });
 
 async function fetchrow(query, ...params) {
