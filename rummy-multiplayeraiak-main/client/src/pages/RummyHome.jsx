@@ -113,15 +113,6 @@ export default function Home() {
       const body = { code: roomCode.trim().toUpperCase() };
       const res = await apiclient.join_table_by_code(body);
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({
-          detail: "Unknown error",
-        }));
-        toast.error(`Join failed: ${err.detail || "Error"}`);
-        setJoining(false);
-        return;
-      }
-
       const data = res.data;
 
       toast.success(`Joined table! Seat ${data.seat}`);
