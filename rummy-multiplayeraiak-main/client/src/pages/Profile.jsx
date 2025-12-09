@@ -64,10 +64,10 @@ export default function Profile() {
                  AuthContext exposes: { user, login, logout, token } 
               */}
             <button
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/rummy/home")}
               className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 rounded-lg font-semibold transition"
             >
-              Back to Home & Sign In
+              Back to Rummy Home & Sign In
             </button>
             <button
               onClick={() => navigate("/")}
