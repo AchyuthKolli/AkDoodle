@@ -71,6 +71,9 @@ const io = socketIO(server, {
 // Attach all socket handlers (your full rummy logic)
 applySocketHandlers(io);
 
+// ✅ Attach io to app so APIs can use it (e.g. req.app.get("io"))
+app.set("io", io);
+
 // =====================================================
 // 🚀 START SERVER (Express + Socket.io)
 // =====================================================

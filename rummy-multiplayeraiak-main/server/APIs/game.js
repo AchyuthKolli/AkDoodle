@@ -276,6 +276,13 @@ router.post("/start-game", requireAuth, async (req, res) => {
       stock_count: stock.length,
       discard_top: serializeCard(discard[0]),
     });
+
+    // 🚀 BROADCAST UPDATE
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      io.to(table_id).emit("round.started", { table_id, round_number: 1 });
+    }
   } catch (e) {
     console.log(e);
     res.status(500).json({ error: "Start game failed" });
@@ -418,12 +425,20 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
     );
 
     // Respond with the stored wild joker rank (may be null in no-joker mode)
-    return res.json({
+    res.json({
       success: true,
       message: "Pure sequence locked. Wild joker revealed (if set).",
       wild_joker_revealed: true,
       wild_joker_rank: rnd.wild_joker_rank || null,
     });
+
+    // 🚀 BROADCAST UPDATE
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      // optionally specific event
+      io.to(table_id).emit("sequence.locked", { user_id: req.user.sub, wild_joker_revealed: true });
+    }
   } catch (e) {
     console.error("lock-sequence error", e);
     res.status(500).json({ success: false, message: "Failed to lock sequence" });
@@ -488,14 +503,23 @@ router.post("/draw/stock", requireAuth, async (req, res) => {
       code: c.joker ? "JOKER" : `${c.rank}${c.suit || ""}`,
     }));
 
-    return res.json({
+    const responseData = {
       table_id,
       round_number: row.number,
       hand: handView,
       stock_count: stock.length,
       discard_top: discard && discard.length ? serializeCard(discard[discard.length - 1]) : null,
       finished_at: row.finished_at ? new Date(row.finished_at).toISOString() : null,
-    });
+    };
+
+    res.json(responseData);
+
+    // 🚀 BROADCAST UPDATE (others need to know stock count changed)
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+    }
+    return;
   } catch (e) {
     console.error("draw/stock error", e);
     res.status(500).json({ error: "Failed to draw from stock" });
@@ -555,14 +579,22 @@ router.post("/draw/discard", requireAuth, async (req, res) => {
       code: c.joker ? "JOKER" : `${c.rank}${c.suit || ""}`,
     }));
 
-    return res.json({
+    const responseData = {
       table_id,
       round_number: row.number,
       hand: handView,
       stock_count: stock.length,
       discard_top: discard && discard.length ? serializeCard(discard[discard.length - 1]) : null,
       finished_at: row.finished_at ? new Date(row.finished_at).toISOString() : null,
-    });
+    };
+    res.json(responseData);
+
+    // 🚀 BROADCAST UPDATE (others need to know discard taken)
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+    }
+    return;
   } catch (e) {
     console.error("draw/discard error", e);
     res.status(500).json({ error: "Failed to draw from discard" });
@@ -653,7 +685,7 @@ router.post("/discard", requireAuth, async (req, res) => {
       code: c.joker ? "JOKER" : `${c.rank}${c.suit || ""}`,
     }));
 
-    return res.json({
+    res.json({
       table_id,
       round_number: row.number,
       hand: handView,
@@ -661,6 +693,18 @@ router.post("/discard", requireAuth, async (req, res) => {
       discard_top: serializeCard(discard[discard.length - 1]),
       next_active_user_id: nextUser,
     });
+
+    // 🚀 BROADCAST UPDATE (Crucial for Discard Logic Fix)
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      // Emit specific event for fast UI reaction
+      io.to(table_id).emit("card.discarded", {
+        user_id: req.user.sub,
+        discard_top: serializeCard(discard[discard.length - 1]),
+        next_active_user_id: nextUser
+      });
+    }
   } catch (e) {
     console.error("discard error", e);
     res.status(500).json({ error: "Failed to discard card" });
@@ -802,13 +846,26 @@ router.post("/declare", requireAuth, async (req, res) => {
     // Also update table status to round_complete
     await db.execute(`UPDATE rummy_tables SET status='playing' WHERE id=$1`, [table_id]); // keep playing flag; front-end expects finished_at to mark end
 
-    return res.json({
+    const responseData = {
       table_id,
       round_number: rnd.number,
       declared_by: req.user.sub,
       status: isValidDeclaration ? "valid" : "invalid",
       scores,
-    });
+    };
+
+    res.json(responseData);
+
+    // 🚀 BROADCAST
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      io.to(table_id).emit("round.declare", {
+        declared_by: req.user.sub,
+        result: { valid: isValidDeclaration, scores }
+      });
+    }
+    return;
   } catch (e) {
     console.error("declare error", e);
     res.status(500).json({ error: "Failed to process declaration" });
@@ -966,7 +1023,16 @@ router.post("/round/next", requireAuth, async (req, res) => {
 
     await db.execute(`UPDATE rummy_tables SET status='playing', updated_at=now() WHERE id=$1`, [table_id]);
 
-    return res.json({ table_id, number: nextNumber, active_user_id: activePlayers[0] });
+    const responseData = { table_id, number: nextNumber, active_user_id: activePlayers[0] };
+    res.json(responseData);
+
+    // 🚀 BROADCAST
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      io.to(table_id).emit("round.started", { table_id, round_number: nextNumber });
+    }
+    return;
   } catch (e) {
     console.error("round/next error", e);
     res.status(500).json({ error: "Failed to start next round" });
@@ -1021,7 +1087,16 @@ router.post("/game/drop", requireAuth, async (req, res) => {
     // mark player spectator & apply penalty
     await db.execute(`UPDATE rummy_table_players SET is_spectator=true, total_points = COALESCE(total_points,0) + 20, eliminated_at=now() WHERE table_id=$1 AND user_id=$2`, [table_id, req.user.sub]);
 
-    return res.json({ success: true, penalty_points: 20 });
+    const responseData = { success: true, penalty_points: 20 };
+    res.json(responseData);
+
+    // 🚀 BROADCAST
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      io.to(table_id).emit("player.dropped", { user_id: req.user.sub, penalty: 20 });
+    }
+    return;
   } catch (e) {
     console.error("drop error", e);
     res.status(500).json({ error: "Failed to drop" });

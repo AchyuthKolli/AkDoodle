@@ -1,8 +1,8 @@
 // client/src/apiclient/index.js
 import axios from "axios";
 
-// ✅ Use env var for production
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+// ✅ Use env var for production, fallback to relative path if deployed (same-origin), else localhost
+const BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "/" : "http://localhost:3001");
 
 const api = axios.create({
   baseURL: BASE_URL,

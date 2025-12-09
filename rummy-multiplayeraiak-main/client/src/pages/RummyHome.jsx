@@ -22,10 +22,10 @@ import { toast } from "sonner";
 // API Client (your folder moved to src/apiclient)
 import apiclient from "../apiclient";
 
-// Auth (Stackframe) — keep as is, Vite-compatible
-import { useUser } from "@stackframe/react";
-import { stackClientApp } from "../auth/stackClientApp";
-// ⚠ Make sure you place stackClientApp here: client/src/auth/stackClientApp.js
+// Auth (Google)
+import { useAuth } from "../auth/AuthContext";
+// import stackClientApp removed 
+
 
 
 // ----------------------------------------------------
@@ -79,8 +79,8 @@ const gameVariants = [
 // ----------------------------------------------------
 export default function Home() {
   const navigate = useNavigate();
-  // const user = useUser(); // Stackframe context missing
-  const user = null; // Prevent crash until Stackframe is configured
+  const { user, login, logout } = useAuth();
+
 
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -137,11 +137,11 @@ export default function Home() {
   // Auth Actions
   // -----------------------------
   const handleSignIn = () => {
-    stackClientApp.redirectToSignIn();
+    login(); // Triggers Google Popup
   };
 
   const handleSignOut = async () => {
-    await stackClientApp.signOut();
+    logout();
     toast.success("Signed out successfully");
   };
 

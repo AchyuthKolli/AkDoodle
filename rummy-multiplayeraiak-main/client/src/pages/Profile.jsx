@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@stackframe/react";
+import { useAuth } from "../auth/AuthContext";
 import { LogOut, ArrowLeft, UserPlus, Trash2 } from "lucide-react";
 
 export default function Profile() {
   const navigate = useNavigate();
-  // const user = useUser(); // Stackframe context missing
-  const user = null; // Prevent crash until Stackframe is configured
+  const { user, logout: contextLogout } = useAuth();
 
   // Static Friend List
   const staticFriends = [
@@ -42,13 +41,9 @@ export default function Profile() {
     setFriends(friends.filter((f) => f.id !== id));
   };
 
-  const logout = async () => {
-    try {
-      await window.stackClientApp.signOut();
-      navigate("/");
-    } catch (e) {
-      console.error(e);
-    }
+  const logout = () => {
+    contextLogout();
+    navigate("/");
   };
 
   if (!user) {
