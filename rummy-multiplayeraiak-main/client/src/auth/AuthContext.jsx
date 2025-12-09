@@ -55,14 +55,14 @@ export const AuthProvider = ({ children }) => {
 
     return (
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-            <AuthContextInner user={user} setUser={setUser} setToken={setToken} logout={logout}>
+            <AuthContextInner user={user} setUser={setUser} token={token} setToken={setToken} logout={logout}>
                 {children}
             </AuthContextInner>
         </GoogleOAuthProvider>
     );
 };
 
-const AuthContextInner = ({ children, user, setUser, setToken, logout }) => {
+const AuthContextInner = ({ children, user, setUser, token, setToken, logout }) => {
     const login = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             // This gives Access Token (not ID Token) by default unless flow is configured?
