@@ -103,7 +103,7 @@ export default function CreateTable() {
       };
 
       const res = await apiclient.create_table(body);
-      const data = await res.json();
+      const data = res.data;
 
       setGeneratedCode(data.code);
       setTableId(data.table_id);
