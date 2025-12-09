@@ -5,8 +5,8 @@ import { toast } from "sonner";
 
 const AuthContext = createContext(null);
 
-// Get Client ID from env or fallback to a placeholder (user must set this)
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID_HERE";
+// Hard-coded fallback for dev/demo if env missing - typically effectively "null" or "invalid" to prevent crash
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -44,6 +44,15 @@ export const AuthProvider = ({ children }) => {
         toast.success("Signed out");
     };
 
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === "YOUR_GOOGLE_CLIENT_ID_HERE") {
+        console.warn("⚠️ VITE_GOOGLE_CLIENT_ID is not set! Google Login will not function.");
+        return (
+            <AuthContext.Provider value={{ user, login: () => toast.error("Google Login Config Missing"), logout, token }}>
+                {children}
+            </AuthContext.Provider>
+        );
+    }
+
     return (
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
             <AuthContextInner user={user} setUser={setUser} setToken={setToken} logout={logout}>
@@ -68,6 +77,7 @@ const AuthContextInner = ({ children, user, setUser, setToken, logout }) => {
 
                 // Map to our user shape
                 const userPayload = {
+                    id: profile.sub,
                     sub: profile.sub,
                     displayName: profile.name,
                     email: profile.email,
@@ -77,7 +87,9 @@ const AuthContextInner = ({ children, user, setUser, setToken, logout }) => {
 
                 setUser(userPayload);
                 setToken(tokenResponse.access_token); // store access token as "auth" for now, ideally backend exchanges it
-                localStorage.setItem("auth_token", tokenResponse.access_token); // Warning: Access tokens expire.
+                // WARNING: Storing Access Token as JWT storage source is risky if code assumes it's JWT. 
+                // But catching existing logic.
+                localStorage.setItem("auth_token", tokenResponse.access_token);
 
                 toast.success(`Welcome, ${profile.given_name}!`);
             } catch (err) {

@@ -21,7 +21,8 @@ import { toast } from "sonner";
 import apiclient from "../apiclient";
 
 // ✔ Authentication
-import { useUser } from "@stackframe/react";
+// ✔ Authentication
+import { useAuth } from "../auth/AuthContext";
 
 const variantConfigs = {
   no_wildcard: {
@@ -50,7 +51,7 @@ const variantConfigs = {
 export default function CreateTable() {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
-  const user = useUser();
+  const { user } = useAuth();
 
   const variantId = sp.get("variant") || "open_wildcard";
   const variant = variantConfigs[variantId] || variantConfigs.open_wildcard;
@@ -329,11 +330,10 @@ export default function CreateTable() {
                 {/* Ace = 1 */}
                 <button
                   onClick={() => setAceValue(1)}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    aceValue === 1
+                  className={`p-4 rounded-lg border-2 transition-all ${aceValue === 1
                       ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
                       : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
-                  }`}
+                    }`}
                 >
                   <div className="text-2xl font-bold">1</div>
                   <div className="text-xs mt-1 opacity-80">Point</div>
@@ -342,11 +342,10 @@ export default function CreateTable() {
                 {/* Ace = 10 */}
                 <button
                   onClick={() => setAceValue(10)}
-                  className={`p-4 rounded-lg border-2 transition-all ${
-                    aceValue === 10
+                  className={`p-4 rounded-lg border-2 transition-all ${aceValue === 10
                       ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
                       : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
-                  }`}
+                    }`}
                 >
                   <div className="text-2xl font-bold">10</div>
                   <div className="text-xs mt-1 opacity-80">Points</div>

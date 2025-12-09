@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import apiclient from "../apiclient";
-import { useUser } from "@stackframe/react";
+import { useAuth } from "../auth/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 export default function ProfileCard() {
-  const user = useUser();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);

@@ -56,7 +56,7 @@ import { initCursorSpark } from "../utils/cursor-spark"; // sparkles
 
 // ui
 import { Button } from "@/components/ui/Button";
-import { useUser } from "@stackframe/react"; // keep as-is if you have this provider
+import { useAuth } from "../auth/AuthContext";
 
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
@@ -359,7 +359,7 @@ const LeftoverSlotBox = ({
 export default function Table() {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
-  const user = useUser();
+  const { user } = useAuth();
   const tableId = sp.get("tableId");
 
   // State
