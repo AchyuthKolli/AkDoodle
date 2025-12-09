@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import { useGoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "sonner";
 
@@ -43,10 +43,8 @@ export const AuthProvider = ({ children }) => {
         toast.success("Signed out");
     };
 
-    // ... (rest of provider)
-
-    // ... (Inner)
-    const login = useGoogleLogin({
+    // useGoogleLogin is now safe to call because main.jsx provides the Context globally
+    const googleLogin = useGoogleLogin({
         onSuccess: async (tokenResponse) => {
             try {
                 const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
@@ -79,6 +77,14 @@ export const AuthProvider = ({ children }) => {
         },
         onError: () => toast.error("Google Login Failed"),
     });
+
+    const login = () => {
+        if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes("YOUR_GOOGLE_CLIENT_ID") || GOOGLE_CLIENT_ID === "mock_client_id_to_prevent_crash") {
+            toast.error("Google Login not configured");
+            return;
+        }
+        googleLogin();
+    };
 
     return (
         <AuthContext.Provider value={{ user, login, logout, token }}>
