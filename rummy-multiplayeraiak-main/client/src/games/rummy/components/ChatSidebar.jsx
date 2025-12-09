@@ -159,10 +159,10 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
           {/* Profile Button */}
           <div className="p-4 border-b border-border">
             <Button
-              onClick={() => navigate("/profile")}
+              onClick={() => window.open("/profile", "_blank")}
               className="w-full bg-blue-900 hover:bg-blue-800 text-white"
             >
-              My Profile
+              My Profile (New Tab)
             </Button>
           </div>
 

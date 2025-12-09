@@ -15,13 +15,16 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Load persisted session
         const savedToken = localStorage.getItem("auth_token");
+        console.log("🔐 AuthContext Init. Token found?", !!savedToken);
         if (savedToken) {
             try {
                 const decoded = jwtDecode(savedToken);
+                console.log("✅ Token decoded:", decoded);
                 // Check expiry if needed
                 setUser(decoded);
                 setToken(savedToken);
             } catch (e) {
+                console.error("❌ Token decode failed:", e);
                 localStorage.removeItem("auth_token");
             }
         }
