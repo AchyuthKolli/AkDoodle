@@ -72,6 +72,11 @@ export default function CreateTable() {
   }, [user]);
 
   const handleCreateRoom = async () => {
+    if (!user) {
+      toast.error("Please Sign In to create a room");
+      return;
+    }
+
     if (!playerName.trim()) {
       toast.error("Enter your name");
       return;
@@ -331,8 +336,8 @@ export default function CreateTable() {
                 <button
                   onClick={() => setAceValue(1)}
                   className={`p-4 rounded-lg border-2 transition-all ${aceValue === 1
-                      ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
-                      : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
+                    ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
+                    : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
                     }`}
                 >
                   <div className="text-2xl font-bold">1</div>
@@ -343,8 +348,8 @@ export default function CreateTable() {
                 <button
                   onClick={() => setAceValue(10)}
                   className={`p-4 rounded-lg border-2 transition-all ${aceValue === 10
-                      ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
-                      : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
+                    ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
+                    : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
                     }`}
                 >
                   <div className="text-2xl font-bold">10</div>
