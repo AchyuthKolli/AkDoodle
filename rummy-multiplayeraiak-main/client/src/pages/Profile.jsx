@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { LogOut, ArrowLeft, UserPlus, Trash2 } from "lucide-react";
+import { LogOut, ArrowLeft, UserPlus, Trash2, User2 } from "lucide-react";
 
 export default function Profile() {
   const navigate = useNavigate();
