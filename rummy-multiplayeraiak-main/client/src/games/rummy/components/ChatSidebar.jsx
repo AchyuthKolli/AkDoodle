@@ -103,24 +103,52 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
     }
   };
 
-  // Detect @name for private chat
-  const onInputChange = (value) => {
-    setMessageText(value);
+  /* New State for @suggestions */
+  const [suggestions, setSuggestions] = useState([]);
+  const [cursorPosition, setCursorPosition] = useState(0);
 
-    const match = value.match(/^@(\w+)/);
+  // Detect @name for private chat
+  const onInputChange = (value, selectionStart) => {
+    setMessageText(value);
+    setCursorPosition(selectionStart || value.length);
+
+    // Regex to find the last @word sequence
+    const match = value.match(/@(\w*)$/);
     if (match) {
-      const name = match[1].toLowerCase();
-      const found = players.find((p) =>
-        p.displayName.toLowerCase().startsWith(name)
+      const query = match[1].toLowerCase();
+      const filtered = players.filter((p) =>
+        p.displayName.toLowerCase().startsWith(query) && p.userId !== currentUserId
       );
-      if (found && found.userId !== currentUserId) {
-        setRecipient(found.userId);
-        return;
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+      // Check if we are still securely targeting a user (simple existing logic)
+      const existingMatch = value.match(/^@(\w+)/);
+      if (existingMatch) {
+        const name = existingMatch[1].toLowerCase();
+        const found = players.find((p) => p.displayName.toLowerCase() === name);
+        if (found) setRecipient(found.userId);
+        else setRecipient(null);
+      } else {
+        setRecipient(null);
       }
     }
-
-    setRecipient(null);
   };
+
+  const selectSuggestion = (player) => {
+    setRecipient(player.userId);
+    // Replace the @query with @Displayname
+    const newValue = messageText.replace(/@(\w*)$/, `@${player.displayName} `);
+    setMessageText(newValue);
+    setSuggestions([]);
+    if (inputRef.current) inputRef.current.focus();
+  };
+
+  // Re-sync recipient if text changes totally (already mostly handled above)
+  useEffect(() => {
+    if (!messageText.includes("@")) setRecipient(null);
+  }, [messageText]);
+
 
   const getRecipientName = () => {
     return players.find((p) => p.userId === recipient)?.displayName;
@@ -231,7 +259,25 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
           </ScrollArea>
 
           {/* Input */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border relative">
+            {/* Suggestions Dropdown */}
+            {suggestions.length > 0 && (
+              <div className="absolute bottom-full left-4 bg-slate-800 border border-slate-700 rounded-lg shadow-xl mb-2 min-w-[200px] overflow-hidden z-50">
+                {suggestions.map(p => (
+                  <div
+                    key={p.userId}
+                    onClick={() => selectSuggestion(p)}
+                    className="px-3 py-2 hover:bg-slate-700 cursor-pointer flex items-center gap-2"
+                  >
+                    <div className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0 bg-gray-600">
+                      {p.profileImage && <img src={p.profileImage} className="w-full h-full object-cover" />}
+                    </div>
+                    <span className="text-sm font-medium text-slate-200">{p.displayName}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {recipient && (
               <div className="mb-2 flex items-center gap-2 text-xs bg-yellow-500/10 text-yellow-600 px-2 py-1 rounded">
                 <Lock className="h-3 w-3" />
@@ -254,7 +300,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
               <Input
                 ref={inputRef}
                 value={messageText}
-                onChange={(e) => onInputChange(e.target.value)}
+                onChange={(e) => onInputChange(e.target.value, e.target.selectionStart)}
                 onKeyPress={handleKeyPress}
                 placeholder="Type a message… (@name for private)"
                 className="flex-1"

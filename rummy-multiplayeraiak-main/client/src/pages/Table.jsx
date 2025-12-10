@@ -104,25 +104,9 @@ const MeldSlotBox = ({
       }
 
       const newSlots = [...slots];
-
-      // Check if card exists in THIS meld (reordering/moving within same meld)
-      const existingIndex = newSlots.findIndex(
-        (s) => s && s.rank === card.rank && s.suit === card.suit && s.joker === card.joker
-      );
-
-      if (existingIndex !== -1) {
-        // Remove from old position
-        newSlots[existingIndex] = null;
-      }
-
       newSlots[slotIndex] = card;
       setSlots(newSlots);
-
-      if (existingIndex !== -1) {
-        toast.success("Card moved");
-      } else {
-        toast.success(`Card placed in ${title} slot ${slotIndex + 1}`);
-      }
+      toast.success(`Card placed in ${title} slot ${slotIndex + 1}`);
     } catch (e) {
       toast.error("Invalid card data");
     }
@@ -260,24 +244,9 @@ const LeftoverSlotBox = ({
         return;
       }
       const newSlots = [...slots];
-
-      // Check if card exists in THIS box (reorder)
-      const existingIndex = newSlots.findIndex(
-        (s) => s && s.rank === card.rank && s.suit === card.suit && s.joker === card.joker
-      );
-
-      if (existingIndex !== -1) {
-        newSlots[existingIndex] = null;
-      }
-
       newSlots[slotIndex] = card;
       setSlots(newSlots);
-
-      if (existingIndex !== -1) {
-        toast.success("Card moved");
-      } else {
-        toast.success(`Card placed in leftover slot ${slotIndex + 1}`);
-      }
+      toast.success(`Card placed in leftover slot ${slotIndex + 1}`);
     } catch (e) {
       toast.error("Invalid card data");
     }
@@ -1381,8 +1350,12 @@ export default function Table() {
                               <div className="grid grid-cols-1 gap-3">
                                 {info.players.map((p) => (
                                   <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center border border-green-600/50">
-                                      <User2 className="w-5 h-5 text-green-100" />
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center border border-green-600/50 overflow-hidden bg-black">
+                                      {p.profile_image_url ? (
+                                        <img src={p.profile_image_url} alt="avatar" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <User2 className="w-5 h-5 text-green-100" />
+                                      )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-foreground text-sm font-medium truncate">{p.display_name || "Player"}</p>
