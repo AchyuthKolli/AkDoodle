@@ -36,7 +36,7 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 
     // Get players with profile images
     const players = await db.fetch(
-      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, rp.profile_image_url 
+      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, rp.avatar_url as profile_image_url 
        FROM rummy_table_players p
        LEFT JOIN rummy_profiles rp ON p.user_id = rp.id
        WHERE p.table_id=$1 
