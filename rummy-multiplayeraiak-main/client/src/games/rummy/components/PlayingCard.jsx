@@ -57,7 +57,7 @@ export default function PlayingCard({
   const rank = card.rank.toString().toUpperCase();
   const suit = (card.suit || "").toUpperCase();
 
-  const filename = `${rank}${suit}.png`; // H10.png, CA.png, SQ.png etc.
+  const filename = `${suit}${rank}.png`; // H10.png, CA.png, SQ.png etc.
   const src = `/cards/${filename}`;
 
   const fallback = (e) => {

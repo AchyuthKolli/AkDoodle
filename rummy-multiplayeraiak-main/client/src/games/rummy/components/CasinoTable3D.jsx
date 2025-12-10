@@ -4,19 +4,15 @@ export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
   console.log('🎨 CasinoTable3D rendering with color:', tableColor);
 
   // Calculate colors directly - no useMemo to ensure instant updates
-  const mainColor = tableColor === 'green' ? '#15803d' : tableColor === 'black' ? '#0f172a' : '#6b2f2f';
+  const mainColor = tableColor === 'green' ? '#15803d' : '#6b2f2f';
   const gradientColor = tableColor === 'green'
     ? 'linear-gradient(135deg, #15803d 0%, #16a34a 50%, #15803d 100%)'
-    : tableColor === 'black'
-      ? 'linear-gradient(135deg, #020617 0%, #1e293b 50%, #020617 100%)'
-      : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
+    : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
 
   // Edge/border color (darker than main)
   const edgeColor = tableColor === 'green'
     ? 'linear-gradient(135deg, #14532d 0%, #15803d 50%, #14532d 100%)'
-    : tableColor === 'black'
-      ? 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%)'
-      : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
+    : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
 
   return (
     <div className="relative w-full h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-8" data-table-color={tableColor}>
@@ -31,7 +27,7 @@ export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
       }}>
         {/* Main Casino Table - GREEN/RED-BROWN FELT */}
         <div
-          className="relative w-full max-w-3xl aspect-square max-h-[500px] rounded-[40px] shadow-2xl"
+          className="relative w-full max-w-3xl aspect-square max-h-[500px] rounded-[30px] shadow-2xl transition-colors duration-500"
           style={{
             transform: 'rotateX(20deg) rotateZ(0deg)',
             transformStyle: 'preserve-3d',
@@ -57,7 +53,7 @@ export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
                   rgba(0, 0, 0, 0.03) 4px
                 ),
                 repeating-linear-gradient(
-                  -45deg,
+                -45deg,
                   transparent,
                   transparent 2px,
                   rgba(0, 0, 0, 0.03) 2px,
@@ -69,7 +65,7 @@ export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
 
           {/* Table Edge (Padded Leather) */}
           <div
-            className="absolute -inset-4 rounded-[44px] -z-10"
+            className="absolute -inset-4 rounded-[44px] -z-10 transition-colors duration-500"
             style={{
               background: edgeColor,
               boxShadow: `

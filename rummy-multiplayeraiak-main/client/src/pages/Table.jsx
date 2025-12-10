@@ -376,6 +376,7 @@ export default function Table() {
   const [roundHistory, setRoundHistory] = useState([]);
   const [tableColor, setTableColor] = useState("green");
   const [voiceMuted, setVoiceMuted] = useState(false);
+
   const [droppingGame, setDroppingGame] = useState(false);
   const [spectateRequested, setSpectateRequested] = useState(false);
   const [spectateRequests, setSpectateRequests] = useState([]);
@@ -1129,56 +1130,71 @@ export default function Table() {
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
                       {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="relative flex-1 min-h-[360px] bg-emerald-900/30 rounded-xl border border-emerald-700/50 mb-4 overflow-hidden shadow-inner">
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-800/20 via-slate-900/60 to-slate-950/80 pointer-events-none" />
-
-                        {/* Opponent Avatars */}
-                        <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
-
-                        {/* Center Piles (Deck & Discard) */}
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-12 z-10">
-                          {/* Deck/Stock */}
-                          <div
-                            onClick={onDrawStock}
-                            className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
-                          >
-                            <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
-                            <CardBack className="w-24 h-36 shadow-2xl relative z-10" />
-                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
-                              Deck ({myRound?.stock_count || 0})
-                            </div>
+                      {/* Top: Table Area (Opponents + Center Piles) */}
+                      <div className="relative flex-1 min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
+                        <CasinoTable3D tableColor={tableColor}>
+                          {/* Color Toggle */}
+                          <div className="absolute top-4 right-4 z-50 flex gap-2">
+                            <button
+                              onClick={() => setTableColor("green")}
+                              className={`w-6 h-6 rounded-full border-2 ${tableColor === "green" ? "border-white scale-110 shadow-lg" : "border-green-800/50"} bg-green-700`}
+                              title="Green Felt"
+                            />
+                            <button
+                              onClick={() => setTableColor("red-brown")}
+                              className={`w-6 h-6 rounded-full border-2 ${tableColor === "red-brown" ? "border-white scale-110 shadow-lg" : "border-red-900/50"} bg-[#6b2f2f]`}
+                              title="Red-Brown Felt"
+                            />
                           </div>
 
-                          {/* Discard Pile */}
-                          <div
-                            onClick={onDrawDiscard}
-                            className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
-                          >
-                            <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn && myRound?.discard_top ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
-                            {myRound?.discard_top ? (
-                              <PlayingCard
-                                card={parseCardCode(myRound.discard_top) || { rank: "?", suit: "?" }}
-                                onClick={() => { }}
-                                className="w-24 h-36 shadow-2xl relative z-10"
-                              />
-                            ) : (
-                              <div className="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
-                                Empty
+                          {/* Opponent Avatars */}
+                          <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
+
+                          {/* Center Piles (Deck & Discard) */}
+                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-12 z-10">
+                            {/* Deck/Stock */}
+                            <div
+                              onClick={onDrawStock}
+                              className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
+                            >
+                              <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
+                              <CardBack className="w-24 h-36 shadow-2xl relative z-10" />
+                              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                                Deck ({myRound?.stock_count || 0})
                               </div>
-                            )}
-                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
-                              Discard Pile
+                            </div>
+
+                            {/* Discard Pile */}
+                            <div
+                              onClick={onDrawDiscard}
+                              className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
+                            >
+                              <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn && myRound?.discard_top ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
+                              {myRound?.discard_top ? (
+                                <PlayingCard
+                                  card={parseCardCode(myRound.discard_top) || { rank: "?", suit: "?" }}
+                                  onClick={() => { }}
+                                  className="w-24 h-36 shadow-2xl relative z-10"
+                                />
+                              ) : (
+                                <div className="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
+                                  Empty
+                                </div>
+                              )}
+                              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                                Discard Pile
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Wild Joker Display on Table */}
-                        {revealedWildJoker && (
-                          <div className="absolute top-4 left-4 bg-black/40 backdrop-blur border border-yellow-500/30 p-2 rounded-lg flex flex-col items-center">
-                            <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">Wild Joker</span>
-                            <div className="text-xl font-bold text-white">{revealedWildJoker}</div>
-                          </div>
-                        )}
+                          {/* Wild Joker Display on Table */}
+                          {revealedWildJoker && (
+                            <div className="absolute top-4 left-4 bg-black/40 backdrop-blur border border-yellow-500/30 p-2 rounded-lg flex flex-col items-center">
+                              <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">Wild Joker</span>
+                              <div className="text-xl font-bold text-white">{revealedWildJoker}</div>
+                            </div>
+                          )}
+                        </CasinoTable3D>
                       </div>
 
                       {/* Bottom: Player Area (Melds + Hand) */}
