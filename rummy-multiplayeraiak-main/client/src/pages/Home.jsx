@@ -22,26 +22,13 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // optional cursor-spark loader (non-blocking)
-    (async () => {
-      const possible = [
-        "../utils/cursor-spark",
-        "./utils/cursor-spark",
-        "/utils/cursor-spark",
-        "/src/utils/cursor-spark",
-        "/assets/utils/cursor-spark",
-      ];
-      for (const p of possible) {
-        try {
-          // @vite-ignore
-          const mod = await import(p);
-          const fn = mod.default || mod.initSparkles || mod.init || mod.start;
-          if (typeof fn === "function") { try { fn(); } catch (e) { }; break; }
-        } catch (e) {
-          // ignore
-        }
-      }
-    })();
+    // Cursor spark effect
+    import("../utils/cursor-spark")
+      .then((mod) => {
+        if (mod.initCursorSpark) mod.initCursorSpark();
+        else if (mod.default) mod.default();
+      })
+      .catch(() => { });
 
     const canvas = canvasRef.current;
     if (!canvas || !canvas.getContext) return;

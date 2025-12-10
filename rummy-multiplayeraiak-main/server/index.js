@@ -100,9 +100,12 @@ if (fs.existsSync(clientDistPath)) {
 
   // SPA Fallback: API routes marked above; anything else -> index.html
   app.get("*", (req, res) => {
+    console.log("⚠️ Catch-all hit for:", req.url);
     if (req.path.startsWith("/api")) {
+      console.log("❌ 404 for API route:", req.path);
       return res.status(404).json({ error: "API route not found" });
     }
+    console.log("📄 Serving index.html for:", req.path);
     res.sendFile(path.join(clientDistPath, "index.html"));
   });
 } else {

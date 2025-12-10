@@ -11,6 +11,11 @@ const api = axios.create({
   timeout: 10000,
 });
 
+api.interceptors.request.use((config) => {
+  console.log("📡 API Request:", config.method.toUpperCase(), config.url, "Full:", config.baseURL + config.url);
+  return config;
+});
+
 // Add token interceptor if auth uses localStorage (assuming standard stackframe or similar)
 api.interceptors.request.use((config) => {
   // Try to find token in localStorage if your auth system uses it
