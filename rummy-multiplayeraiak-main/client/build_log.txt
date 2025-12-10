@@ -1,0 +1,29 @@
+
+> rummy-multiplayer-aiak@1.0.0 build
+> vite build
+
+[36mvite v7.2.2 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 1598 modules transformed.
+[31m✗[39m Build failed in 6.77s
+[31merror during build:
+[31msrc/pages/Table.jsx (44:7): "default" is not exported by "src/games/rummy/components/WildJokerRevealModal.jsx", imported by "src/pages/Table.jsx".[31m
+file: [36mC:/Users/achyu/Downloads/rummy-multiplayeraiak-main visual Workspace/rummy-multiplayeraiak-main/client/src/pages/Table.jsx:44:7[31m
+[33m
+42: import GameHistory from "../games/rummy/components/GameHistory.jsx";
+43: import SpectateControls from "../games/rummy/components/SpectateControls.jsx";
+44: import WildJokerRevealModal from "../games/rummy/components/WildJokerRevealModal.jsx";
+           ^
+45: import ScoreboardModal from "../games/rummy/components/ScoreboardModal.jsx";
+46: import PointsTable from "../games/rummy/components/PointsTable.jsx";
+[31m
+    at getRollupError (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/parseAst.js:401:41)
+    at error (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/parseAst.js:397:42)
+    at Module.error (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:16956:16)
+    at Module.traceVariable (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:17412:29)
+    at ModuleScope.findVariable (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:15076:39)
+    at ReturnValueScope.findVariable (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at FunctionBodyScope.findVariable (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:5649:38)
+    at Identifier.bind (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:5423:40)
+    at CallExpression.bind (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:2809:28)
+    at CallExpression.bind (file:///C:/Users/achyu/Downloads/rummy-multiplayeraiak-main%20visual%20Workspace/rummy-multiplayeraiak-main/client/node_modules/rollup/dist/es/shared/node-entry.js:12123:15)[39m

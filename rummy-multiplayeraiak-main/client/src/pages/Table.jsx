@@ -35,7 +35,7 @@ import { toast } from "sonner";
 // ✅ ALL RUMMY COMPONENTS NOW UNDER games/rummy/
 import { HandStrip } from "../games/rummy/components/HandStrip.jsx";
 import { TableDiagram } from "../games/rummy/components/TableDiagram.jsx";
-import { CasinoTable3D } from "../games/rummy/components/CasinoTable3D.jsx";
+import CasinoTable3D from "../games/rummy/components/CasinoTable3D.jsx";
 import { PlayerProfile } from "../games/rummy/components/PlayerProfile.jsx";
 import PlayingCard from "../games/rummy/components/PlayingCard.jsx";
 import { GameRules } from "../games/rummy/components/GameRules.jsx";
@@ -60,12 +60,12 @@ import { useAuth } from "../auth/AuthContext";
 
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
-  <div className={`relative bg-slate-800 rounded-lg border-2 border-slate-600 shadow-lg ${className}`}>
+  <div className={`relative bg-white rounded-lg border-2 border-gray-300 shadow-lg ${className}`}>
     <div className="absolute inset-0 rounded-lg overflow-hidden">
       <div
         className="w-full h-full"
         style={{
-          background: "repeating-linear-gradient(45deg, #334155 0px, #334155 10px, #1e293b 10px, #1e293b 20px)",
+          background: "repeating-linear-gradient(45deg, #dc2626 0px, #dc2626 10px, white 10px, white 20px)",
         }}
       />
     </div>
@@ -133,7 +133,7 @@ const MeldSlotBox = ({
       const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
       const body = { table_id: tableId, meld: meldCards };
       const res = await apiclient.lock_sequence(body);
-      const data = res.data;
+      const data = await res.json();
       if (data.success) {
         toast.success(data.message);
         if (onToggleLock) onToggleLock();
@@ -270,7 +270,7 @@ const LeftoverSlotBox = ({
       const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
       const body = { table_id: tableId, meld: meldCards };
       const res = await apiclient.lock_sequence(body);
-      const data = res.data;
+      const data = await res.json();
       if (data.success) {
         toast.success(data.message);
         if (onToggleLock) onToggleLock();
@@ -468,7 +468,7 @@ export default function Table() {
     if (!tableId || !user) return;
 
     // join
-    joinRoom(tableId, user.id, user.displayName);
+    joinRoom(tableId, user.id);
     console.log("🟢 Joined socket room:", tableId);
 
     // game update -> refresh quickly (small debounce)
@@ -477,13 +477,6 @@ export default function Table() {
       setTimeout(() => {
         refresh().catch((e) => console.warn("refresh error", e));
       }, 150);
-    });
-
-    // LISTENER FOR ROUND START (Fixes "Game Started" redirect issue)
-    socket.on("round.started", (data) => {
-      console.log("🚀 Round started:", data);
-      toast.success("Game Started!");
-      setTimeout(() => refresh(), 100);
     });
 
     onDeclareUpdate(() => {
@@ -557,8 +550,13 @@ export default function Table() {
     try {
       const query = { table_id: tableId };
       const res = await apiclient.get_table_info(query);
-      // If error status, apiclient interceptor throws, caught in catch block
-      const data = res.data;
+      if (!res.ok) {
+        console.error("❌ get_table_info failed with status:", res.status);
+        toast.error("Failed to refresh table info");
+        setLoading(false);
+        return;
+      }
+      const data = await res.json();
 
       // detect player leaves (compare previous players)
       try {
@@ -596,17 +594,21 @@ export default function Table() {
       if (data.status === "playing") {
         const r = { table_id: tableId };
         const rr = await apiclient.get_round_me(r);
-        setMyRound(rr.data);
-        const newHasDrawn = rr.data.hand.length === 14;
+        if (!rr.ok) {
+          console.error("❌ get_round_me failed with status:", rr.status);
+          toast.error("Failed to refresh hand");
+          setLoading(false);
+          return;
+        }
+        const roundData = await rr.json();
+        setMyRound(roundData);
+        const newHasDrawn = roundData.hand.length === 14;
         setHasDrawn(newHasDrawn);
       }
       setLoading(false);
     } catch (e) {
-      // get_round_me failing is common if round hasn't started for user yet, just log valid errors
-      if (e.response && e.response.status !== 404) {
-        console.error("❌ Failed to refresh:", e);
-        toast.error("Connection error - retrying...");
-      }
+      console.error("❌ Failed to refresh:", e);
+      toast.error("Connection error - retrying...");
       setLoading(false);
     }
   };
@@ -615,7 +617,7 @@ export default function Table() {
     if (!info?.table_id) return;
     try {
       const response = await apiclient.get_round_history({ table_id: info.table_id });
-      const data = response.data;
+      const data = await response.json();
       setRoundHistory(data.rounds || []);
     } catch (error) {
       console.error("Failed to fetch round history:", error);
@@ -671,12 +673,18 @@ export default function Table() {
       const deck_count = determineDecksForPlayers(info.players.length);
       const body = { table_id: tableId, deck_count };
       const res = await apiclient.start_game(body);
-      const data = res.data;
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Start game failed:", errorText);
+        toast.error(`Failed to start game: ${errorText}`);
+        return;
+      }
+      const data = await res.json();
       toast.success(`Round #${data.number} started`);
       await refresh();
     } catch (e) {
       console.error("Start game error:", e);
-      toast.error(e?.response?.data?.error || e?.message || "Failed to start game");
+      toast.error(e?.message || "Failed to start game");
     } finally {
       setStarting(false);
     }
@@ -688,7 +696,13 @@ export default function Table() {
     try {
       const body = { table_id: tableId };
       const res = await apiclient.draw_stock(body);
-      const data = res.data;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "draw_stock failed");
+        toast.error(errText);
+        setActing(false);
+        return;
+      }
+      const data = await res.json();
       setMyRound(data);
       try {
         const prevHand = myRound?.hand || [];
@@ -703,7 +717,7 @@ export default function Table() {
       setTimeout(() => refresh(), 120);
     } catch (e) {
       console.error("draw stock error", e);
-      toast.error(e?.response?.data?.error || "Failed to draw from stock");
+      toast.error("Failed to draw from stock");
     } finally {
       setActing(false);
     }
@@ -715,7 +729,13 @@ export default function Table() {
     try {
       const body = { table_id: tableId };
       const res = await apiclient.draw_discard(body);
-      const data = res.data;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "draw_discard failed");
+        toast.error(errText);
+        setActing(false);
+        return;
+      }
+      const data = await res.json();
       setMyRound(data);
       try {
         const prevHand = myRound?.hand || [];
@@ -738,7 +758,7 @@ export default function Table() {
       setTimeout(() => refresh(), 120);
     } catch (e) {
       console.error("draw discard error", e);
-      toast.error(e?.response?.data?.error || "Failed to draw from discard");
+      toast.error("Failed to draw from discard");
     } finally {
       setActing(false);
     }
@@ -750,7 +770,13 @@ export default function Table() {
     try {
       const body = { table_id: tableId, card: selectedCard };
       const res = await apiclient.discard_card(body);
-      const data = res.data;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "discard failed");
+        toast.error(errText);
+        setActing(false);
+        return;
+      }
+      const data = await res.json();
       toast.success("Card discarded. Next player's turn.");
       socket.emit("game_update", { tableId });
       setTimeout(() => refresh(), 120);
@@ -765,7 +791,7 @@ export default function Table() {
       await refresh();
     } catch (e) {
       console.error("discard error", e);
-      toast.error(e?.response?.data?.error || "Failed to discard card");
+      toast.error("Failed to discard card");
     } finally {
       setActing(false);
     }
@@ -777,7 +803,17 @@ export default function Table() {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         const resp = await apiclient.get_revealed_hands({ table_id: tableId });
-        const data = resp.data;
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          lastError = { status: resp.status, message: errorText };
+          if (attempt < 3 && resp.status === 400) {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            continue;
+          } else {
+            break;
+          }
+        }
+        const data = await resp.json();
         console.log("✅ Revealed hands fetched:", data);
         setRevealedHands(data);
         setShowScoreboardModal(true);
@@ -793,7 +829,7 @@ export default function Table() {
         }
       }
     }
-    const errorMsg = lastError?.response?.data?.error || lastError?.message || "Network error";
+    const errorMsg = lastError?.message || lastError?.status || "Network error";
     toast.error(`Failed to load scoreboard: ${errorMsg}`);
     console.error("🚨 Final scoreboard error:", lastError);
     return null;
@@ -856,7 +892,7 @@ export default function Table() {
       const body = { table_id: tableId, groups: discardGroups };
       const res = await apiclient.declare(body);
       if (res.ok) {
-        const data = res.data;
+        const data = await res.json();
         socket.emit("declare_made", { tableId });
 
         if (data.status === "valid") {
@@ -868,7 +904,7 @@ export default function Table() {
       } else {
         let errorMessage = "Failed to declare";
         try {
-          const errorData = res.data;
+          const errorData = await res.json();
           errorMessage = errorData.detail || errorData.message || errorMessage;
         } catch {
           const errorText = await res.text();
@@ -906,12 +942,18 @@ export default function Table() {
 
       const body = { table_id: tableId, first_player_id: nextFirstPlayerId };
       const res = await apiclient.start_next_round(body);
-      const data = res.data;
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "start_next_round failed");
+        toast.error(errorText);
+        setStarting(false);
+        return;
+      }
+      const data = await res.json();
       toast.success(`Round #${data.number} started!`);
       await refresh();
     } catch (e) {
       console.error("start next round error", e);
-      toast.error(e?.response?.data?.error || e?.message || "Failed to start next round");
+      toast.error(e?.message || "Failed to start next round");
     } finally {
       setStarting(false);
     }
@@ -933,12 +975,18 @@ export default function Table() {
     try {
       const body = { table_id: tableId };
       const res = await apiclient.drop_game(body);
-      const data = res.data;
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "drop_game failed");
+        toast.error(errText);
+        setDroppingGame(false);
+        return;
+      }
+      await res.json();
       toast.success("You have dropped from the game (20 point penalty)");
       await refresh();
     } catch (e) {
       console.error("drop game error", e);
-      toast.error(e?.response?.data?.error || e?.message || "Failed to drop game");
+      toast.error(e?.message || "Failed to drop game");
     } finally {
       setDroppingGame(false);
     }
@@ -1034,134 +1082,6 @@ export default function Table() {
   }
 
   /* ------------------------------- Render ------------------------------- */
-  if (info?.status === "playing") {
-    return (
-      <div className="h-screen w-full bg-slate-950 overflow-hidden relative">
-        <CasinoTable3D tableColor="black">
-          {/* Center Game UI */}
-          <div className="absolute inset-0 z-0">
-            <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
-          </div>
-
-          {/* Deck & Discard - Centered */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] flex gap-8 items-center z-10">
-            {/* Deck */}
-            <div className="flex flex-col items-center gap-2">
-              <div
-                onClick={async () => {
-                  if (!isMyTurn || hasDrawn) return;
-                  try {
-                    await apiclient.draw_stock({ table_id: tableId });
-                    setHasDrawn(true);
-                    toast.success("Card drawn from deck");
-                    await refresh();
-                  } catch (e) { toast.error("Failed to draw"); }
-                }}
-                className={`transform transition-all cursor-pointer hover:-translate-y-2 ${isMyTurn && !hasDrawn ? "ring-2 ring-yellow-400 rounded-lg shadow-[0_0_20px_rgba(250,204,21,0.5)]" : ""}`}
-              >
-                <CardBack className="w-24 h-36" />
-              </div>
-              <span className="text-slate-400 text-xs font-bold tracking-wider">DECK</span>
-            </div>
-
-            {/* Wild Joker */}
-            {revealedWildJoker && (
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-24 h-36 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-yellow-500">{revealedWildJoker}</span>
-                </div>
-                <span className="text-yellow-500/80 text-xs font-bold tracking-wider">JOKER</span>
-              </div>
-            )}
-
-            {/* Discard Pile */}
-            <div className="flex flex-col items-center gap-2">
-              <div
-                onClick={async () => {
-                  if (!isMyTurn || hasDrawn) return;
-                  // Logic to take from discard (if valid)
-                  try {
-                    await apiclient.draw_discard({ table_id: tableId });
-                    setHasDrawn(true);
-                    toast.success("Card taken from discard");
-                    await refresh();
-                  } catch (e) { toast.error("Failed to take discard"); }
-                }}
-                className={`w-24 h-36 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center bg-slate-900/50 ${isMyTurn && !hasDrawn ? "hover:border-yellow-400 cursor-pointer" : ""}`}
-              >
-                {/* Access open_deck logic if available in info or myRound. Assuming info.open_deck is the top card */}
-                {/* If we don't have open deck info specifically, show a placeholder or empty */}
-                <span className="text-slate-500 text-xs">DISCARD PILE</span>
-              </div>
-              <span className="text-slate-400 text-xs font-bold tracking-wider">DISCARD</span>
-            </div>
-          </div>
-
-          {/* Hand Strip - Bottom */}
-          <div className="absolute bottom-0 left-0 right-0 z-20">
-            {myRound && (
-              <HandStrip
-                hand={myRound.hand}
-                onCardSelect={onCardSelect}
-                onReorderHand={onReorderHand}
-                selectedCard={selectedCard}
-              />
-            )}
-          </div>
-
-          {/* Melds - Above Hand (Simplified position for now) */}
-          <div className="absolute bottom-48 left-1/2 -translate-x-1/2 z-10 flex gap-2 scale-75 origin-bottom">
-            <MeldSlotBox title="Meld 1" slots={meld1} setSlots={setMeld1} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
-            <MeldSlotBox title="Meld 2" slots={meld2} setSlots={setMeld2} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
-            <MeldSlotBox title="Meld 3" slots={meld3} setSlots={setMeld3} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
-            <LeftoverSlotBox slots={leftover} setSlots={setLeftover} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
-          </div>
-
-          {/* Action Buttons (Discard/Declare) */}
-          {isMyTurn && hasDrawn && selectedCard && (
-            <div className="absolute bottom-36 right-8 z-30 flex flex-col gap-2">
-              <button onClick={onDeclare} className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg transform transition-all hover:scale-105">
-                DECLARE
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    // Assuming selectedCard is the card object
-                    // Need to convert back to "Rank-Suit" or similar expected format or pass object
-                    // Actually apiclient.discard_card likely expects specific format.
-                    // But let's assume 'card' object works if logic elsewhere handles it.
-                    // The 'onDeclare' logic used 'card' properties.
-                    // Let's use `apiclient.discard_card({ table_id, card: selectedCard })`
-                    // We need to check exact API spec, but this is best guess.
-                    await apiclient.discard_card({ table_id: tableId, card: selectedCard });
-                    setHasDrawn(false);
-                    setSelectedCard(null);
-                    toast.success("Card discarded");
-                    await refresh();
-                  } catch (e) { toast.error("Failed to discard"); }
-                }}
-                className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transform transition-all hover:scale-105"
-              >
-                DISCARD
-              </button>
-            </div>
-          )}
-
-        </CasinoTable3D>
-
-        {/* Global UI (Chat, Voice, etc.) */}
-        <div className="absolute top-4 right-4 z-50 flex gap-2">
-          <button onClick={() => navigate("/")} className="p-2 bg-slate-900/80 text-red-400 rounded-lg hover:bg-slate-800 border border-slate-700">
-            <LogOut className="w-5 h-5" />
-          </button>
-        </div>
-        {user && info && tableId && (
-          <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
@@ -1201,26 +1121,22 @@ export default function Table() {
 
           {/* layout - left main, right sidebar */}
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px]">
-            {/* Darker background for Lobby/Info Panel */}
-            <div className="bg-slate-900/80 border border-slate-700/50 rounded-lg p-6 order-2 lg:order-1 backdrop-blur-md shadow-2xl">
-              {loading && <p className="text-slate-400">Loading…</p>}
+            <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
+              {loading && <p className="text-muted-foreground">Loading…</p>}
               {!loading && info && (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-slate-400 font-medium uppercase tracking-wider">Room Code</p>
-                      <p className="text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mt-1">{info.code}</p>
+                      <p className="text-sm text-muted-foreground">Room Code</p>
+                      <p className="text-2xl font-bold tracking-wider text-green-400">{info.code}</p>
                     </div>
                     {revealedWildJoker && (
-                      <div className="mt-2 px-4 py-2 bg-yellow-900/30 border border-yellow-500/40 rounded-xl text-yellow-300 font-bold text-lg shadow-[0_0_15px_rgba(234,179,8,0.2)]">
+                      <div className="mt-2 px-3 py-1 bg-yellow-900/30 border border-yellow-500/40 rounded-lg text-yellow-300 font-bold text-lg">
                         Wild Joker: {revealedWildJoker}
                       </div>
                     )}
 
-                    <button
-                      onClick={onCopy}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold shadow-lg shadow-green-900/20 transition-all active:scale-95"
-                    >
+                    <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 py-2 bg-green-800 text-green-100 rounded-lg hover:bg-green-700">
                       {copied ? (
                         <>
                           <Check className="w-4 h-4" /> Copied
@@ -1233,32 +1149,24 @@ export default function Table() {
                     </button>
                   </div>
 
-                  <div className="border-t border-slate-700/50 pt-6">
-                    <p className="text-sm text-slate-400 font-medium mb-3 uppercase tracking-wider">Players</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="border-t border-border pt-4">
+                    <p className="text-sm text-muted-foreground mb-2">Players</p>
+                    <div className="grid grid-cols-2 gap-3">
                       {info.players.map((p) => (
-                        <div key={p.user_id} className={`group relative flex items-center gap-3 bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl border border-slate-700 hover:border-slate-600 transition-all`}>
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shadow-inner ${p.user_id === info.host_user_id ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white" : "bg-slate-700 text-slate-300"}`}>
-                            {p.display_name ? p.display_name.charAt(0).toUpperCase() : <User2 className="w-5 h-5" />}
+                        <div key={p.user_id} className={`flex items-center gap-2 bg-background px-2 py-1 rounded border border-border`}>
+                          <div className="w-8 h-8 rounded-full bg-green-800/50 flex items-center justify-center">
+                            <User2 className="w-4 h-4 text-green-200" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-white font-semibold truncate text-base">{p.display_name || "Player"}</p>
-                              {p.user_id === info.host_user_id && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-gradient-to-r from-amber-200 to-orange-400 px-1.5 py-0.5 rounded-full shadow-sm">
-                                  <Crown className="w-3 h-3" /> HOST
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-slate-500 text-xs font-mono truncate">Seat {p.seat}</p>
+                            <p className="text-foreground text-sm truncate">Seat {p.seat}</p>
+                            <p className="text-muted-foreground text-xs truncate">{p.display_name || p.user_id.slice(0, 6)}</p>
                           </div>
-
-                          {info.status === "playing" && p.user_id === info.active_user_id && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs font-bold text-green-400 animate-pulse">
-                              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]" />
-                              ACTIVE
-                            </div>
+                          {p.user_id === info.host_user_id && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded">
+                              <Crown className="w-3 h-3" /> Host
+                            </span>
                           )}
+                          {info.status === "playing" && p.user_id === info.active_user_id && <span className="text-xs text-amber-400 font-medium">Active</span>}
                         </div>
                       ))}
                     </div>
