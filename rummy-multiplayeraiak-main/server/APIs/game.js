@@ -34,9 +34,13 @@ router.get("/tables/info", requireAuth, async (req, res) => {
     );
     if (!tbl) return res.status(404).json({ error: "Table not found" });
 
-    // Get players
+    // Get players with profile images
     const players = await db.fetch(
-      `SELECT user_id, display_name, seat, is_spectator FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`,
+      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, rp.profile_image_url 
+       FROM rummy_table_players p
+       LEFT JOIN rummy_profiles rp ON p.user_id = rp.id
+       WHERE p.table_id=$1 
+       ORDER BY p.seat ASC`,
       [table_id]
     );
 
@@ -174,16 +178,15 @@ router.post("/tables/join-by-code", requireAuth, async (req, res) => {
     if (seat > tbl.max_players)
       return res.status(400).json({ error: "Table full" });
 
-    // Get user name and profile image
-    const profile = await db.fetchrow("SELECT display_name, profile_image_url FROM rummy_profiles WHERE id=$1", [req.user.sub]);
+    // Get user name
+    const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
     const name = profile?.display_name || "Player";
-    const image = profile?.profile_image_url || null;
 
     await db.execute(
-      `INSERT INTO rummy_table_players (table_id, user_id, seat, display_name, profile_image_url)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
+       VALUES ($1, $2, $3, $4)
        ON CONFLICT DO NOTHING`,
-      [tbl.id, req.user.sub, seat, name, image]
+      [tbl.id, req.user.sub, seat, name]
     );
 
     res.json({ table_id: tbl.id, seat });
