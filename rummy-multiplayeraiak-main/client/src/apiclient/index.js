@@ -134,12 +134,6 @@ export default {
   get_my_profile,
   get_voice_participants,
   mute_player,
-  update_table_voice_settings
-  grant_spectate,
-  penalize_leave,
-  get_my_profile,
-  get_voice_participants,
-  mute_player,
   update_table_voice_settings,
   declare: declare_round // Alias for Table.jsx
 };
