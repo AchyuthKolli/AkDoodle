@@ -479,6 +479,13 @@ export default function Table() {
       }, 150);
     });
 
+    // LISTENER FOR ROUND START (Fixes "Game Started" redirect issue)
+    socket.on("round.started", (data) => {
+      console.log("🚀 Round started:", data);
+      toast.success("Game Started!");
+      setTimeout(() => refresh(), 100);
+    });
+
     onDeclareUpdate(() => {
       console.log("🏆 Real-time declare update received");
       fetchRevealedHands();
@@ -1066,22 +1073,26 @@ export default function Table() {
 
           {/* layout - left main, right sidebar */}
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px]">
-            <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
-              {loading && <p className="text-muted-foreground">Loading…</p>}
+            {/* Darker background for Lobby/Info Panel */}
+            <div className="bg-slate-900/80 border border-slate-700/50 rounded-lg p-6 order-2 lg:order-1 backdrop-blur-md shadow-2xl">
+              {loading && <p className="text-slate-400">Loading…</p>}
               {!loading && info && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Room Code</p>
-                      <p className="text-2xl font-bold tracking-wider text-green-400">{info.code}</p>
+                      <p className="text-sm text-slate-400 font-medium uppercase tracking-wider">Room Code</p>
+                      <p className="text-4xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mt-1">{info.code}</p>
                     </div>
                     {revealedWildJoker && (
-                      <div className="mt-2 px-3 py-1 bg-yellow-900/30 border border-yellow-500/40 rounded-lg text-yellow-300 font-bold text-lg">
+                      <div className="mt-2 px-4 py-2 bg-yellow-900/30 border border-yellow-500/40 rounded-xl text-yellow-300 font-bold text-lg shadow-[0_0_15px_rgba(234,179,8,0.2)]">
                         Wild Joker: {revealedWildJoker}
                       </div>
                     )}
 
-                    <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 py-2 bg-green-800 text-green-100 rounded-lg hover:bg-green-700">
+                    <button
+                      onClick={onCopy}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-semibold shadow-lg shadow-green-900/20 transition-all active:scale-95"
+                    >
                       {copied ? (
                         <>
                           <Check className="w-4 h-4" /> Copied
@@ -1094,24 +1105,32 @@ export default function Table() {
                     </button>
                   </div>
 
-                  <div className="border-t border-border pt-4">
-                    <p className="text-sm text-muted-foreground mb-2">Players</p>
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className="border-t border-slate-700/50 pt-6">
+                    <p className="text-sm text-slate-400 font-medium mb-3 uppercase tracking-wider">Players</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {info.players.map((p) => (
-                        <div key={p.user_id} className={`flex items-center gap-2 bg-background px-2 py-1 rounded border border-border`}>
-                          <div className="w-8 h-8 rounded-full bg-green-800/50 flex items-center justify-center">
-                            <User2 className="w-4 h-4 text-green-200" />
+                        <div key={p.user_id} className={`group relative flex items-center gap-3 bg-slate-800/50 hover:bg-slate-800 px-4 py-3 rounded-xl border border-slate-700 hover:border-slate-600 transition-all`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shadow-inner ${p.user_id === info.host_user_id ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white" : "bg-slate-700 text-slate-300"}`}>
+                            {p.display_name ? p.display_name.charAt(0).toUpperCase() : <User2 className="w-5 h-5" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-foreground text-sm truncate">Seat {p.seat}</p>
-                            <p className="text-muted-foreground text-xs truncate">{p.display_name || p.user_id.slice(0, 6)}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-white font-semibold truncate text-base">{p.display_name || "Player"}</p>
+                              {p.user_id === info.host_user_id && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-gradient-to-r from-amber-200 to-orange-400 px-1.5 py-0.5 rounded-full shadow-sm">
+                                  <Crown className="w-3 h-3" /> HOST
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-slate-500 text-xs font-mono truncate">Seat {p.seat}</p>
                           </div>
-                          {p.user_id === info.host_user_id && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded">
-                              <Crown className="w-3 h-3" /> Host
-                            </span>
+
+                          {info.status === "playing" && p.user_id === info.active_user_id && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs font-bold text-green-400 animate-pulse">
+                              <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]" />
+                              ACTIVE
+                            </div>
                           )}
-                          {info.status === "playing" && p.user_id === info.active_user_id && <span className="text-xs text-amber-400 font-medium">Active</span>}
                         </div>
                       ))}
                     </div>

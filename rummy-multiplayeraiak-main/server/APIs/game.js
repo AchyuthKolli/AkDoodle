@@ -66,7 +66,12 @@ router.post("/tables", requireAuth, async (req, res) => {
     const { max_players, disqualify_score, wild_joker_mode, ace_value } = req.body;
 
     const table_id = uuidv4();
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Generate 6-char alphanumeric code
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
 
     await db.fetchrow(
       `
@@ -76,13 +81,17 @@ router.post("/tables", requireAuth, async (req, res) => {
       [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value]
     );
 
+    // Fetch host name
+    const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
+    const hostName = profile?.display_name || req.user.name || "Host";
+
     // Add host as seat 1
     await db.execute(
       `
       INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
-      VALUES ($1, $2, 1, $2)
+      VALUES ($1, $2, 1, $4)
     `,
-      [table_id, req.user.sub]
+      [table_id, req.user.sub, 1, hostName]
     );
 
     res.json({ table_id, code });
