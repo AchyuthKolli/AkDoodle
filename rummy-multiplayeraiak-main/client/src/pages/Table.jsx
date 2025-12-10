@@ -1124,184 +1124,332 @@ export default function Table() {
             <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
               {loading && <p className="text-muted-foreground">Loading…</p>}
               {!loading && info && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Room Code</p>
-                      <p className="text-2xl font-bold tracking-wider text-green-400">{info.code}</p>
-                    </div>
-                    {revealedWildJoker && (
-                      <div className="mt-2 px-3 py-1 bg-yellow-900/30 border border-yellow-500/40 rounded-lg text-yellow-300 font-bold text-lg">
-                        Wild Joker: {revealedWildJoker}
-                      </div>
-                    )}
+                <>
+                  {info.status === "playing" ? (
+                    /* ================= GAME BOARD UI ================= */
+                    <div className="flex flex-col h-full relative">
+                      {/* Top: Table Area (Opponents + Center Piles) */}
+                      <div className="relative flex-1 min-h-[360px] bg-emerald-900/30 rounded-xl border border-emerald-700/50 mb-4 overflow-hidden shadow-inner">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-800/20 via-slate-900/60 to-slate-950/80 pointer-events-none" />
 
-                    <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 py-2 bg-green-800 text-green-100 rounded-lg hover:bg-green-700">
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4" /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" /> Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
+                        {/* Opponent Avatars */}
+                        <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
 
-                  <div className="border-t border-border pt-4">
-                    <p className="text-sm text-muted-foreground mb-2">Players</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {info.players.map((p) => (
-                        <div key={p.user_id} className={`flex items-center gap-2 bg-background px-2 py-1 rounded border border-border`}>
-                          <div className="w-8 h-8 rounded-full bg-green-800/50 flex items-center justify-center">
-                            <User2 className="w-4 h-4 text-green-200" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-foreground text-sm truncate">Seat {p.seat}</p>
-                            <p className="text-muted-foreground text-xs truncate">{p.display_name || p.user_id.slice(0, 6)}</p>
-                          </div>
-                          {p.user_id === info.host_user_id && (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded">
-                              <Crown className="w-3 h-3" /> Host
-                            </span>
-                          )}
-                          {info.status === "playing" && p.user_id === info.active_user_id && <span className="text-xs text-amber-400 font-medium">Active</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* --- existing UI continues unchanged --- */}
-
-                  {/* Scoreboard Modal */}
-                  <ScoreboardModal
-                    isOpen={showScoreboardModal && !!revealedHands}
-                    onClose={() => setShowScoreboardModal(false)}
-                    data={revealedHands}
-                    players={info?.players || []}
-                    currentUserId={user?.id || ""}
-                    tableId={tableId || ""}
-                    hostUserId={info?.host_user_id || ""}
-                    onNextRound={() => {
-                      setShowScoreboardModal(false);
-                      onNextRound();
-                    }}
-                  />
-
-                  {/* Side Panel for Scoreboard - Legacy */}
-                  {showScoreboardPanel && revealedHands && (
-                    <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 border-l-2 border-yellow-500 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
-                      <div className="p-6">
-                        <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-2xl font-bold text-yellow-400">Round Results</h2>
-                          <button onClick={() => setShowScoreboardPanel(false)} className="text-gray-400 hover:text-white transition-colors">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        {/* Round Scores */}
-                        <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-yellow-600">
-                          <h3 className="text-lg font-semibold text-yellow-400 mb-3">Scores</h3>
-                          {Object.entries(revealedHands.scores || {}).map(([uid, score]) => {
-                            const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                            return (
-                              <div key={uid} className="flex justify-between py-2 border-b border-gray-700 last:border-0">
-                                <span className={uid === user?.id ? "text-yellow-400 font-semibold" : "text-gray-300"}>{playerName}</span>
-                                <span className={`font-bold ${score === 0 ? "text-green-400" : "text-red-400"}`}>{score} pts</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* All Players' Hands */}
-                        <div className="space-y-6">
-                          {Object.entries(revealedHands.organized_melds || {}).map(([uid, melds]) => {
-                            const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                            const playerScore = revealedHands.scores?.[uid] || 0;
-                            const isWinner = playerScore === 0;
-
-                            return (
-                              <div key={uid} className="p-4 bg-gray-800 rounded-lg border-2" style={{ borderColor: isWinner ? "#10b981" : "#6b7280" }}>
-                                <div className="flex justify-between items-center mb-3">
-                                  <h4 className={`font-bold text-lg ${isWinner ? "text-green-400" : uid === user?.id ? "text-yellow-400" : "text-gray-300"}`}>
-                                    {playerName}
-                                    {isWinner && " 🏆"}
-                                  </h4>
-                                  <span className={`font-bold ${playerScore === 0 ? "text-green-400" : "text-red-400"}`}>{playerScore} pts</span>
-                                </div>
-
-                                {melds && melds.length > 0 ? (
-                                  <div className="space-y-3">
-                                    {melds.map((meld, idx) => {
-                                      const meldType = meld.type || "unknown";
-                                      let bgColor = "bg-gray-700";
-                                      let borderColor = "border-gray-600";
-                                      let label = "Cards";
-
-                                      if (meldType === "pure") {
-                                        bgColor = "bg-blue-900/40";
-                                        borderColor = "border-blue-500";
-                                        label = "Pure Sequence";
-                                      } else if (meldType === "impure") {
-                                        bgColor = "bg-purple-900/40";
-                                        borderColor = "border-purple-500";
-                                        label = "Impure Sequence";
-                                      } else if (meldType === "set") {
-                                        bgColor = "bg-orange-900/40";
-                                        borderColor = "border-orange-500";
-                                        label = "Set";
-                                      }
-
-                                      return (
-                                        <div key={idx} className={`p-3 rounded border ${bgColor} ${borderColor}`}>
-                                          <div className="text-xs text-gray-400 mb-2">{label}</div>
-                                          <div className="flex flex-wrap gap-2">
-                                            {(meld.cards || []).map((card, cardIdx) => (
-                                              <div key={cardIdx} className="text-sm font-mono bg-white text-gray-900 px-2 py-1 rounded">
-                                                {card.name || card.code || "??"}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <div className="text-gray-500 text-sm">No melds</div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {revealedHands.can_start_next && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await apiclient.start_next_round();
-                                setShowScoreboardPanel(false);
-                                setRevealedHands(null);
-                                await refresh();
-                                toast.success("New round started!");
-                              } catch (error) {
-                                console.error("Error starting next round:", error);
-                                toast.error("Failed to start next round");
-                              }
-                            }}
-                            className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                        {/* Center Piles (Deck & Discard) */}
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-12 z-10">
+                          {/* Deck/Stock */}
+                          <div
+                            onClick={onDrawStock}
+                            className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
                           >
-                            Start Next Round
-                          </button>
+                            <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
+                            <CardBack className="w-24 h-36 shadow-2xl relative z-10" />
+                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                              Deck ({myRound?.stock_count || 0})
+                            </div>
+                          </div>
+
+                          {/* Discard Pile */}
+                          <div
+                            onClick={onDrawDiscard}
+                            className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
+                          >
+                            <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn && myRound?.discard_top ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
+                            {myRound?.discard_top ? (
+                              <PlayingCard
+                                card={parseCardCode(myRound.discard_top) || { rank: "?", suit: "?" }}
+                                onClick={() => { }}
+                                className="w-24 h-36 shadow-2xl relative z-10"
+                              />
+                            ) : (
+                              <div className="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
+                                Empty
+                              </div>
+                            )}
+                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                              Discard Pile
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Wild Joker Display on Table */}
+                        {revealedWildJoker && (
+                          <div className="absolute top-4 left-4 bg-black/40 backdrop-blur border border-yellow-500/30 p-2 rounded-lg flex flex-col items-center">
+                            <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">Wild Joker</span>
+                            <div className="text-xl font-bold text-white">{revealedWildJoker}</div>
+                          </div>
                         )}
+                      </div>
+
+                      {/* Bottom: Player Area (Melds + Hand) */}
+                      <div className="space-y-4">
+                        {/* Melds Row */}
+                        <div className="flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
+                          <MeldSlotBox
+                            title="Meld 1"
+                            slots={meld1}
+                            setSlots={setMeld1}
+                            myRound={myRound}
+                            isLocked={meldLocks.meld1}
+                            onToggleLock={() => toggleMeldLock("meld1")}
+                            tableId={tableId}
+                            onRefresh={refresh}
+                            gameMode={info.wild_joker_mode}
+                          />
+                          <MeldSlotBox
+                            title="Meld 2"
+                            slots={meld2}
+                            setSlots={setMeld2}
+                            myRound={myRound}
+                            isLocked={meldLocks.meld2}
+                            onToggleLock={() => toggleMeldLock("meld2")}
+                            tableId={tableId}
+                            onRefresh={refresh}
+                            gameMode={info.wild_joker_mode}
+                          />
+                          <MeldSlotBox
+                            title="Meld 3"
+                            slots={meld3}
+                            setSlots={setMeld3}
+                            myRound={myRound}
+                            isLocked={meldLocks.meld3}
+                            onToggleLock={() => toggleMeldLock("meld3")}
+                            tableId={tableId}
+                            onRefresh={refresh}
+                            gameMode={info.wild_joker_mode}
+                          />
+                          <LeftoverSlotBox
+                            slots={leftover}
+                            setSlots={setLeftover}
+                            myRound={myRound}
+                            isLocked={meldLocks.leftover}
+                            onToggleLock={() => toggleMeldLock("leftover")}
+                            tableId={tableId}
+                            onRefresh={refresh}
+                            gameMode={info.wild_joker_mode}
+                          />
+                        </div>
+
+                        {/* Hand Strip Panel */}
+                        <div className={`p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
+                          <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
+                              Your Hand
+                              {isMyTurn && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
+                            </h3>
+
+                            <div className="flex items-center gap-3">
+                              <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white" onClick={onClearMelds}>
+                                Reset Melds
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                disabled={!isMyTurn || !hasDrawn || !selectedCard}
+                                onClick={onDiscard}
+                                className="bg-red-600 hover:bg-red-700 text-white font-medium shadow-md transition-all active:scale-95"
+                              >
+                                Discard Selected
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                disabled={!isMyTurn}
+                                onClick={onDeclare}
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md transition-all active:scale-95 shimmer"
+                              >
+                                Declare
+                              </Button>
+                            </div>
+                          </div>
+
+                          <HandStrip
+                            hand={availableHand}
+                            onCardClick={onCardSelect}
+                            selectedIndex={availableHand.findIndex(c => selectedCard && c.rank === selectedCard.rank && c.suit === selectedCard.suit && c.joker === selectedCard.joker)}
+                            highlightIndex={-1}
+                            onReorder={onReorderHand}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ================= LOBBY / WAITING UI ================= */
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Room Code</p>
+                          <p className="text-2xl font-bold tracking-wider text-green-400">{info.code}</p>
+                        </div>
+
+                        <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 py-2 bg-green-800 text-green-100 rounded-lg hover:bg-green-700 transition-colors">
+                          {copied ? (
+                            <>
+                              <Check className="w-4 h-4" /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" /> Copy
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="border-t border-border pt-4">
+                        <p className="text-sm text-muted-foreground mb-2">Players</p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {info.players.map((p) => (
+                            <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center border border-green-600/50">
+                                <User2 className="w-5 h-5 text-green-100" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-foreground text-sm font-medium truncate">{p.display_name || "Player"}</p>
+                                <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
+                              </div>
+                              {p.user_id === info.host_user_id && (
+                                <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                  <Crown className="w-3 h-3" /> Host
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
+                </>
+              )}
+
+              {/* --- existing UI continues unchanged --- */}
+
+              {/* Scoreboard Modal */}
+              <ScoreboardModal
+                isOpen={showScoreboardModal && !!revealedHands}
+                onClose={() => setShowScoreboardModal(false)}
+                data={revealedHands}
+                players={info?.players || []}
+                currentUserId={user?.id || ""}
+                tableId={tableId || ""}
+                hostUserId={info?.host_user_id || ""}
+                onNextRound={() => {
+                  setShowScoreboardModal(false);
+                  onNextRound();
+                }}
+              />
+
+              {/* Side Panel for Scoreboard - Legacy */}
+              {showScoreboardPanel && revealedHands && (
+                <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 border-l-2 border-yellow-500 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
+                  <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-bold text-yellow-400">Round Results</h2>
+                      <button onClick={() => setShowScoreboardPanel(false)} className="text-gray-400 hover:text-white transition-colors">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Round Scores */}
+                    <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-yellow-600">
+                      <h3 className="text-lg font-semibold text-yellow-400 mb-3">Scores</h3>
+                      {Object.entries(revealedHands.scores || {}).map(([uid, score]) => {
+                        const playerName = revealedHands.player_names?.[uid] || "Unknown";
+                        return (
+                          <div key={uid} className="flex justify-between py-2 border-b border-gray-700 last:border-0">
+                            <span className={uid === user?.id ? "text-yellow-400 font-semibold" : "text-gray-300"}>{playerName}</span>
+                            <span className={`font-bold ${score === 0 ? "text-green-400" : "text-red-400"}`}>{score} pts</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* All Players' Hands */}
+                    <div className="space-y-6">
+                      {Object.entries(revealedHands.organized_melds || {}).map(([uid, melds]) => {
+                        const playerName = revealedHands.player_names?.[uid] || "Unknown";
+                        const playerScore = revealedHands.scores?.[uid] || 0;
+                        const isWinner = playerScore === 0;
+
+                        return (
+                          <div key={uid} className="p-4 bg-gray-800 rounded-lg border-2" style={{ borderColor: isWinner ? "#10b981" : "#6b7280" }}>
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className={`font-bold text-lg ${isWinner ? "text-green-400" : uid === user?.id ? "text-yellow-400" : "text-gray-300"}`}>
+                                {playerName}
+                                {isWinner && " 🏆"}
+                              </h4>
+                              <span className={`font-bold ${playerScore === 0 ? "text-green-400" : "text-red-400"}`}>{playerScore} pts</span>
+                            </div>
+
+                            {melds && melds.length > 0 ? (
+                              <div className="space-y-3">
+                                {melds.map((meld, idx) => {
+                                  const meldType = meld.type || "unknown";
+                                  let bgColor = "bg-gray-700";
+                                  let borderColor = "border-gray-600";
+                                  let label = "Cards";
+
+                                  if (meldType === "pure") {
+                                    bgColor = "bg-blue-900/40";
+                                    borderColor = "border-blue-500";
+                                    label = "Pure Sequence";
+                                  } else if (meldType === "impure") {
+                                    bgColor = "bg-purple-900/40";
+                                    borderColor = "border-purple-500";
+                                    label = "Impure Sequence";
+                                  } else if (meldType === "set") {
+                                    bgColor = "bg-orange-900/40";
+                                    borderColor = "border-orange-500";
+                                    label = "Set";
+                                  }
+
+                                  return (
+                                    <div key={idx} className={`p-3 rounded border ${bgColor} ${borderColor}`}>
+                                      <div className="text-xs text-gray-400 mb-2">{label}</div>
+                                      <div className="flex flex-wrap gap-2">
+                                        {(meld.cards || []).map((card, cardIdx) => (
+                                          <div key={cardIdx} className="text-sm font-mono bg-white text-gray-900 px-2 py-1 rounded">
+                                            {card.name || card.code || "??"}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-gray-500 text-sm">No melds</div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {revealedHands.can_start_next && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await apiclient.start_next_round();
+                            setShowScoreboardPanel(false);
+                            setRevealedHands(null);
+                            await refresh();
+                            toast.success("New round started!");
+                          } catch (error) {
+                            console.error("Error starting next round:", error);
+                            toast.error("Failed to start next round");
+                          }
+                        }}
+                        className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                      >
+                        Start Next Round
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
+
 
             {/* Sidebar - Table Info with Round History */}
             {tableInfoVisible && (
@@ -1348,8 +1496,8 @@ export default function Table() {
                                   <User2 className="w-4 h-4 text-green-200" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-foreground text-sm truncate">Seat {p.seat}</p>
-                                  <p className="text-muted-foreground text-xs truncate">{p.display_name || p.user_id.slice(0, 6)}</p>
+                                  <p className="text-foreground text-sm truncate">{p.display_name || p.user_id.slice(0, 6)}</p>
+                                  <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
                                 </div>
                                 {p.user_id === info.host_user_id && <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded"><Crown className="w-3 h-3" /> Host</span>}
                                 {info.status === "playing" && p.user_id === info.active_user_id && <span className="text-xs text-amber-400 font-medium">Active</span>}
@@ -1438,6 +1586,6 @@ export default function Table() {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 }
