@@ -127,6 +127,6 @@ app.set("io", io);
 // 🚀 START SERVER (Express + Socket.io)
 // =====================================================
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`🔥 Server + Socket.IO running at http://localhost:${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🔥 Server + Socket.IO running at http://0.0.0.0:${PORT}`);
 });
