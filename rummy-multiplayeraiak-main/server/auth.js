@@ -82,15 +82,19 @@ async function requireAuth(req, res, next) {
 
     // Optional: upsert user profile into profiles table for display_name and picture
     // ONLY if we have name/picture (ID Token case)
-    if (googlePayload.name || googlePayload.picture) {
+    if (googlePayload.name || googlePayload.picture || googlePayload.email) {
       try {
+        const fallbackName = googlePayload.email ? googlePayload.email.split("@")[0] : "Player";
+        const displayName = googlePayload.name || fallbackName;
+
         await execute(
           `INSERT INTO rummy_profiles (id, display_name, avatar_url)
            VALUES ($1, $2, $3)
            ON CONFLICT (id) DO UPDATE
-           SET display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url`,
+           SET display_name = COALESCE(EXCLUDED.display_name, rummy_profiles.display_name),
+               avatar_url = COALESCE(EXCLUDED.avatar_url, rummy_profiles.avatar_url)`,
           userId,
-          googlePayload.name || null,
+          displayName,
           googlePayload.picture || null
         );
       } catch (e) {

@@ -1,154 +1,101 @@
 // client/src/apiclient/index.js
-import axios from "axios";
+// REWRITTEN: Using native fetch() to match Table.jsx expectations (res.ok, res.json())
 
-// ✅ Use env var for dev, but force relative path for production (to avoid localhost leakage)
 const BASE_URL = import.meta.env.PROD
-  ? "/"
+  ? "" // Relative path in production
   : (import.meta.env.VITE_API_URL || "http://localhost:3001");
 
-const api = axios.create({
-  baseURL: BASE_URL,
-  timeout: 10000,
-});
+/**
+ * Core fetch wrapper that automatically adds Auth headers
+ */
+const request = async (endpoint, options = {}) => {
+  const url = `${BASE_URL}${endpoint}`;
 
-api.interceptors.request.use((config) => {
-  console.log("📡 API Request:", config.method.toUpperCase(), config.url, "Full:", config.baseURL + config.url);
-  return config;
-});
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
 
-// Add token interceptor if auth uses localStorage (assuming standard stackframe or similar)
-api.interceptors.request.use((config) => {
-  // Try to find token in localStorage if your auth system uses it
-  // But usage in Table.jsx implies cookies or standard session handling might be in place?
-  // server uses `requireUser` which checks req.user (populated by requireAuth in server/index.js => verify token)
-  // server/auth.js likely checks Authorization header.
-  // We'll assume standard Bearer token if available.
+  // Attach token if available
   const token = localStorage.getItem("auth_token") || localStorage.getItem("token");
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
-  return config;
-});
 
-// Response interceptor for better error handling
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    // console.error("API Call Failed:", err.config?.url, err.response?.data || err.message);
-    return Promise.reject(err); // propagate
+  const config = {
+    ...options,
+    headers,
+  };
+
+  if (options.body) {
+    config.body = JSON.stringify(options.body);
   }
-);
+
+  console.log(`📡 API Request: ${options.method || "GET"} ${url}`);
+
+  try {
+    const response = await fetch(url, config);
+
+    // IMPORTANT: We return the raw response object because Table.jsx checks:
+    // if (!res.ok) { ... }
+    // const data = await res.json();
+    return response;
+  } catch (error) {
+    console.error("API Fetch Error:", error);
+    throw error;
+  }
+};
+
+const get = (endpoint, query) => {
+  let path = endpoint;
+  if (query) {
+    const params = new URLSearchParams(query);
+    path += `?${params.toString()}`;
+  }
+  return request(path, { method: "GET" });
+};
+
+const post = (endpoint, body) => {
+  return request(endpoint, { method: "POST", body });
+};
 
 // -----------------------------------------
-// TABLE APIs (snake_case to match Table.jsx usage)
+// TABLE APIs
 // -----------------------------------------
 
-// GET /api/tables/info?table_id=...
-export const get_table_info = async (query) => {
-  return api.get("/api/tables/info", { params: query });
-};
-
-// POST /api/tables
-export const create_table = async (body) => {
-  return api.post("/api/tables", body);
-};
-
-// POST /api/tables/join
-export const join_table = async (body) => {
-  return api.post("/api/tables/join", body);
-};
-
-// POST /api/tables/join-by-code
-export const join_table_by_code = async (body) => {
-  return api.post("/api/tables/join-by-code", body);
-};
-
-// POST /api/start-game
-export const start_game = async (body) => {
-  return api.post("/api/start-game", body);
-};
-
+export const get_table_info = async (query) => get("/api/tables/info", query);
+export const create_table = async (body) => post("/api/tables", body);
+export const join_table = async (body) => post("/api/tables/join", body);
+export const join_table_by_code = async (body) => post("/api/tables/join-by-code", body);
+export const start_game = async (body) => post("/api/start-game", body);
 
 // -----------------------------------------
 // GAMEPLAY APIs
 // -----------------------------------------
 
-// GET /api/round/me?table_id=...
-export const get_round_me = async (query) => {
-  return api.get("/api/round/me", { params: query });
-};
-
-// POST /api/draw/stock
-export const draw_stock = async (body) => {
-  return api.post("/api/draw/stock", body);
-};
-
-// POST /api/draw/discard
-export const draw_discard = async (body) => {
-  return api.post("/api/draw/discard", body);
-};
-
-// POST /api/discard
-export const discard_card = async (body) => {
-  return api.post("/api/discard", body);
-};
-
-// POST /api/lock-sequence
-export const lock_sequence = async (body) => {
-  return api.post("/api/lock-sequence", body);
-};
-
-// POST /api/declare
-export const declare_round = async (body) => {
-  return api.post("/api/declare", body);
-};
-
+export const get_round_me = async (query) => get("/api/round/me", query);
+export const draw_stock = async (body) => post("/api/draw/stock", body);
+export const draw_discard = async (body) => post("/api/draw/discard", body);
+export const discard_card = async (body) => post("/api/discard", body);
+export const lock_sequence = async (body) => post("/api/lock-sequence", body);
+export const declare_round = async (body) => post("/api/declare", body);
 
 // -----------------------------------------
 // HISTORY & OTHERS
 // -----------------------------------------
 
-// GET /api/round/history
-export const get_round_history = async (query) => {
-  return api.get("/api/round/history", { params: query });
-};
+export const get_round_history = async (query) => get("/api/round/history", query);
+export const get_scoreboard = async (query) => get("/api/round/scoreboard", query);
+export const next_round = async (body) => post("/api/round/next", body);
+export const drop_player = async (body) => post("/api/game/drop", body);
+export const request_spectate = async (body) => post("/api/game/request-spectate", body);
+export const grant_spectate = async (body) => post("/api/game/grant-spectate", body);
 
-// GET /api/round/scoreboard
-export const get_scoreboard = async (query) => {
-  return api.get("/api/round/scoreboard", { params: query });
-};
+// Fallback for penalize if not on server
+export const penalize_leave = async (body) => post("/api/game/drop", body);
 
-// POST /api/round/next
-export const next_round = async (body) => {
-  return api.post("/api/round/next", body);
-};
-
-// POST /api/game/drop
-export const drop_player = async (body) => {
-  return api.post("/api/game/drop", body);
-};
-
-// Spectate
-// POST /api/game/request-spectate
-export const request_spectate = async (body) => {
-  return api.post("/api/game/request-spectate", body);
-};
-
-// POST /api/game/grant-spectate
-export const grant_spectate = async (body) => {
-  return api.post("/api/game/grant-spectate", body);
-};
-
-// Keep penalize_leave as requested by Table.jsx (though server might not implement it yet, safe fallback)
-export const penalize_leave = async (body) => {
-  // If not implemented on server, this will 404, but client handles errors.
-  // Assuming /api/game/drop or special endpoint. 
-  // Table.jsx calls it. We'll map to /api/game/drop for now or just log.
-  // Or maybe /api/game/penalize if it existed. 
-  // We'll point to /api/game/drop as it applies penalty.
-  return api.post("/api/game/drop", body);
-};
-
+// Only export object for default import compatibility if needed, 
+// but named exports are preferred and used by Table.jsx imports.
 export default {
   get_table_info,
   create_table,
