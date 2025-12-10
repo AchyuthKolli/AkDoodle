@@ -63,6 +63,7 @@ module.exports = function (io) {
         display_name: p.display_name,
         hand_count: p.hand.length,
         dropped: p.dropped,
+        profile_image_url: p.profile_image_url // Broadcast profile pic
       })),
     };
     io.to(tableId).emit("round.state", payload);
@@ -71,7 +72,7 @@ module.exports = function (io) {
   function sendPrivate(socket, ev, data) {
     try {
       socket.emit(ev, data);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   function startTurnTimer(tableId, duration = DEFAULT_TURN_TIMEOUT) {
@@ -164,6 +165,7 @@ module.exports = function (io) {
       const tableId = data.table_id;
       const userId = (socket.user && socket.user.user_id) || data.user_id || `guest_${socket.id.slice(0, 6)}`;
       const displayName = (socket.user && socket.user.display_name) || data.display_name || userId;
+      const profileImage = (socket.user && socket.user.profile_image) || data.profile_image || null;
 
       if (!tableId) {
         if (ack) ack({ ok: false, message: "Missing table_id" });
@@ -183,7 +185,11 @@ module.exports = function (io) {
           hasDrawn: false,
           dropped: false,
           drop_points: 0,
+          profile_image_url: profileImage // Store profile pic
         });
+      } else {
+        // Update existing player profile if changed
+        existing.profile_image_url = profileImage;
       }
 
       // join socket.io room
@@ -199,7 +205,7 @@ module.exports = function (io) {
       broadcastTableState(tableId);
       broadcastRoundState(tableId);
 
-      io.to(tableId).emit("player.join", { user_id: userId, display_name: displayName });
+      io.to(tableId).emit("player.join", { user_id: userId, display_name: displayName, profile_image_url: profileImage });
 
       if (ack) ack({ ok: true, table_id: tableId, user_id: userId });
       console.log(`Socket ${socket.id} joined table ${tableId} as ${userId}`);

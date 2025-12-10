@@ -22,12 +22,13 @@ socket.on("disconnect", () => {
 });
 
 // ====== SUBSCRIBE TO ROOM ======
-export const joinRoom = (tableId, userId, displayName) => {
-  // Server expects: join_table { table_id, user_id, display_name }
+export const joinRoom = (tableId, userId, displayName, profileImage) => {
+  // Server expects: join_table { table_id, user_id, display_name, profile_image }
   const payload = {
     table_id: tableId,
     user_id: userId,
-    display_name: displayName
+    display_name: displayName,
+    profile_image: profileImage
   };
   socket.emit("join_table", payload);
 };

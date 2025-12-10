@@ -471,7 +471,7 @@ export default function Table() {
     if (!tableId || !user) return;
 
     // join
-    joinRoom(tableId, user.id);
+    joinRoom(tableId, user.id, user.displayName || user.username || "Guest", user.photoURL || user.picture || user.profile_image || null);
     console.log("🟢 Joined socket room:", tableId);
 
     // game update -> refresh quickly (small debounce)
@@ -1040,6 +1040,12 @@ export default function Table() {
     if (!hasDrawn) return;
     setSelectedCard({ rank: card.rank, suit: card.suit || null, joker: card.joker || false });
     setSelectedCardIndex(idx);
+  };
+
+  const onReorderHand = (reorderedHand) => {
+    if (myRound) {
+      setMyRound({ ...myRound, hand: reorderedHand });
+    }
   };
 
   const onSelectCard = (card) => {
