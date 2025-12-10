@@ -80,17 +80,17 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
     // Updated signature: sendChatMsg(tableId, userId, text, isPrivate, recipientId)
     sendChatMsg(tableId, currentUserId, messageText, !!recipient, recipient || null);
 
-    // Push to local UI (instant echo)
-    setMessages((prev) => [
-      ...prev,
-      {
-        ...payload,
-        senderName:
-          players.find((p) => p.userId === currentUserId)?.displayName ||
-          "Me",
-        timestamp: Date.now(),
-      },
-    ]);
+    // Push to local UI (instant echo) - REMOVED to avoid duplication if server echoes back
+    // setMessages((prev) => [
+    //   ...prev,
+    //   {
+    //     ...payload,
+    //     senderName:
+    //       players.find((p) => p.userId === currentUserId)?.displayName ||
+    //       "Me",
+    //     timestamp: Date.now(),
+    //   },
+    // ]);
 
     setMessageText("");
     setRecipient(null);

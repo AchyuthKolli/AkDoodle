@@ -58,11 +58,11 @@ export const HandStrip = ({
   // -------------------------
   // MOBILE DRAG (FAST + FIXED)
   // -------------------------
-  let touchStart = null;
+  const touchStartRef = React.useRef(null);
 
   const handleTouchStart = (e, index) => {
     const t = e.touches[0];
-    touchStart = {
+    touchStartRef.current = {
       index,
       x: t.clientX,
       y: t.clientY,
@@ -71,7 +71,7 @@ export const HandStrip = ({
   };
 
   const handleTouchMove = (e) => {
-    if (!touchStart) return;
+    if (!touchStartRef.current) return;
     e.preventDefault(); // no scroll
 
     const t = e.touches[0];
@@ -89,13 +89,14 @@ export const HandStrip = ({
   };
 
   const handleTouchEnd = () => {
-    if (touchStart != null && dropTargetIndex != null && dropTargetIndex !== touchStart.index) {
+    const start = touchStartRef.current;
+    if (start != null && dropTargetIndex != null && dropTargetIndex !== start.index) {
       const newHand = [...hand];
-      const [c] = newHand.splice(touchStart.index, 1);
+      const [c] = newHand.splice(start.index, 1);
       newHand.splice(dropTargetIndex, 0, c);
       onReorder?.(newHand);
     }
-    touchStart = null;
+    touchStartRef.current = null;
     endDrag();
   };
 

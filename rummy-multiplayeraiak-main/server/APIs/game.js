@@ -9,6 +9,7 @@ const { requireAuth } = require("../auth");
 console.log("Loading game.js. requireAuth type:", typeof requireAuth);
 console.log("game.js router created:", !!router);
 const { v4: uuidv4 } = require("uuid");
+const scoring = require("./scoring");
 
 /* ---------------------------
     Helpers
@@ -173,15 +174,16 @@ router.post("/tables/join-by-code", requireAuth, async (req, res) => {
     if (seat > tbl.max_players)
       return res.status(400).json({ error: "Table full" });
 
-    // Get user name
-    const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
+    // Get user name and profile image
+    const profile = await db.fetchrow("SELECT display_name, profile_image_url FROM rummy_profiles WHERE id=$1", [req.user.sub]);
     const name = profile?.display_name || "Player";
+    const image = profile?.profile_image_url || null;
 
     await db.execute(
-      `INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO rummy_table_players (table_id, user_id, seat, display_name, profile_image_url)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING`,
-      [tbl.id, req.user.sub, seat, name]
+      [tbl.id, req.user.sub, seat, name, image]
     );
 
     res.json({ table_id: tbl.id, seat });
@@ -820,25 +822,85 @@ router.post("/declare", requireAuth, async (req, res) => {
       // Accept declaration as valid for now (plug your strict validator here)
       isValidDeclaration = true;
 
-      // compute other players' deadwood points (simple auto-organize not implemented => naive sum)
-      // Winner gets 0, opponents get sum of cardValueForScoring of their hands (cap at 80 applied later)
-      for (const uid of Object.keys(hands)) {
-        if (uid === req.user.sub) {
-          scores[uid] = 0;
-          organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: [] };
-          // store winner's groups in organizedMelds
-          organizedMelds[uid].pure_sequences = groups; // approximate
-        } else {
-          const oppHand = hands[uid] || [];
-          const pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
-          scores[uid] = Math.min(pts, 80);
-          organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: oppHand };
+      // Get player status to identify dropped players
+      const tablePlayers = await db.fetch(`SELECT user_id, is_spectator FROM rummy_table_players WHERE table_id=$1`, [table_id]);
+      const spectatorMap = {};
+      for (const p of tablePlayers) spectatorMap[p.user_id] = p.is_spectator;
+
+      if (isValidDeclaration) {
+        // Winner gets 0
+        scores[req.user.sub] = 0;
+        organizedMelds[req.user.sub] = { pure_sequences: groups, sequences: [], sets: [], deadwood: [] };
+
+        // compute other players
+        for (const uid of Object.keys(hands)) {
+          if (uid === req.user.sub) continue;
+
+          if (spectatorMap[uid]) {
+            // Player dropped/eliminated. Use 20 pts (or 0 if already accounted, but for round history we show 20)
+            // Drop endpoint already added 20 to total_points. We just record 20 here for history display.
+            scores[uid] = 20;
+            organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: hands[uid] || [] };
+          } else {
+            const oppHand = hands[uid] || [];
+            let bestMelds = { melds: [], leftover: oppHand };
+
+            if (scoring && typeof scoring.autoOrganizeHand === "function") {
+              bestMelds = scoring.autoOrganizeHand(oppHand, wild_joker_rank, true);
+            }
+
+            let pts = 0;
+            if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
+              pts = scoring.calculateDeadwoodPoints(bestMelds.leftover, wild_joker_rank, true, ace_value);
+            } else {
+              pts = bestMelds.leftover.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
+            }
+
+            scores[uid] = Math.min(pts, 80);
+
+            if (scoring && typeof scoring.organizeHandByMelds === "function") {
+              organizedMelds[uid] = scoring.organizeHandByMelds(oppHand, wild_joker_rank, true);
+            } else {
+              organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: oppHand };
+            }
+          }
+        }
+      } else {
+        // invalid declaration
+        let declarer_pts = 80;
+        for (const uid of Object.keys(hands)) {
+          if (uid === req.user.sub) {
+            scores[uid] = declarer_pts;
+            organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: myHand };
+          } else {
+            if (spectatorMap[uid]) {
+              scores[uid] = 20; // Dropped player
+            } else {
+              scores[uid] = 0;
+            }
+            organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: hands[uid] || [] };
+          }
+        }
+        isValidDeclaration = false;
+      }
+
+      // UPDATE TOTAL POINTS for active players only (dropped players already updated)
+      for (const [uid, pts] of Object.entries(scores)) {
+        if (!spectatorMap[uid]) {
+          await db.execute(`UPDATE rummy_table_players SET total_points = COALESCE(total_points,0) + $1 WHERE table_id=$2 AND user_id=$3`, [pts, table_id, uid]);
         }
       }
+
+      // persist scoring and mark finished
+      const declarationPayload = {
+        groups: groups || [],
+        valid: isValidDeclaration,
+        revealed_hands: hands,
+        organized_melds: organizedMelds
+      };
     } else {
-      // invalid/no groups => failed declaration: declarer gets full deadwood (cap 80), others 0
-      let declarer_pts = myHand.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
-      declarer_pts = Math.min(declarer_pts, 80);
+      // invalid/no groups => failed declaration: declarer gets 80 points penalty
+      let declarer_pts = 80;
       for (const uid of Object.keys(hands)) {
         scores[uid] = (uid === req.user.sub) ? declarer_pts : 0;
         organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: (uid === req.user.sub ? myHand : []) };
@@ -1024,6 +1086,15 @@ router.post("/round/next", requireAuth, async (req, res) => {
     // In production you should call the same Deal engine used earlier. For now produce empty hands and shuffled stock.
     // We'll create a new round entry with shuffled deck (lightweight)
     const nextNumber = parseInt(last.number || 0, 10) + 1;
+
+    // Cyclic start player logic: Round 1 -> Seat 1, Round 2 -> Seat 2, etc.
+    const startIdx = (nextNumber - 1) % activePlayers.length;
+    const startPlayer = activePlayers[startIdx];
+
+    // Create deal (we don't have the deal library here; generate placeholders)
+    // In production you should call the same Deal engine used earlier. For now produce empty hands and shuffled stock.
+    // We'll create a new round entry with shuffled deck (lightweight)
+
     // simple deck generation: not trying to be deterministic
     const singleDeck = [
       /* minimal representation left intentionally simple - ideally call your DeckConfig/deal_initial */
@@ -1035,12 +1106,12 @@ router.post("/round/next", requireAuth, async (req, res) => {
     await db.execute(
       `INSERT INTO rummy_rounds (id, table_id, number, stock, discard, hands, active_user_id, game_mode, ace_value)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [require('uuid').v4(), table_id, nextNumber, JSON.stringify([]), JSON.stringify([]), JSON.stringify(hands), activePlayers[0], tbl.wild_joker_mode || "open_joker", tbl.ace_value || 10]
+      [require('uuid').v4(), table_id, nextNumber, JSON.stringify([]), JSON.stringify([]), JSON.stringify(hands), startPlayer, tbl.wild_joker_mode || "open_joker", tbl.ace_value || 10]
     );
 
     await db.execute(`UPDATE rummy_tables SET status='playing', updated_at=now() WHERE id=$1`, [table_id]);
 
-    const responseData = { table_id, number: nextNumber, active_user_id: activePlayers[0] };
+    const responseData = { table_id, number: nextNumber, active_user_id: startPlayer };
     res.json(responseData);
 
     // 🚀 BROADCAST

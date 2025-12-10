@@ -653,6 +653,11 @@ export default function Table() {
     return info?.active_user_id === user.id;
   }, [info, user]);
 
+  const isDisqualified = useMemo(() => {
+    if (!user || !info?.players) return false;
+    return info.players.find(p => p.user_id === user.id)?.disqualified || false;
+  }, [info, user]);
+
   // Reset hasDrawn when turn changes
   useEffect(() => {
     if (!isMyTurn) {
@@ -1107,12 +1112,12 @@ export default function Table() {
                 </button>
               )}
 
-              {info?.status === "playing" && !hasDrawn && (
+              {info?.status === "playing" && !isDisqualified && !info.players.find(p => p.user_id === user.id)?.is_spectator && (
                 <button
                   onClick={onDropGame}
-                  disabled={droppingGame}
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-orange-700 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg transition-colors disabled:opacity-50"
-                  title="Drop game (20pt penalty)"
+                  disabled={droppingGame || !isMyTurn || hasDrawn}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-orange-700 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={hasDrawn ? "Cannot drop after drawing" : !isMyTurn ? "Wait for your turn to drop" : "Drop game (20pt penalty)"}
                 >
                   <UserX className="w-5 h-5" />
                   {droppingGame ? "Dropping..." : "Drop"}
@@ -1355,6 +1360,22 @@ export default function Table() {
                                       <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
                                         <Crown className="w-3 h-3" /> Host
                                       </span>
+                                    )}
+                                    {/* Spectate Button */}
+                                    {isDisqualified && p.user_id !== user.id && (
+                                      <button
+                                        onClick={() => requestSpectate(p.user_id)}
+                                        className="text-[10px] px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 ml-auto"
+                                        title="Request to Spectate"
+                                      >
+                                        Spectate
+                                      </button>
+                                    )}
+                                    {/* Grant Spectate (Host only - simplistic version) */}
+                                    {user.id === p.user_id && spectateRequests.length > 0 && (
+                                      // This requires tracking who requested. 
+                                      // For now, let's just show visual indication if we had specific request logic.
+                                      null
                                     )}
                                   </div>
                                 ))}

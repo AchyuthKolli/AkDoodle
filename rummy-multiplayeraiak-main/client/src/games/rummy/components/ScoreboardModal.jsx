@@ -78,7 +78,11 @@ export const ScoreboardModal = ({
           <div className="bg-gradient-to-r from-yellow-900/40 to-amber-900/40 border border-yellow-600/40 rounded-lg p-4 text-center shadow-md">
             <div className="flex items-center justify-center gap-2 text-xl font-bold text-yellow-300 drop-shadow">
               <Crown className="w-6 h-6" />
-              {winnerName} wins with {sortedPlayers[0]?.score || 0} points!
+              {data.status === "invalid" ? (
+                <span>Invalid Declaration! Declarer penalised 80 pts.</span>
+              ) : (
+                <span>{winnerName} wins with {sortedPlayers[0]?.score || 0} points!</span>
+              )}
             </div>
           </div>
 
@@ -91,6 +95,7 @@ export const ScoreboardModal = ({
                   : "bg-slate-800/50 border-slate-700"
                   }`}
               >
+                {/* ... existing header ... */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-400 bg-slate-700">
@@ -217,14 +222,14 @@ export const ScoreboardModal = ({
                       </div>
                     )}
 
-                    {p.organized?.ungrouped?.length > 0 && (
+                    {(p.organized?.ungrouped?.length > 0 || p.organized?.deadwood?.length > 0) && (
                       <div>
                         <div className="text-xs font-bold text-red-400 mb-1">
                           DEADWOOD (Ungrouped)
                         </div>
                         <div className="border border-red-600/40 bg-red-950/30 rounded-lg p-2">
                           <div className="flex gap-1 flex-wrap">
-                            {p.organized.ungrouped.map((c, idx) => (
+                            {(p.organized.ungrouped || p.organized.deadwood).map((c, idx) => (
                               <div key={idx} className="transform scale-75 origin-top-left">
                                 <PlayingCard card={c} />
                               </div>
