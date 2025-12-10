@@ -4,15 +4,19 @@ export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
   console.log('🎨 CasinoTable3D rendering with color:', tableColor);
 
   // Calculate colors directly - no useMemo to ensure instant updates
-  const mainColor = tableColor === 'green' ? '#15803d' : '#6b2f2f';
+  const mainColor = tableColor === 'green' ? '#15803d' : tableColor === 'black' ? '#0f172a' : '#6b2f2f';
   const gradientColor = tableColor === 'green'
     ? 'linear-gradient(135deg, #15803d 0%, #16a34a 50%, #15803d 100%)'
-    : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
+    : tableColor === 'black'
+      ? 'linear-gradient(135deg, #020617 0%, #1e293b 50%, #020617 100%)'
+      : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
 
   // Edge/border color (darker than main)
   const edgeColor = tableColor === 'green'
     ? 'linear-gradient(135deg, #14532d 0%, #15803d 50%, #14532d 100%)'
-    : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
+    : tableColor === 'black'
+      ? 'linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%)'
+      : 'linear-gradient(135deg, #4a1f1f 0%, #6b2f2f 50%, #4a1f1f 100%)';
 
   return (
     <div className="relative w-full h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-8" data-table-color={tableColor}>

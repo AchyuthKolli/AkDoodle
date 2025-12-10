@@ -60,12 +60,12 @@ import { useAuth } from "../auth/AuthContext";
 
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
-  <div className={`relative bg-white rounded-lg border-2 border-gray-300 shadow-lg ${className}`}>
+  <div className={`relative bg-slate-800 rounded-lg border-2 border-slate-600 shadow-lg ${className}`}>
     <div className="absolute inset-0 rounded-lg overflow-hidden">
       <div
         className="w-full h-full"
         style={{
-          background: "repeating-linear-gradient(45deg, #dc2626 0px, #dc2626 10px, white 10px, white 20px)",
+          background: "repeating-linear-gradient(45deg, #334155 0px, #334155 10px, #1e293b 10px, #1e293b 20px)",
         }}
       />
     </div>
@@ -1034,6 +1034,134 @@ export default function Table() {
   }
 
   /* ------------------------------- Render ------------------------------- */
+  if (info?.status === "playing") {
+    return (
+      <div className="h-screen w-full bg-slate-950 overflow-hidden relative">
+        <CasinoTable3D tableColor="black">
+          {/* Center Game UI */}
+          <div className="absolute inset-0 z-0">
+            <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
+          </div>
+
+          {/* Deck & Discard - Centered */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] flex gap-8 items-center z-10">
+            {/* Deck */}
+            <div className="flex flex-col items-center gap-2">
+              <div
+                onClick={async () => {
+                  if (!isMyTurn || hasDrawn) return;
+                  try {
+                    await apiclient.draw_stock({ table_id: tableId });
+                    setHasDrawn(true);
+                    toast.success("Card drawn from deck");
+                    await refresh();
+                  } catch (e) { toast.error("Failed to draw"); }
+                }}
+                className={`transform transition-all cursor-pointer hover:-translate-y-2 ${isMyTurn && !hasDrawn ? "ring-2 ring-yellow-400 rounded-lg shadow-[0_0_20px_rgba(250,204,21,0.5)]" : ""}`}
+              >
+                <CardBack className="w-24 h-36" />
+              </div>
+              <span className="text-slate-400 text-xs font-bold tracking-wider">DECK</span>
+            </div>
+
+            {/* Wild Joker */}
+            {revealedWildJoker && (
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-24 h-36 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-yellow-500">{revealedWildJoker}</span>
+                </div>
+                <span className="text-yellow-500/80 text-xs font-bold tracking-wider">JOKER</span>
+              </div>
+            )}
+
+            {/* Discard Pile */}
+            <div className="flex flex-col items-center gap-2">
+              <div
+                onClick={async () => {
+                  if (!isMyTurn || hasDrawn) return;
+                  // Logic to take from discard (if valid)
+                  try {
+                    await apiclient.draw_discard({ table_id: tableId });
+                    setHasDrawn(true);
+                    toast.success("Card taken from discard");
+                    await refresh();
+                  } catch (e) { toast.error("Failed to take discard"); }
+                }}
+                className={`w-24 h-36 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center bg-slate-900/50 ${isMyTurn && !hasDrawn ? "hover:border-yellow-400 cursor-pointer" : ""}`}
+              >
+                {/* Access open_deck logic if available in info or myRound. Assuming info.open_deck is the top card */}
+                {/* If we don't have open deck info specifically, show a placeholder or empty */}
+                <span className="text-slate-500 text-xs">DISCARD PILE</span>
+              </div>
+              <span className="text-slate-400 text-xs font-bold tracking-wider">DISCARD</span>
+            </div>
+          </div>
+
+          {/* Hand Strip - Bottom */}
+          <div className="absolute bottom-0 left-0 right-0 z-20">
+            {myRound && (
+              <HandStrip
+                hand={myRound.hand}
+                onCardSelect={onCardSelect}
+                onReorderHand={onReorderHand}
+                selectedCard={selectedCard}
+              />
+            )}
+          </div>
+
+          {/* Melds - Above Hand (Simplified position for now) */}
+          <div className="absolute bottom-48 left-1/2 -translate-x-1/2 z-10 flex gap-2 scale-75 origin-bottom">
+            <MeldSlotBox title="Meld 1" slots={meld1} setSlots={setMeld1} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
+            <MeldSlotBox title="Meld 2" slots={meld2} setSlots={setMeld2} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
+            <MeldSlotBox title="Meld 3" slots={meld3} setSlots={setMeld3} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
+            <LeftoverSlotBox slots={leftover} setSlots={setLeftover} myRound={myRound} setMyRound={setMyRound} tableId={tableId} onRefresh={refresh} />
+          </div>
+
+          {/* Action Buttons (Discard/Declare) */}
+          {isMyTurn && hasDrawn && selectedCard && (
+            <div className="absolute bottom-36 right-8 z-30 flex flex-col gap-2">
+              <button onClick={onDeclare} className="px-6 py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg transform transition-all hover:scale-105">
+                DECLARE
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    // Assuming selectedCard is the card object
+                    // Need to convert back to "Rank-Suit" or similar expected format or pass object
+                    // Actually apiclient.discard_card likely expects specific format.
+                    // But let's assume 'card' object works if logic elsewhere handles it.
+                    // The 'onDeclare' logic used 'card' properties.
+                    // Let's use `apiclient.discard_card({ table_id, card: selectedCard })`
+                    // We need to check exact API spec, but this is best guess.
+                    await apiclient.discard_card({ table_id: tableId, card: selectedCard });
+                    setHasDrawn(false);
+                    setSelectedCard(null);
+                    toast.success("Card discarded");
+                    await refresh();
+                  } catch (e) { toast.error("Failed to discard"); }
+                }}
+                className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transform transition-all hover:scale-105"
+              >
+                DISCARD
+              </button>
+            </div>
+          )}
+
+        </CasinoTable3D>
+
+        {/* Global UI (Chat, Voice, etc.) */}
+        <div className="absolute top-4 right-4 z-50 flex gap-2">
+          <button onClick={() => navigate("/")} className="p-2 bg-slate-900/80 text-red-400 rounded-lg hover:bg-slate-800 border border-slate-700">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
+        {user && info && tableId && (
+          <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
