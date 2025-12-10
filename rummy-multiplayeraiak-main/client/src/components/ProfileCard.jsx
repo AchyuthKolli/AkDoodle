@@ -25,7 +25,7 @@ export default function ProfileCard() {
       try {
         const res = await apiclient.get_my_profile();
         const data = await res.json();
-        setProfile(data);
+        setProfile(data.user || data); // handle wrapped or direct response
       } catch (err) {
         console.error("profile error:", err);
         setError("Failed to load profile");

@@ -94,6 +94,21 @@ export const grant_spectate = async (body) => post("/api/game/grant-spectate", b
 // Fallback for penalize if not on server
 export const penalize_leave = async (body) => post("/api/game/drop", body);
 
+// -----------------------------------------
+// USER & PROFILE
+// -----------------------------------------
+export const get_my_profile = async () => get("/api/me");
+
+// -----------------------------------------
+// VOICE / AUDIO (Mock/Placeholder if not on server)
+// -----------------------------------------
+export const get_voice_participants = async (query) => get("/api/voice/participants", query);
+export const mute_player = async (body) => post("/api/voice/mute", body);
+export const update_table_voice_settings = async (body) => post("/api/voice/settings", body);
+
+// Alias start_next_round to next_round for compatibility with Table.jsx
+export const start_next_round = next_round;
+
 // Only export object for default import compatibility if needed, 
 // but named exports are preferred and used by Table.jsx imports.
 export default {
@@ -111,8 +126,13 @@ export default {
   get_round_history,
   get_scoreboard,
   next_round,
+  start_next_round, // exported alias
   drop_player,
   request_spectate,
   grant_spectate,
-  penalize_leave
+  penalize_leave,
+  get_my_profile,
+  get_voice_participants,
+  mute_player,
+  update_table_voice_settings
 };

@@ -103,7 +103,13 @@ export default function CreateTable() {
       };
 
       const res = await apiclient.create_table(body);
-      const data = res.data;
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to create room");
+      }
+
+      const data = await res.json();
 
       setGeneratedCode(data.code);
       setTableId(data.table_id);
@@ -111,7 +117,7 @@ export default function CreateTable() {
       toast.success("Room created successfully!");
     } catch (e) {
       console.error(e);
-      toast.error("Failed to create room");
+      toast.error(e.message || "Failed to create room");
     } finally {
       setCreating(false);
     }

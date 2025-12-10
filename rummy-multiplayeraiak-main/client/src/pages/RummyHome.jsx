@@ -114,15 +114,18 @@ export default function Home() {
       const res = await apiclient.join_table_by_code(body);
       console.log("Join response object:", res); // DEBUG LOG
 
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.detail || "Failed to join room");
+      }
 
-      const data = res.data;
+      const data = await res.json();
 
       toast.success(`Joined table! Seat ${data.seat}`);
       navigate(`/Table?tableId=${data.table_id}`);
     } catch (e) {
       console.error("Join error:", e);
-      const msg = e.response?.data?.error || e.response?.data?.detail || e.message || "Failed to join room";
-      toast.error(`Join failed: ${msg}`);
+      toast.error(`Join failed: ${e.message}`);
     } finally {
       setJoining(false);
     }
