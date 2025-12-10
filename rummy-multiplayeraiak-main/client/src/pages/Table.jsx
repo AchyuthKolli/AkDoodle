@@ -219,7 +219,7 @@ const MeldSlotBox = ({
             >
               {card ? (
                 <div className="w-full h-full p-1">
-                  <PlayingCard card={card} onClick={() => { }} className="w-full h-full shadow-md" />
+                  <PlayingCard card={card} onClick={() => { }} draggable={false} className="w-full h-full shadow-md" />
                 </div>
               ) : (
                 <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
@@ -369,7 +369,7 @@ const LeftoverSlotBox = ({
             >
               {card ? (
                 <div className="w-full h-full p-1">
-                  <PlayingCard card={card} onClick={() => { }} className="w-full h-full shadow-md" />
+                  <PlayingCard card={card} onClick={() => { }} draggable={false} className="w-full h-full shadow-md" />
                 </div>
               ) : (
                 <span className="text-xs text-slate-600 font-bold">{i + 1}</span>

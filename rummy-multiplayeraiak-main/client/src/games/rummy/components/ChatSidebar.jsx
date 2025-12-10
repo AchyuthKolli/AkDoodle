@@ -210,7 +210,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                         {priv && <Lock className="h-3 w-3" />}
                         <span className="font-medium">
-                          {msg.senderName || msg.userId.slice(0, 6)}
+                          {players.find(p => p.userId === msg.userId)?.displayName || msg.senderName || msg.userId.slice(0, 6)}
                         </span>
                         <span>{fmtTime(msg.timestamp)}</span>
                       </div>
