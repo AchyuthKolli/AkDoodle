@@ -30,26 +30,39 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
     const handleIncoming = (msg) => {
       console.log("💬 Incoming socket msg:", msg);
 
+      // Server sends keys as snake_case (user_id, sender_name, created_at, etc.)
+      // Map them to camelCase or use as is if logic supports it.
+      // ChatSidebar expects: msg.message, msg.senderName (or msg.userId), msg.timestamp
+
+      const normalizedMsg = {
+        ...msg,
+        senderName: msg.sender_name || msg.senderName, // handle both
+        timestamp: msg.created_at || msg.timestamp,
+        userId: msg.user_id || msg.userId,
+        isPrivate: msg.is_private || msg.isPrivate,
+        recipientId: msg.recipient_id || msg.recipientId
+      };
+
       // PRIVATE message filtering
       const isPrivate =
-        msg.isPrivate &&
-        msg.recipientId &&
-        (msg.recipientId === currentUserId ||
-          msg.userId === currentUserId);
+        normalizedMsg.isPrivate &&
+        normalizedMsg.recipientId &&
+        (normalizedMsg.recipientId === currentUserId ||
+          normalizedMsg.userId === currentUserId);
 
-      if (msg.isPrivate && !isPrivate) return;
+      if (normalizedMsg.isPrivate && !isPrivate) return;
 
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => [...prev, normalizedMsg]);
 
       if (!isOpen) {
         setUnreadCount((u) => u + 1);
       }
     };
 
-    socket.on("chat_message", handleIncoming);
+    socket.on("chat.message", handleIncoming); // Fixed event name
 
     return () => {
-      socket.off("chat_message", handleIncoming);
+      socket.off("chat.message", handleIncoming);
     };
   }, [isOpen, currentUserId]);
 

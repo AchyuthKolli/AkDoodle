@@ -198,14 +198,14 @@ const MeldSlotBox = ({
                 if (cardData) handleSlotDrop(i, cardData);
               }}
               onClick={() => handleSlotClick(i)}
-              className="w-[60px] h-[84px] border-2 border-dashed border-muted-foreground/20 rounded bg-background/50 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all"
+              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
             >
               {card ? (
-                <div className="scale-[0.6] origin-center">
-                  <PlayingCard card={card} onClick={() => { }} />
+                <div className="w-full h-full p-1">
+                  <PlayingCard card={card} onClick={() => { }} className="w-full h-full shadow-md" />
                 </div>
               ) : (
-                <span className="text-[10px] text-muted-foreground">{i + 1}</span>
+                <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
               )}
             </div>
           ))}
@@ -321,26 +321,26 @@ const LeftoverSlotBox = ({
               key={i}
               onDragOver={(e) => {
                 e.preventDefault();
-                e.currentTarget.classList.add("ring-2", "ring-blue-400");
+                e.currentTarget.classList.add("ring-2", "ring-cyan-400");
               }}
               onDragLeave={(e) => {
-                e.currentTarget.classList.remove("ring-2", "ring-blue-400");
+                e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                e.currentTarget.classList.remove("ring-2", "ring-blue-400");
+                e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
                 const cardData = e.dataTransfer.getData("card");
                 if (cardData) handleSlotDrop(i, cardData);
               }}
               onClick={() => handleSlotClick(i)}
-              className="w-[60px] h-[84px] border-2 border-dashed border-muted-foreground/20 rounded bg-background/50 flex items-center justify-center cursor-pointer hover:border-blue-400/50 transition-all"
+              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
             >
               {card ? (
-                <div className="scale-[0.6] origin-center">
-                  <PlayingCard card={card} onClick={() => { }} />
+                <div className="w-full h-full p-1">
+                  <PlayingCard card={card} onClick={() => { }} className="w-full h-full shadow-md" />
                 </div>
               ) : (
-                <span className="text-[10px] text-muted-foreground">{i + 1}</span>
+                <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
               )}
             </div>
           ))}
@@ -400,7 +400,9 @@ export default function Table() {
     }
   }, [tableId, sp]);
 
+
   const [selectedCard, setSelectedCard] = useState(null);
+  const [selectedCardIndex, setSelectedCardIndex] = useState(null); // Track specific card instance by index
   const [lastDrawnCard, setLastDrawnCard] = useState(null);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [pureSeq, setPureSeq] = useState([]);
@@ -656,6 +658,7 @@ export default function Table() {
     if (!isMyTurn) {
       setHasDrawn(false);
       setSelectedCard(null);
+      setSelectedCardIndex(null);
       setLastDrawnCard(null);
     }
   }, [isMyTurn]);
@@ -1036,17 +1039,14 @@ export default function Table() {
   const onCardSelect = (card, idx) => {
     if (!hasDrawn) return;
     setSelectedCard({ rank: card.rank, suit: card.suit || null, joker: card.joker || false });
-  };
-
-  const onReorderHand = (reorderedHand) => {
-    if (myRound) {
-      setMyRound({ ...myRound, hand: reorderedHand });
-    }
+    setSelectedCardIndex(idx);
   };
 
   const onSelectCard = (card) => {
+    // Legacy support if needed, but prefer onCardSelect
     if (!hasDrawn) return;
     setSelectedCard(card);
+    // Cannot determine index easily here, might break selection of duplicates if used
   };
 
   const onClearMelds = () => {
@@ -1282,7 +1282,7 @@ export default function Table() {
                           <HandStrip
                             hand={availableHand}
                             onCardClick={onCardSelect}
-                            selectedIndex={availableHand.findIndex(c => selectedCard && c.rank === selectedCard.rank && c.suit === selectedCard.suit && c.joker === selectedCard.joker)}
+                            selectedIndex={selectedCardIndex}
                             highlightIndex={-1}
                             onReorder={onReorderHand}
                           />
@@ -1291,46 +1291,73 @@ export default function Table() {
                     </div>
                   ) : (
                     /* ================= LOBBY / WAITING UI ================= */
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Room Code</p>
-                          <p className="text-2xl font-bold tracking-wider text-green-400">{info.code}</p>
-                        </div>
-
-                        <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 py-2 bg-green-800 text-green-100 rounded-lg hover:bg-green-700 transition-colors">
-                          {copied ? (
-                            <>
-                              <Check className="w-4 h-4" /> Copied
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-4 h-4" /> Copy
-                            </>
-                          )}
+                    <div className="flex flex-col h-full">
+                      {/* Sidebar Tabs */}
+                      <div className="flex items-center border-b border-white/10 mb-4">
+                        <button
+                          onClick={() => setActiveTab("info")}
+                          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === "info" ? "text-yellow-400" : "text-slate-400 hover:text-slate-300"}`}
+                        >
+                          Table Info
+                          {activeTab === "info" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-400" />}
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("history")}
+                          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === "history" ? "text-yellow-400" : "text-slate-400 hover:text-slate-300"}`}
+                        >
+                          History
+                          {activeTab === "history" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-400" />}
                         </button>
                       </div>
 
-                      <div className="border-t border-border pt-4">
-                        <p className="text-sm text-muted-foreground mb-2">Players</p>
-                        <div className="grid grid-cols-2 gap-3">
-                          {info.players.map((p) => (
-                            <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center border border-green-600/50">
-                                <User2 className="w-5 h-5 text-green-100" />
+                      {/* Tab Content */}
+                      <div className="flex-1 overflow-y-auto">
+                        {activeTab === "info" ? (
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Room Code</p>
+                                <p className="text-2xl font-bold tracking-wider text-green-400">{info.code}</p>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-foreground text-sm font-medium truncate">{p.display_name || "Player"}</p>
-                                <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
-                              </div>
-                              {p.user_id === info.host_user_id && (
-                                <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                  <Crown className="w-3 h-3" /> Host
-                                </span>
-                              )}
+
+                              <button onClick={onCopy} className="inline-flex items-center gap-2 px-3 py-2 bg-green-800 text-green-100 rounded-lg hover:bg-green-700 transition-colors">
+                                {copied ? (
+                                  <>
+                                    <Check className="w-4 h-4" /> Copied
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-4 h-4" /> Copy
+                                  </>
+                                )}
+                              </button>
                             </div>
-                          ))}
-                        </div>
+
+                            <div className="border-t border-border pt-4">
+                              <p className="text-sm text-muted-foreground mb-2">Players</p>
+                              <div className="grid grid-cols-1 gap-3">
+                                {info.players.map((p) => (
+                                  <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-700 to-green-900 flex items-center justify-center border border-green-600/50">
+                                      <User2 className="w-5 h-5 text-green-100" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-foreground text-sm font-medium truncate">{p.display_name || "Player"}</p>
+                                      <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
+                                    </div>
+                                    {p.user_id === info.host_user_id && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                        <Crown className="w-3 h-3" /> Host
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <HistoryTable tableId={tableId} />
+                        )}
                       </div>
                     </div>
                   )}

@@ -1,0 +1,31 @@
+
+> rummy-multiplayer-aiak@1.0.0 build
+> vite build
+
+[36mvite v7.2.2 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 27 modules transformed.
+[31m✗[39m Build failed in 3.18s
+[31merror during build:
+[31m[vite:esbuild] Transform failed with 1 error:
+C:/Users/achyu/Downloads/rummy-multiplayeraiak-main visual Workspace/rummy-multiplayeraiak-main/client/src/pages/Table.jsx:50:7: ERROR: The symbol "HistoryTable" has already been declared[31m
+file: [36mC:/Users/achyu/Downloads/rummy-multiplayeraiak-main visual Workspace/rummy-multiplayeraiak-main/client/src/pages/Table.jsx:50:7[31m
+[33m
+[33mThe symbol "HistoryTable" has already been declared[33m
+48 |  import MeldBoard from "../games/rummy/components/MeldBoard.jsx";
+49 |  import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
+50 |  import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
+   |         ^
+51 |  import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
+52 |  
+[31m
+    at failureErrorWithLog (C:\Users\achyu\Downloads\rummy-multiplayeraiak-main visual Workspace\rummy-multiplayeraiak-main\client\node_modules\esbuild\lib\main.js:1467:15)
+    at C:\Users\achyu\Downloads\rummy-multiplayeraiak-main visual Workspace\rummy-multiplayeraiak-main\client\node_modules\esbuild\lib\main.js:736:50
+    at responseCallbacks.<computed> (C:\Users\achyu\Downloads\rummy-multiplayeraiak-main visual Workspace\rummy-multiplayeraiak-main\client\node_modules\esbuild\lib\main.js:603:9)
+    at handleIncomingPacket (C:\Users\achyu\Downloads\rummy-multiplayeraiak-main visual Workspace\rummy-multiplayeraiak-main\client\node_modules\esbuild\lib\main.js:658:12)
+    at Socket.readFromStdout (C:\Users\achyu\Downloads\rummy-multiplayeraiak-main visual Workspace\rummy-multiplayeraiak-main\client\node_modules\esbuild\lib\main.js:581:7)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:559:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+    at Readable.push (node:internal/streams/readable:390:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)[39m
