@@ -112,6 +112,8 @@ export default function Home() {
     try {
       const body = { code: roomCode.trim().toUpperCase() };
       const res = await apiclient.join_table_by_code(body);
+      console.log("Join response object:", res); // DEBUG LOG
+
 
       const data = res.data;
 
