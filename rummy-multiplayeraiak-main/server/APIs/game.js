@@ -89,9 +89,9 @@ router.post("/tables", requireAuth, async (req, res) => {
     await db.execute(
       `
       INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
-      VALUES ($1, $2, 1, $4)
+      VALUES ($1, $2, 1, $3)
     `,
-      [table_id, req.user.sub, 1, hostName]
+      [table_id, req.user.sub, hostName]
     );
 
     res.json({ table_id, code });
