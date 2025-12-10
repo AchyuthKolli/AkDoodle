@@ -421,6 +421,7 @@ module.exports = function (io) {
         table_id: tableId,
         user_id: userId,
         sender_name: (socket.user && socket.user.display_name) || userId,
+        profile_image_url: (socket.user && socket.user.profile_image) || null,
         message: data.message || "",
         is_private: !!data.is_private,
         recipient_id: data.recipient_id || null,

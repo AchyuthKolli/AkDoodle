@@ -102,10 +102,27 @@ const MeldSlotBox = ({
         toast.error("Slot already occupied");
         return;
       }
+
       const newSlots = [...slots];
+
+      // Check if card exists in THIS meld (reordering/moving within same meld)
+      const existingIndex = newSlots.findIndex(
+        (s) => s && s.rank === card.rank && s.suit === card.suit && s.joker === card.joker
+      );
+
+      if (existingIndex !== -1) {
+        // Remove from old position
+        newSlots[existingIndex] = null;
+      }
+
       newSlots[slotIndex] = card;
       setSlots(newSlots);
-      toast.success(`Card placed in ${title} slot ${slotIndex + 1}`);
+
+      if (existingIndex !== -1) {
+        toast.success("Card moved");
+      } else {
+        toast.success(`Card placed in ${title} slot ${slotIndex + 1}`);
+      }
     } catch (e) {
       toast.error("Invalid card data");
     }
@@ -243,9 +260,24 @@ const LeftoverSlotBox = ({
         return;
       }
       const newSlots = [...slots];
+
+      // Check if card exists in THIS box (reorder)
+      const existingIndex = newSlots.findIndex(
+        (s) => s && s.rank === card.rank && s.suit === card.suit && s.joker === card.joker
+      );
+
+      if (existingIndex !== -1) {
+        newSlots[existingIndex] = null;
+      }
+
       newSlots[slotIndex] = card;
       setSlots(newSlots);
-      toast.success(`Card placed in leftover slot ${slotIndex + 1}`);
+
+      if (existingIndex !== -1) {
+        toast.success("Card moved");
+      } else {
+        toast.success(`Card placed in leftover slot ${slotIndex + 1}`);
+      }
     } catch (e) {
       toast.error("Invalid card data");
     }
@@ -1648,7 +1680,7 @@ export default function Table() {
 
           {/* ChatSidebar and VoicePanel */}
           {user && info && tableId && (
-            <ChatSidebar tableId={tableId} currentUserId={user.id} players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6) }))} />
+            <ChatSidebar tableId={tableId} currentUserId={user.id} players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))} />
           )}
 
           {user && info && tableId && (

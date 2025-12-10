@@ -189,24 +189,40 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
                 return (
                   <div
                     key={i}
-                    className={`flex flex-col ${own ? "items-end" : "items-start"
-                      }`}
+                    className={`flex items-end gap-2 ${own ? "flex-row-reverse" : "flex-row"}`}
                   >
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                      {priv && <Lock className="h-3 w-3" />}
-                      <span className="font-medium">
-                        {msg.senderName || msg.userId.slice(0, 6)}
-                      </span>
-                      <span>{fmtTime(msg.timestamp)}</span>
+                    {/* Avatar */}
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden bg-gray-700 border border-gray-600">
+                      {(() => {
+                        const sender = players.find(p => p.userId === msg.userId);
+                        const avatarUrl = sender?.profileImage || msg.profile_image_url;
+                        return avatarUrl ? (
+                          <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-400">
+                            {(msg.senderName || "P")[0].toUpperCase()}
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    <div
-                      className={`max-w-[85%] rounded-lg px-3 py-2 ${own
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                        } ${priv ? "border-2 border-yellow-500" : ""}`}
-                    >
-                      <p className="text-sm break-words">{msg.message}</p>
+                    <div className={`flex flex-col ${own ? "items-end" : "items-start"} max-w-[75%]`}>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                        {priv && <Lock className="h-3 w-3" />}
+                        <span className="font-medium">
+                          {msg.senderName || msg.userId.slice(0, 6)}
+                        </span>
+                        <span>{fmtTime(msg.timestamp)}</span>
+                      </div>
+
+                      <div
+                        className={`rounded-lg px-3 py-2 ${own
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                          } ${priv ? "border-2 border-yellow-500" : ""}`}
+                      >
+                        <p className="text-sm break-words">{msg.message}</p>
+                      </div>
                     </div>
                   </div>
                 );
