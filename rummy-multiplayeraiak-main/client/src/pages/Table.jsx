@@ -48,7 +48,7 @@ import MeldBoard from "../games/rummy/components/MeldBoard.jsx";
 import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
 import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
-import { RummyProvider } from "../games/rummy/RummyContext.jsx";
+import { RummyProvider, useRummy } from "../games/rummy/RummyContext.jsx";
 import { validateHand } from "../games/rummy/utils/validator.js";
 
 
