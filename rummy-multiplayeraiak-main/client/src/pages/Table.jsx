@@ -88,6 +88,7 @@ const MeldSlotBox = ({
   onRefresh,
   hideLockButton,
   gameMode,
+  capacity = 3,
 }) => {
   const [locking, setLocking] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
