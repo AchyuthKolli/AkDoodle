@@ -162,12 +162,12 @@ const MeldSlotBox = ({
         className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-purple-500/30 bg-purple-900/10"}`}
       >
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] text-purple-400">{title} (3 cards)</p>
+          <p className="text-[10px] text-purple-400">{title} ({capacity} cards)</p>
           <div className="flex items-center gap-1">
             {!isLocked && gameMode !== "no_joker" && (
               <button
                 onClick={handleLockSequence}
-                disabled={locking || slots.filter((s) => s !== null).length !== 3}
+                disabled={locking || slots.filter((s) => s !== null).length !== capacity}
                 className="text-[10px] px-2 py-0.5 bg-green-700 text-green-100 rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {locking ? "..." : "🔒 Lock"}
@@ -232,6 +232,7 @@ const LeftoverSlotBox = ({
   tableId,
   onRefresh,
   gameMode,
+  capacity = 3,
 }) => {
   const [locking, setLocking] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
@@ -262,99 +263,90 @@ const LeftoverSlotBox = ({
     toast.success("Card returned to hand");
   };
 
-  const handleLockSequence = async () => {
-    const cards = slots.filter((s) => s !== null);
-    if (cards.length !== 4) {
-      toast.error("Fill all 4 slots to lock a sequence");
-      return;
-    }
-    setLocking(true);
-    try {
-      const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
-      const body = { table_id: tableId, meld: meldCards };
-      const res = await apiclient.lock_sequence(body);
-      const data = await res.json();
-      if (data.success) {
-        toast.success(data.message);
-        if (onToggleLock) onToggleLock();
-        if (data.wild_joker_revealed && data.wild_joker_rank) {
-          setRevealedRank(data.wild_joker_rank);
-          setShowRevealModal(true);
-        }
-        onRefresh();
-      } else {
-        toast.error(data.message || "Lock failed");
-      }
-    } catch (err) {
-      console.error("Lock error", err);
-      toast.error("Failed to lock sequence");
-    } finally {
-      setLocking(false);
-    }
+  const handleLockSequence = async () => { // Keep lock logic for Leftover? Or remove? Usually Leftover isn't locked as a sequence.
+    // Assuming Leftover is just deadwood, no lock needed usually. But strict Rummy might not lock deadwood.
+    // However, the original code had 4-card seq logic here. I should probably DISABLE lock for Deadwood.
+    toast.info("Leftover card is for discard/deadwood. No need to lock.");
   };
+  setLocking(true);
+  try {
+    const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
+    const body = { table_id: tableId, meld: meldCards };
+    const res = await apiclient.lock_sequence(body);
+    const data = await res.json();
+    if (data.success) {
+      toast.success(data.message);
+      if (onToggleLock) onToggleLock();
+      if (data.wild_joker_revealed && data.wild_joker_rank) {
+        setRevealedRank(data.wild_joker_rank);
+        setShowRevealModal(true);
+      }
+      onRefresh();
+    } else {
+      toast.error(data.message || "Lock failed");
+    }
+  } catch (err) {
+    console.error("Lock error", err);
+    toast.error("Failed to lock sequence");
+  } finally {
+    setLocking(false);
+  }
+};
 
-  return (
-    <>
-      <div className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] text-blue-400">Leftover / 4-Card Seq</p>
-          <div className="flex items-center gap-1">
-            {!isLocked && gameMode !== "no_joker" && (
-              <button
-                onClick={handleLockSequence}
-                disabled={locking || slots.filter((s) => s !== null).length !== 4}
-                className="text-[10px] px-2 py-0.5 bg-green-700 text-green-100 rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {locking ? "..." : "🔒 Lock"}
-              </button>
-            )}
-            {onToggleLock && (
-              <button
-                onClick={onToggleLock}
-                className={`text-[10px] px-1.5 py-0.5 rounded ${isLocked ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"}`}
-              >
-                {isLocked ? "🔒" : "🔓"}
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-1">
-          {slots.map((card, i) => (
-            <div
-              key={i}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add("ring-2", "ring-cyan-400");
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
-                const cardData = e.dataTransfer.getData("card");
-                if (cardData) handleSlotDrop(i, cardData);
-              }}
-              onClick={() => handleSlotClick(i)}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
+return (
+  <>
+    <div className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] text-blue-400">Discard / Deadwood</p>
+        <div className="flex items-center gap-1">
+          {/* Removed Lock button for Deadwood */}
+          {onToggleLock && (
+            <button
+              onClick={onToggleLock}
+              className={`text-[10px] px-1.5 py-0.5 rounded ${isLocked ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"}`}
             >
-              {card ? (
-                <div className="w-full h-full p-1">
-                  <PlayingCard card={card} onClick={() => { }} draggable={false} className="w-full h-full shadow-md" />
-                </div>
-              ) : (
-                <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
-              )}
-            </div>
-          ))}
+              {isLocked ? "🔒" : "🔓"}
+            </button>
+          )}
         </div>
       </div>
+      <div className="flex gap-1">
+        {slots.map((card, i) => (
+          <div
+            key={i}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.add("ring-2", "ring-cyan-400");
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
+              const cardData = e.dataTransfer.getData("card");
+              if (cardData) handleSlotDrop(i, cardData);
+            }}
+            onClick={() => handleSlotClick(i)}
+            className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
+          >
+            {card ? (
+              <div className="w-full h-full p-1">
+                <PlayingCard card={card} onClick={() => { }} draggable={false} className="w-full h-full shadow-md" />
+              </div>
+            ) : (
+              <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
 
-      {revealedRank && (
-        <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
-      )}
-    </>
-  );
+    {revealedRank && (
+      <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
+    )}
+  </>
+);
 };
 
 const RummyPlayersList = ({ info, activeUserId }) => {
@@ -373,6 +365,7 @@ const RummyPlayersList = ({ info, activeUserId }) => {
       display_name: ctxP?.display_name || p.display_name
     };
   });
+  console.log("Unified Players for Sidebar:", unifiedPlayers); // Debug avatars
 
   return (
     <>
@@ -455,8 +448,8 @@ export default function Table() {
   const [meld1, setMeld1] = useState([null, null, null]);
   const [meld2, setMeld2] = useState([null, null, null]);
   const [meld3, setMeld3] = useState([null, null, null]);
-  const [meld4, setMeld4] = useState([null, null, null]); // [NEW] Meld 4
-  const [leftover, setLeftover] = useState([null, null, null, null]);
+  const [meld4, setMeld4] = useState([null, null, null, null]); // [NEW] Meld 4 (4 slots)
+  const [leftover, setLeftover] = useState([null]); // Deadwood (1 slot)
   const [prevRoundFinished, setPrevRoundFinished] = useState(null);
   const [showPointsTable, setShowPointsTable] = useState(true);
 
@@ -1029,8 +1022,8 @@ export default function Table() {
     setMeld1([null, null, null]);
     setMeld2([null, null, null]);
     setMeld3([null, null, null]);
-    setMeld4([null, null, null]);
-    setLeftover([null, null, null, null]);
+    setMeld4([null, null, null, null]);
+    setLeftover([null]);
     toast.success("Melds cleared");
   };
 
@@ -1196,7 +1189,7 @@ export default function Table() {
                     <div className="flex flex-col h-full relative">
                       {/* Top: Table Area (Opponents + Center Piles) */}
                       {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="relative flex-1 min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
+                      <div className="table-3d-container relative flex-1 min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
                         <CasinoTable3D tableColor={tableColor}>
                           {/* Color Toggle */}
                           <div className="absolute top-4 right-4 z-50 flex gap-2">
@@ -1232,7 +1225,7 @@ export default function Table() {
                             {/* Discard Pile */}
                             <div
                               onClick={onDrawDiscard}
-                              className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
+                              className={`discard-pile-area relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
                             >
                               <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn && myRound?.discard_top ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
                               {myRound?.discard_top ? (
@@ -1265,7 +1258,7 @@ export default function Table() {
                       {/* Bottom: Player Area (Melds + Hand) */}
                       <div className="space-y-4">
                         {/* Melds Row */}
-                        <div className="flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
+                        <div className="melds-container flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
                           <MeldSlotBox
                             title="Meld 1"
                             slots={meld1}
@@ -1276,6 +1269,7 @@ export default function Table() {
                             tableId={tableId}
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
+                            capacity={3}
                           />
                           <MeldSlotBox
                             title="Meld 2"
@@ -1287,6 +1281,7 @@ export default function Table() {
                             tableId={tableId}
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
+                            capacity={3}
                           />
                           <MeldSlotBox
                             title="Meld 3"
@@ -1298,6 +1293,7 @@ export default function Table() {
                             tableId={tableId}
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
+                            capacity={3}
                           />
                           <MeldSlotBox
                             title="Meld 4"
@@ -1308,7 +1304,7 @@ export default function Table() {
                             onToggleLock={() => toggleMeldLock("meld4")}
                             tableId={tableId}
                             onRefresh={refresh}
-                            gameMode={info.wild_joker_mode}
+                            capacity={4}
                           />
                           <LeftoverSlotBox
                             slots={leftover}
@@ -1323,7 +1319,7 @@ export default function Table() {
                         </div>
 
                         {/* Hand Strip Panel */}
-                        <div className={`p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
+                        <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
                               Your Hand
@@ -1691,6 +1687,38 @@ export default function Table() {
           )}
         </div>
       </div>
-    </div >
+      {/* Mobile Styles for Table and Hand */}
+      <style>{`
+        @media (max-width: 768px) {
+          .hand-strip-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            padding-bottom: 20px; /* Safe area */
+            border-top: 1px solid rgba(255,255,255,0.1);
+          }
+          .table-3d-container {
+             transform: scale(0.65);
+             transform-origin: top center;
+             margin-top: -40px;
+          }
+           /* Adjust discard pile visibility */
+          .discard-pile-area {
+             transform: scale(0.9);
+          }
+           /* Make melds scrollable horizontally without wrapping weirdly */
+          .melds-container {
+             flex-wrap: nowrap;
+             justify-content: flex-start;
+             padding-left: 1rem;
+             padding-right: 1rem;
+          }
+        }
+      `}</style>
+    </div>
   );
 }

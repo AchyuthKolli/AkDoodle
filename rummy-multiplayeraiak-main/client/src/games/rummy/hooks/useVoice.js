@@ -1,0 +1,164 @@
+import { useEffect, useRef, useState, useCallback } from "react";
+import { socket } from "../../../socket";
+
+const ICE_SERVERS = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+    ],
+};
+
+export const useVoice = (tableId, userId) => {
+    const [inCall, setInCall] = useState(false);
+    const [participants, setParticipants] = useState([]); // { userId, stream, isMuted }
+    const [isMuted, setIsMuted] = useState(false);
+
+    const localStreamRef = useRef(null);
+    const peersRef = useRef({}); // { userId: RTCPeerConnection }
+
+    // Cleanup function
+    const leaveCall = useCallback(() => {
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
+        }
+
+        Object.values(peersRef.current).forEach(peer => peer.close());
+        peersRef.current = {};
+
+        setInCall(false);
+        setParticipants([]);
+        socket.emit("voice.leave", { table_id: tableId, user_id: userId });
+    }, [tableId, userId]);
+
+    // Handle incoming signals
+    useEffect(() => {
+        if (!inCall) return;
+
+        const handleSignal = async ({ sender_id, type, data }) => {
+            let peer = peersRef.current[sender_id];
+
+            if (!peer && type === "offer") {
+                peer = createPeer(sender_id, false);
+            }
+
+            if (peer) {
+                if (type === "offer") {
+                    await peer.setRemoteDescription(new RTCSessionDescription(data));
+                    const answer = await peer.createAnswer();
+                    await peer.setLocalDescription(answer);
+                    socket.emit("voice.signal", {
+                        table_id: tableId,
+                        target_id: sender_id,
+                        type: "answer",
+                        data: answer
+                    });
+                } else if (type === "answer") {
+                    await peer.setRemoteDescription(new RTCSessionDescription(data));
+                } else if (type === "ice-candidate") {
+                    await peer.addIceCandidate(new RTCIceCandidate(data));
+                }
+            }
+        };
+
+        const handleUserJoined = async ({ user_id }) => {
+            if (user_id === userId) return; // Ignore self
+            console.log("User joined voice:", user_id);
+            createPeer(user_id, true); // Initiator
+        };
+
+        const handleUserLeft = ({ user_id }) => {
+            if (peersRef.current[user_id]) {
+                peersRef.current[user_id].close();
+                delete peersRef.current[user_id];
+                setParticipants(prev => prev.filter(p => p.userId !== user_id));
+            }
+        };
+
+        socket.on("voice.signal", handleSignal);
+        socket.on("voice.joined", handleUserJoined); // Standard socket event
+        socket.on("voice.left", handleUserLeft);
+
+        return () => {
+            socket.off("voice.signal");
+            socket.off("voice.joined");
+            socket.off("voice.left");
+        };
+    }, [inCall, tableId, userId]);
+
+    const createPeer = (targetId, initiator) => {
+        if (peersRef.current[targetId]) return peersRef.current[targetId];
+
+        const peer = new RTCPeerConnection(ICE_SERVERS);
+        peersRef.current[targetId] = peer;
+
+        // Add local tracks
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => peer.addTrack(track, localStreamRef.current));
+        }
+
+        peer.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit("voice.signal", {
+                    table_id: tableId,
+                    target_id: targetId,
+                    type: "ice-candidate",
+                    data: event.candidate
+                });
+            }
+        };
+
+        peer.ontrack = (event) => {
+            const stream = event.streams[0];
+            setParticipants(prev => {
+                if (prev.find(p => p.userId === targetId)) return prev;
+                return [...prev, { userId: targetId, stream }];
+            });
+        };
+
+        if (initiator) {
+            peer.createOffer().then(offer => {
+                peer.setLocalDescription(offer);
+                socket.emit("voice.signal", {
+                    table_id: tableId,
+                    target_id: targetId,
+                    type: "offer",
+                    data: offer
+                });
+            });
+        }
+
+        return peer;
+    };
+
+    const joinCall = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            localStreamRef.current = stream;
+            setInCall(true);
+            // Socket join emitted by UI or here? UI does it. We just prep WebRTC.
+            // Wait, we need to know existing users to connect to them.
+            // Usually server sends "voice.existing-users" or we wait for them to say hello.
+            // For simplicity, we assume we just wait for "voice.joined" from others,
+            // OR rely on "voice.join" triggering server to broadcast "voice.joined" to EVERYONE including us?
+            // If server broadcasts, we handle our own ID (ignored) and others (connect).
+
+            // We also need to emit join if UI hasn't.
+            socket.emit("voice.join", { table_id: tableId, user_id: userId });
+
+        } catch (e) {
+            console.error("Failed to get local stream", e);
+            // handle error
+        }
+    };
+
+    const toggleMute = () => {
+        if (localStreamRef.current) {
+            const track = localStreamRef.current.getAudioTracks()[0];
+            track.enabled = !track.enabled;
+            setIsMuted(!track.enabled);
+        }
+    };
+
+    return { joinCall, leaveCall, toggleMute, isMuted, inCall, participants };
+};

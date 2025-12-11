@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { socket } from "../../../socket";
+import { useVoice } from "../hooks/useVoice";
 
 import {
   Phone,
@@ -30,94 +31,28 @@ export default function VoicePanel({
   players,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [inCall, setInCall] = useState(false);
-  const [participants, setParticipants] = useState([]);
-  const [myMuted, setMyMuted] = useState(false);
+  const { joinCall, leaveCall, toggleMute, isMuted, inCall, participants } = useVoice(tableId, currentUserId);
 
-  /* ---------------------------
-     SOCKET LISTENERS
-  ----------------------------*/
-  useEffect(() => {
-    if (!tableId) return;
-
-    // someone joined voice
-    socket.on("voice.joined", ({ user_id }) => {
-      setParticipants((prev) => {
-        if (!prev.find((p) => p.user_id === user_id)) {
-          return [...prev, { user_id, is_muted: false, is_speaking: false }];
-        }
-        return prev;
-      });
-    });
-
-    // someone left
-    socket.on("voice.left", ({ user_id }) => {
-      setParticipants((prev) => prev.filter((p) => p.user_id !== user_id));
-    });
-
-    // someone got muted
-    socket.on("voice.muted", ({ user_id }) => {
-      setParticipants((prev) =>
-        prev.map((p) =>
-          p.user_id === user_id ? { ...p, is_muted: true } : p
-        )
-      );
-    });
-
-    // someone got unmuted
-    socket.on("voice.unmuted", ({ user_id }) => {
-      setParticipants((prev) =>
-        prev.map((p) =>
-          p.user_id === user_id ? { ...p, is_muted: false } : p
-        )
-      );
-    });
-
-    return () => {
-      socket.off("voice.joined");
-      socket.off("voice.left");
-      socket.off("voice.muted");
-      socket.off("voice.unmuted");
-    };
-  }, [tableId]);
-
-  /* ---------------------------
-     JOIN / LEAVE CALL
-  ----------------------------*/
-  const toggleCall = () => {
-    if (!inCall) {
-      socket.emit("voice.join", { table_id: tableId, user_id: currentUserId });
-      setInCall(true);
-      setIsOpen(true);
-      toast.success("Joined voice call");
-    } else {
-      socket.emit("voice.leave", { table_id: tableId, user_id: currentUserId });
-      setInCall(false);
-      toast.success("Left voice call");
-    }
-  };
-
-  /* ---------------------------
-     MUTE / UNMUTE yourself
-  ----------------------------*/
-  const toggleMyMute = () => {
-    if (!inCall) return;
-
-    if (!myMuted) {
-      socket.emit("voice.mute", { table_id: tableId, user_id: currentUserId });
-      setMyMuted(true);
-    } else {
-      socket.emit("voice.unmute", { table_id: tableId, user_id: currentUserId });
-      setMyMuted(false);
-    }
-  };
+  // Render invisible audio elements for each remote participant
+  const audioElements = participants.map((p) => (
+    <audio
+      key={p.userId}
+      ref={(el) => {
+        if (el && p.stream) el.srcObject = p.stream;
+      }}
+      autoPlay
+      playsInline
+    />
+  ));
 
   /* ---------------------------
      HOST — MUTE ANY PLAYER
   ----------------------------*/
   const mutePlayer = (id, muted) => {
     if (!isHost) return;
-
+    // Tell server to broadcast a mute command to that user
+    // The server should emit "voice.muted" to everyone for UI updates, and "voice.force-mute" to the target?
+    // For now, consistent with previous code:
     if (!muted) {
       socket.emit("voice.mute", { table_id: tableId, user_id: id });
     } else {
@@ -130,173 +65,162 @@ export default function VoicePanel({
   ----------------------------*/
   const muteAll = () => {
     if (!isHost) return;
-
     participants.forEach((p) => {
-      socket.emit("voice.mute", { table_id: tableId, user_id: p.user_id });
+      // Ideally send one bulk command
+      socket.emit("voice.mute", { table_id: tableId, user_id: p.userId });
     });
-
-    toast.success("Muted all");
+    // Fallback if participants list in useVoice doesn't include everyone in the room (it only includes connected peers)
+    // The original code used socket list.
+    // We can allow muting anyone in the 'players' list too.
+    toast.success("Muting active participants...");
   };
+
+  const handleToggleCall = () => {
+    if (inCall) {
+      leaveCall();
+      toast.info("Left voice call");
+    } else {
+      joinCall();
+      toast.success("Joined voice call");
+      setIsOpen(true);
+    }
+  };
+
+  // Helper to get player details
+  const getPlayer = (uid) => players.find((p) => p.user_id === uid);
 
   /* ---------------------------
      Minimized floating button
   ----------------------------*/
   if (!isOpen) {
     return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className={`fixed top-8 right-4 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
-          ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
-          : "bg-green-800 hover:bg-green-700 text-green-100"
-          }`}
-      >
-        <ChevronRight className="w-4 h-4" />
-        Call
-      </button>
+      <>
+        {audioElements}
+        <button
+          onClick={() => setIsOpen(true)}
+          className={`fixed top-28 right-4 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
+              ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
+              : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
+            }`}
+        >
+          {inCall ? <Mic className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+          <span className="hidden md:inline">{inCall ? "In Call" : "Voice"}</span>
+        </button>
+      </>
     );
   }
 
   /* ---------------------------
-     FULL Voice Panel UI
+     Expanded Panel
   ----------------------------*/
   return (
-    <div className="fixed bottom-4 right-4 z-30 w-80 bg-slate-900 border-2 border-slate-700 rounded-lg shadow-2xl">
-      <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-800">
-        <div className="flex items-center gap-2">
-          <Users className="w-5 h-5 text-green-400" />
-          <h3 className="font-semibold text-white">Voice Call</h3>
-          {inCall && (
-            <span className="px-2 py-0.5 text-xs bg-green-600 text-white rounded-full">
-              Live
-            </span>
-          )}
+    <>
+      {audioElements}
+      <div className="fixed top-28 right-4 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-72 overflow-hidden flex flex-col transition-all animate-in fade-in slide-in-from-right-5">
+        {/* Header */}
+        <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${inCall ? "bg-green-500 animate-pulse" : "bg-slate-500"}`} />
+            <h3 className="font-semibold text-white text-sm">Voice Call</h3>
+          </div>
+          <button
+            onClick={() => setIsOpen(false)}
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <button
-          onClick={() => setIsOpen(false)}
-          className="p-1 hover:bg-slate-700 rounded transition-colors"
-        >
-          <X className="w-5 h-5 text-slate-400" />
-        </button>
-      </div>
-
-      <ScrollArea className="h-64 p-3">
-        {!inCall ? (
-          <div className="text-center py-8 text-slate-400">
-            <Phone className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">Join the voice call to see participants</p>
-          </div>
-        ) : participants.length === 0 ? (
-          <div className="text-center py-8 text-slate-400">Waiting for others…</div>
-        ) : (
-          <div className="space-y-2">
-            {participants.map((p) => {
-              const isMe = p.user_id === currentUserId;
-
-              return (
-                <div
-                  key={p.user_id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-slate-800 border border-slate-700"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border ${p.is_speaking ? "border-green-500 ring-2 ring-green-500/50" : "border-slate-500"} bg-slate-700`}>
-                        {(() => {
-                          const playerInfo = players?.find(x => x.user_id === p.user_id);
-                          if (playerInfo?.profile_image_url) {
-                            return <img src={playerInfo.profile_image_url} alt={playerInfo.display_name} className="w-full h-full object-cover" />;
-                          }
-                          return (
-                            <span className="text-white font-semibold text-sm">
-                              {(playerInfo?.display_name || p.display_name || p.user_id).slice(0, 2).toUpperCase()}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className={isMe ? "text-green-400 font-medium" : "text-white font-medium"}>
-                        {(() => {
-                          const playerInfo = players?.find(x => x.user_id === p.user_id);
-                          return playerInfo?.display_name || p.display_name || p.user_id.slice(0, 8);
-                        })()}
-                        {isMe && " (You)"}
-                      </p>
-                    </div>
+        {/* Participants List */}
+        <ScrollArea className="flex-1 max-h-60 min-h-[150px] p-2 bg-slate-900/50">
+          {!inCall ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-4 space-y-3">
+              <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center">
+                <Phone className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="text-sm text-slate-400">Join the voice chat to talk with other players!</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* ME */}
+              <div className="flex items-center justify-between p-2 rounded bg-slate-800/80 border border-indigo-500/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg">
+                    ME
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    {p.is_muted ? (
-                      <MicOff className="w-4 h-4 text-red-400" />
-                    ) : (
-                      <Mic className="w-4 h-4 text-green-400" />
-                    )}
-
-                    {isHost && !isMe && (
-                      <Button
-                        onClick={() => mutePlayer(p.user_id, p.is_muted)}
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                      >
-                        {p.is_muted ? "Unmute" : "Mute"}
-                      </Button>
-                    )}
+                  <div>
+                    <p className="text-sm font-medium text-white">You</p>
+                    <p className="text-[10px] text-indigo-300">{isMuted ? "Muted" : "Speaking"}</p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`h-8 w-8 rounded-full ${isMuted ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}
+                  onClick={toggleMute}
+                >
+                  {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </Button>
+              </div>
 
-      <div className="p-3 border-t border-slate-700 bg-slate-800 space-y-2">
-        {isHost && inCall && (
-          <Button
-            onClick={muteAll}
-            variant="outline"
-            size="sm"
-            className="w-full bg-slate-700 hover:bg-slate-600"
-          >
-            <MicOff className="w-4 h-4 mr-2" />
-            Mute All
-          </Button>
-        )}
+              {/* OTHERS */}
+              {participants.map((p) => {
+                const player = getPlayer(p.userId);
+                return (
+                  <div key={p.userId} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={player?.profile_image_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.userId}`}
+                        className="w-8 h-8 rounded-full bg-slate-700"
+                        alt="av"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-slate-200">{player?.display_name || "User"}</p>
+                        <p className="text-[10px] text-slate-500">Connected</p>
+                      </div>
+                    </div>
+                    {isHost && (
+                      <button onClick={() => mutePlayer(p.userId, false)} className="text-xs text-slate-500 hover:text-red-400">
+                        Mute
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
 
-        <div className="flex gap-2">
-          {inCall && (
+        {/* Footer Actions */}
+        <div className="p-3 bg-slate-800 border-t border-slate-700 flex flex-col gap-2">
+          {inCall ? (
             <Button
-              onClick={toggleMyMute}
-              className={`flex-1 ${myMuted ? "bg-red-600" : "bg-green-600"
-                } text-white`}
+              variant="destructive"
+              size="sm"
+              className="w-full bg-red-600 hover:bg-red-700 shadow-lg"
+              onClick={handleToggleCall}
             >
-              {myMuted ? (
-                <MicOff className="w-4 h-4 mr-2" />
-              ) : (
-                <Mic className="w-4 h-4 mr-2" />
-              )}
-              {myMuted ? "Unmute" : "Mute"}
+              <PhoneOff className="w-4 h-4 mr-2" />
+              Leave Audio
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
+              onClick={handleToggleCall}
+            >
+              <Phone className="w-4 h-4 mr-2" />
+              Join Audio
             </Button>
           )}
 
-          <Button
-            onClick={toggleCall}
-            className={`flex-1 ${inCall ? "bg-red-600" : "bg-green-600"
-              } text-white`}
-          >
-            {inCall ? (
-              <>
-                <PhoneOff className="w-4 h-4 mr-2" /> Leave
-              </>
-            ) : (
-              <>
-                <Phone className="w-4 h-4 mr-2" /> Join
-              </>
-            )}
-          </Button>
+          {isHost && inCall && participants.length > 0 && (
+            <button onClick={muteAll} className="text-[10px] text-slate-500 hover:text-slate-300 text-center w-full mt-1">
+              Mute All Participants
+            </button>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
