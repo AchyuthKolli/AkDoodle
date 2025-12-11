@@ -1037,9 +1037,6 @@ export default function Table() {
   const onDeclare = async () => {
     console.log("🎯 Declare clicked");
 
-    const totalPlacedInMelds =
-      (meld1?.length || 0) +
-      (meld2?.length || 0) +
     // Count actual cards (non-null)
     const countCards = (arr) => (arr || []).filter(c => c !== null).length;
 
