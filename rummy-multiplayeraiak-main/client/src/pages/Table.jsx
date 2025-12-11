@@ -412,6 +412,7 @@ export default function Table() {
   const [meld1, setMeld1] = useState([null, null, null]);
   const [meld2, setMeld2] = useState([null, null, null]);
   const [meld3, setMeld3] = useState([null, null, null]);
+  const [meld4, setMeld4] = useState([null, null, null]); // [NEW] Meld 4
   const [leftover, setLeftover] = useState([null, null, null, null]);
   const [prevRoundFinished, setPrevRoundFinished] = useState(null);
   const [showPointsTable, setShowPointsTable] = useState(true);
@@ -426,6 +427,7 @@ export default function Table() {
     meld1: false,
     meld2: false,
     meld3: false,
+    meld4: false,
     leftover: false,
   });
 
@@ -847,83 +849,8 @@ export default function Table() {
     return null;
   };
 
-  const onDeclare = async () => {
-    console.log("🎯 Declare clicked");
-    if (!meld1 || !meld2 || !meld3) {
-      toast.error("Please create all 3 melds before declaring");
-      return;
-    }
-
-    const totalPlacedInMelds = (meld1?.length || 0) + (meld2?.length || 0) + (meld3?.length || 0);
-    const leftoverCount = leftover?.length || 0;
-
-    if (leftoverCount > 0) {
-      toast.error("You cannot have cards in 'Leftover' when declaring.\nPlease arrange all 13 cards into Meld 1, Meld 2, and Meld 3.");
-      return;
-    }
-
-    if (totalPlacedInMelds !== 13) {
-      toast.error(`You must place all 13 cards in Meld 1, Meld 2, or Meld 3.`);
-      return;
-    }
-
-    if (!tableId) return;
-    if (!isMyTurn) {
-      toast.error("It's not your turn!");
-      return;
-    }
-
-    const handLength = myRound?.hand.length || 0;
-    if (handLength !== 14) {
-      toast.error(`You must have 14 cards to declare (13 in melds + 1 to discard).`);
-      return;
-    }
-
-    // Client-side strict validation
-    const groups = [];
-    const pushGroup = (grp) => { if (grp && grp.filter(c => c !== null).length > 0) groups.push(grp.filter(c => c !== null)); };
-    pushGroup(meld1);
-    pushGroup(meld2);
-    pushGroup(meld3);
-    // Leftover is empty per check above
-
-    console.log("🔍 Validating hand...", groups);
-    const clientVal = validateHand(groups, info.wild_joker_rank, true);
-    if (!clientVal.valid) {
-      console.warn("⚠️ Client validation failed:", clientVal.reason);
-      // User requested IMMEDIATE PENALTY. No warning dialog.
-      // Proceeding to declare will trigger server to return valid:false and apply penalty.
-    }
 
 
-    setActing(true);
-    try {
-      const discardGroups = groups.map((group) => group.map((card) => ({ rank: card.rank, suit: card.suit, joker: card.joker })));
-      const body = { table_id: tableId, groups: discardGroups };
-      const res = await apiclient.declare(body);
-      if (res.ok) {
-        const data = await res.json();
-        socket.emit("declare_made", { tableId });
-
-        // Handle server validation result
-        if (data.valid) { // [NEW] Checking 'valid' flag from engine response
-          toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
-          await fetchRevealedHands(); // NOW THIS WORKS with API fix
-        } else {
-          toast.error(`⚠️ Invalid declaration! ${data.message || 'Penalty applied.'}`);
-          // Force fetch revealed hands to show the scoreboard (results) even if invalid?
-          // Usually yes, round ends.
-          await fetchRevealedHands();
-        }
-      } else {
-        // ... error handling
-      }
-    } catch (error) {
-      // ...
-    } finally {
-      setActing(false);
-    }
-  };
 
   const onNextRound = async () => {
     if (!tableId || !info) return;
@@ -1053,18 +980,7 @@ export default function Table() {
     // Cannot determine index easily here, might break selection of duplicates if used
   };
 
-  const [meld1, setMeld1] = useState([null, null, null]);
-  const [meld2, setMeld2] = useState([null, null, null]);
-  const [meld3, setMeld3] = useState([null, null, null]);
-  const [meld4, setMeld4] = useState([null, null, null]); // [NEW] Meld 4
-  const [leftover, setLeftover] = useState([null, null, null, null]);
-  const [meldLocks, setMeldLocks] = useState({ meld1: false, meld2: false, meld3: false, meld4: false, leftover: false });
 
-  // ...
-
-  const toggleMeldLock = (meldKey) => {
-    setMeldLocks((prev) => ({ ...prev, [meldKey]: !prev[meldKey] }));
-  };
 
   const onClearMelds = () => {
     setMeld1([null, null, null]);
