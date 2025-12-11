@@ -1149,22 +1149,17 @@ export default function Table() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
             <div className="flex items-center gap-2">
-              {info?.status === "playing" && (
-                <button
-                  onClick={toggleVoiceMute}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg font-medium shadow-lg transition-colors ${voiceMuted ? "bg-red-700 hover:bg-red-600 text-white" : "bg-green-700 hover:bg-green-600 text-white"}`}
-                  title={voiceMuted ? "Unmute" : "Mute"}
-                >
-                  {voiceMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                </button>
-              )}
-
               {info?.status === "playing" && !isDisqualified && !info.players.find(p => p.user_id === user.id)?.is_spectator && (
                 <button
                   onClick={onDropGame}
-                  disabled={droppingGame || !isMyTurn || hasDrawn}
+                  disabled={droppingGame || !isMyTurn || hasDrawn || info.players.length < 3}
                   className="inline-flex items-center gap-2 px-3 py-2 bg-orange-700 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={hasDrawn ? "Cannot drop after drawing" : !isMyTurn ? "Wait for your turn to drop" : "Drop game (20pt penalty)"}
+                  title={
+                    info.players.length < 3 ? "Drop allowed for 3+ players only" :
+                      hasDrawn ? "Cannot drop after drawing" :
+                        !isMyTurn ? "Wait for your turn to drop" :
+                          "Drop game (20pt penalty)"
+                  }
                 >
                   <UserX className="w-5 h-5" />
                   {droppingGame ? "Dropping..." : "Drop"}

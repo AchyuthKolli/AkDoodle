@@ -1164,12 +1164,17 @@ router.post("/game/drop", requireAuth, async (req, res) => {
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
     const row = await db.fetchrow(
-      `SELECT r.id, r.hands, (SELECT COUNT(*) FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false) as player_count
+      `SELECT r.id, r.hands, r.active_user_id, (SELECT COUNT(*) FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false) as player_count
        FROM rummy_rounds r WHERE r.table_id=$1 ORDER BY r.number DESC LIMIT 1`,
       [table_id]
     );
     if (!row) return res.status(404).json({ error: "No active round" });
-    if (parseInt(row.player_count, 10) < 2) return res.status(400).json({ error: "Need 2+ players to drop" });
+
+    // Rule: Drop allowed only if 3 or more players are playing
+    if (parseInt(row.player_count, 10) < 3) return res.status(400).json({ error: "Drop is allowed only when 3 or more players are active." });
+
+    // Rule: Must be your turn to drop
+    if (row.active_user_id !== req.user.sub) return res.status(400).json({ error: "You can only drop at the start of YOUR turn." });
 
     const hands = typeof row.hands === "string" ? JSON.parse(row.hands) : (row.hands || {});
     const myHand = hands[req.user.sub] || [];
