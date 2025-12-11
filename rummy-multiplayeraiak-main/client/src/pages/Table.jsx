@@ -357,6 +357,49 @@ const LeftoverSlotBox = ({
   );
 };
 
+const RummyPlayersList = ({ info, activeUserId }) => {
+  const { players } = useRummy();
+  const { user } = useAuth();
+  // Prefer context players if available (reactive), fallback to info.players
+  const displayPlayers = (players && Object.keys(players).length > 0) ? Object.values(players) : (info?.players || []);
+
+  // Sort: Host first, then seat order? Or just keep original order but merge data.
+  // Actually, let's stick to info.players order but use context data for avatars
+  const unifiedPlayers = (info?.players || []).map(p => {
+    const ctxP = players[p.user_id];
+    return {
+      ...p,
+      profile_image_url: ctxP?.profile_image_url || ctxP?.photoURL || p.profile_image_url,
+      display_name: ctxP?.display_name || p.display_name
+    };
+  });
+
+  return (
+    <>
+      {unifiedPlayers.map((p) => (
+        <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
+          <div className="w-10 h-10 rounded-full flex items-center justify-center border border-green-600/50 overflow-hidden bg-black">
+            {p.profile_image_url ? (
+              <img src={p.profile_image_url} alt="avatar" className="w-full h-full object-cover" />
+            ) : (
+              <User2 className="w-5 h-5 text-green-100" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-foreground text-sm font-medium truncate">{p.display_name || "Player"}</p>
+            <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
+          </div>
+          {p.user_id === info.host_user_id && (
+            <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
+              <Crown className="w-3 h-3" /> Host
+            </span>
+          )}
+        </div>
+      ))}
+    </>
+  );
+};
+
 /* --------------------------- Main Table Component --------------------------- */
 
 export default function Table() {
@@ -997,10 +1040,15 @@ export default function Table() {
     const totalPlacedInMelds =
       (meld1?.length || 0) +
       (meld2?.length || 0) +
-      (meld3?.length || 0) +
-      (meld4?.length || 0);
+    // Count actual cards (non-null)
+    const countCards = (arr) => (arr || []).filter(c => c !== null).length;
 
-    const leftoverCount = leftover?.length || 0;
+    const meld1Count = countCards(meld1);
+    const meld2Count = countCards(meld2);
+    const meld3Count = countCards(meld3);
+    const meld4Count = countCards(meld4);
+    const totalPlacedInMelds = meld1Count + meld2Count + meld3Count + meld4Count;
+    const leftoverCount = countCards(leftover);
     const totalCards = totalPlacedInMelds + leftoverCount;
 
     if (totalCards !== 14) {
@@ -1367,43 +1415,8 @@ export default function Table() {
                             <div className="border-t border-border pt-4">
                               <p className="text-sm text-muted-foreground mb-2">Players</p>
                               <div className="grid grid-cols-1 gap-3">
-                                {console.log("Table Render Side Panel info.players:", info.players)}
-                                {info.players.map((p) => (
-                                  <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center border border-green-600/50 overflow-hidden bg-black">
-                                      {p.profile_image_url ? (
-                                        <img src={p.profile_image_url} alt="avatar" className="w-full h-full object-cover" />
-                                      ) : (
-                                        <User2 className="w-5 h-5 text-green-100" />
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-foreground text-sm font-medium truncate">{p.display_name || "Player"}</p>
-                                      <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
-                                    </div>
-                                    {p.user_id === info.host_user_id && (
-                                      <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
-                                        <Crown className="w-3 h-3" /> Host
-                                      </span>
-                                    )}
-                                    {/* Spectate Button */}
-                                    {isDisqualified && p.user_id !== user.id && (
-                                      <button
-                                        onClick={() => requestSpectate(p.user_id)}
-                                        className="text-[10px] px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-500 ml-auto"
-                                        title="Request to Spectate"
-                                      >
-                                        Spectate
-                                      </button>
-                                    )}
-                                    {/* Grant Spectate (Host only - simplistic version) */}
-                                    {user.id === p.user_id && spectateRequests.length > 0 && (
-                                      // This requires tracking who requested. 
-                                      // For now, let's just show visual indication if we had specific request logic.
-                                      null
-                                    )}
-                                  </div>
-                                ))}
+                                {/* Use RummyContext players if available for reactive updates */}
+                                <RummyPlayersList info={info} activeUserId={info.active_user_id} />
                               </div>
                             </div>
                           </div>
