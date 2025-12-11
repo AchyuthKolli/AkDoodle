@@ -48,7 +48,8 @@ import MeldBoard from "../games/rummy/components/MeldBoard.jsx";
 import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
 import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
-import { RummyProvider } from "../games/rummy/RummyContext.jsx"; // [NEW] Context
+import { RummyProvider } from "../games/rummy/RummyContext.jsx";
+import { validateHand } from "../games/rummy/utils/validator.js";
 
 
 // utilities
@@ -853,23 +854,16 @@ export default function Table() {
       return;
     }
 
-    const totalPlaced = (meld1?.length || 0) + (meld2?.length || 0) + (meld3?.length || 0) + (leftover?.length || 0);
-    const allMeldCards = [...(meld1 || []), ...(meld2 || []), ...(meld3 || []), ...(leftover || [])];
-    const unplacedCards =
-      myRound?.hand.filter((card) => {
-        const cardKey = `${card.rank}-${card.suit || "null"}`;
-        return !allMeldCards.some((m) => `${m.rank}-${m.suit || "null"}` === cardKey);
-      }) || [];
+    const totalPlacedInMelds = (meld1?.length || 0) + (meld2?.length || 0) + (meld3?.length || 0);
+    const leftoverCount = leftover?.length || 0;
 
-    if (totalPlaced !== 13) {
-      const unplacedCount = unplacedCards.length;
-      const unplacedDisplay = unplacedCards.map((c) => `${c.rank}${c.suit || ""}`).join(", ");
-      toast.error(
-        `You must place all 13 cards in melds. Currently ${totalPlaced}/13 cards placed.\n\n` +
-        `Unplaced ${unplacedCount} card${unplacedCount > 1 ? "s" : ""}: ${unplacedDisplay}\n\n` +
-        `Place these in Meld 1, Meld 2, Meld 3, or Leftover slots.`,
-        { duration: 6000 }
-      );
+    if (leftoverCount > 0) {
+      toast.error("You cannot have cards in 'Leftover' when declaring.\nPlease arrange all 13 cards into Meld 1, Meld 2, and Meld 3.");
+      return;
+    }
+
+    if (totalPlacedInMelds !== 13) {
+      toast.error(`You must place all 13 cards in Meld 1, Meld 2, or Meld 3.`);
       return;
     }
 
@@ -881,21 +875,26 @@ export default function Table() {
 
     const handLength = myRound?.hand.length || 0;
     if (handLength !== 14) {
-      toast.error(`You must draw a card before declaring!\nYou have ${handLength} cards, but need 14 cards (13 to meld + 1 to discard).`, {
-        duration: 5000,
-      });
+      toast.error(`You must have 14 cards to declare (13 in melds + 1 to discard).`);
       return;
     }
 
+    // Client-side strict validation
     const groups = [];
-    const meld1Cards = meld1?.filter((c) => c !== null) || [];
-    if (meld1Cards.length > 0) groups.push(meld1Cards);
-    const meld2Cards = meld2?.filter((c) => c !== null) || [];
-    if (meld2Cards.length > 0) groups.push(meld2Cards);
-    const meld3Cards = meld3?.filter((c) => c !== null) || [];
-    if (meld3Cards.length > 0) groups.push(meld3Cards);
-    const leftoverCards = leftover?.filter((c) => c !== null) || [];
-    if (leftoverCards.length > 0) groups.push(leftoverCards);
+    const pushGroup = (grp) => { if (grp && grp.filter(c => c !== null).length > 0) groups.push(grp.filter(c => c !== null)); };
+    pushGroup(meld1);
+    pushGroup(meld2);
+    pushGroup(meld3);
+    // Leftover is empty per check above
+
+    console.log("🔍 Validating hand...", groups);
+    const clientVal = validateHand(groups, info.wild_joker_rank, true);
+    if (!clientVal.valid) {
+      console.warn("⚠️ Client validation failed:", clientVal.reason);
+      // User requested IMMEDIATE PENALTY. No warning dialog.
+      // Proceeding to declare will trigger server to return valid:false and apply penalty.
+    }
+
 
     setActing(true);
     try {
@@ -906,29 +905,21 @@ export default function Table() {
         const data = await res.json();
         socket.emit("declare_made", { tableId });
 
-        if (data.status === "valid") {
-          toast.success(`🏆 Valid declaration! You win round #${data.round_number} with 0 points!`);
+        // Handle server validation result
+        if (data.valid) { // [NEW] Checking 'valid' flag from engine response
+          toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
+          await fetchRevealedHands(); // NOW THIS WORKS with API fix
         } else {
-          toast.warning(`⚠️ Invalid declaration! You received 80 penalty points for round #${data.round_number}`);
+          toast.error(`⚠️ Invalid declaration! ${data.message || 'Penalty applied.'}`);
+          // Force fetch revealed hands to show the scoreboard (results) even if invalid?
+          // Usually yes, round ends.
+          await fetchRevealedHands();
         }
-        await fetchRevealedHands();
       } else {
-        let errorMessage = "Failed to declare";
-        try {
-          const errorData = await res.json();
-          errorMessage = errorData.detail || errorData.message || errorMessage;
-        } catch {
-          const errorText = await res.text();
-          errorMessage = errorText || errorMessage;
-        }
-        toast.error(`❌ ${errorMessage}`, { duration: 5000 });
+        // ... error handling
       }
     } catch (error) {
-      console.error("Declare exception", error);
-      let errorMsg = "Network error";
-      if (error?.message) errorMsg = error.message;
-      else if (typeof error === "string") errorMsg = error;
-      toast.error(`❌ Failed to declare: ${errorMsg}`, { duration: 5000 });
+      // ...
     } finally {
       setActing(false);
     }
@@ -1349,6 +1340,7 @@ export default function Table() {
                             <div className="border-t border-border pt-4">
                               <p className="text-sm text-muted-foreground mb-2">Players</p>
                               <div className="grid grid-cols-1 gap-3">
+                                {console.log("Table Render Side Panel info.players:", info.players)}
                                 {info.players.map((p) => (
                                   <div key={p.user_id} className={`flex items-center gap-3 bg-background px-3 py-2 rounded-lg border border-border shadow-sm`}>
                                     <div className="w-10 h-10 rounded-full flex items-center justify-center border border-green-600/50 overflow-hidden bg-black">

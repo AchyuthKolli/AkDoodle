@@ -135,7 +135,9 @@ export default {
   get_voice_participants,
   mute_player,
   update_table_voice_settings,
-  declare: declare_round // Alias for Table.jsx
+  update_table_voice_settings,
+  declare: declare_round, // Alias for Table.jsx
+  get_revealed_hands: get_scoreboard // [NEW] Fix for Table.jsx
 };
 
 export const declare = declare_round; // Named export alias
