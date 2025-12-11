@@ -1053,13 +1053,113 @@ export default function Table() {
     // Cannot determine index easily here, might break selection of duplicates if used
   };
 
+  const [meld1, setMeld1] = useState([null, null, null]);
+  const [meld2, setMeld2] = useState([null, null, null]);
+  const [meld3, setMeld3] = useState([null, null, null]);
+  const [meld4, setMeld4] = useState([null, null, null]); // [NEW] Meld 4
+  const [leftover, setLeftover] = useState([null, null, null, null]);
+  const [meldLocks, setMeldLocks] = useState({ meld1: false, meld2: false, meld3: false, meld4: false, leftover: false });
+
+  // ...
+
+  const toggleMeldLock = (meldKey) => {
+    setMeldLocks((prev) => ({ ...prev, [meldKey]: !prev[meldKey] }));
+  };
+
   const onClearMelds = () => {
     setMeld1([null, null, null]);
     setMeld2([null, null, null]);
     setMeld3([null, null, null]);
+    setMeld4([null, null, null]);
     setLeftover([null, null, null, null]);
     toast.success("Melds cleared");
   };
+
+  const onDeclare = async () => {
+    console.log("🎯 Declare clicked");
+
+    const totalPlacedInMelds =
+      (meld1?.length || 0) +
+      (meld2?.length || 0) +
+      (meld3?.length || 0) +
+      (meld4?.length || 0);
+
+    const leftoverCount = leftover?.length || 0;
+    const totalCards = totalPlacedInMelds + leftoverCount;
+
+    if (totalCards !== 14) {
+      toast.error(`You must have 14 cards to declare (13 in melds + 1 deadwood). Currently have ${totalCards}.`);
+      return;
+    }
+
+    if (totalPlacedInMelds !== 13) {
+      toast.error(`You must place exactly 13 cards in the Meld slots (Meld 1–4). \nCurrently placed: ${totalPlacedInMelds}.`);
+      return;
+    }
+
+    if (leftoverCount !== 1) {
+      toast.error(`You must have exactly 1 card in 'Leftover' (your discard card).`);
+      return;
+    }
+
+    if (!tableId) return;
+    if (!isMyTurn) {
+      toast.error("It's not your turn!");
+      return;
+    }
+
+    // Client-side strict validation
+    const groups = [];
+    const pushGroup = (grp) => { if (grp && grp.filter(c => c !== null).length > 0) groups.push(grp.filter(c => c !== null)); };
+    pushGroup(meld1);
+    pushGroup(meld2);
+    pushGroup(meld3);
+    pushGroup(meld4);
+
+    console.log("🔍 Validating hand...", groups);
+    const clientVal = validateHand(groups, info.wild_joker_rank, true);
+    if (!clientVal.valid) {
+      console.warn("⚠️ Client validation failed:", clientVal.reason);
+    }
+
+    setActing(true);
+    try {
+      const discardGroups = groups.map((group) => group.map((card) => ({ rank: card.rank, suit: card.suit, joker: card.joker })));
+      const body = { table_id: tableId, groups: discardGroups };
+      const res = await apiclient.declare(body);
+      if (res.ok) {
+        const data = await res.json();
+        socket.emit("declare_made", { tableId });
+
+        if (data.valid) {
+          toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
+          await fetchRevealedHands();
+        } else {
+          toast.error(`⚠️ Invalid declaration! ${data.message || 'Penalty applied.'}`);
+          await fetchRevealedHands();
+        }
+      } else {
+        let errorMessage = "Failed to declare";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch {
+          const errorText = await res.text();
+          errorMessage = errorText || errorMessage;
+        }
+        toast.error(`❌ ${errorMessage}`, { duration: 5000 });
+      }
+    } catch (error) {
+      console.error("Declare exception", error);
+      let errorMsg = "Network error";
+      if (error?.message) errorMsg = error.message;
+      else if (typeof error === "string") errorMsg = error;
+      toast.error(`❌ Failed to declare: ${errorMsg}`, { duration: 5000 });
+    } finally {
+      setActing(false);
+    }
+  };
+
 
   useEffect(() => {
     console.log("🔍 Discard Button Visibility Check:", {
@@ -1234,6 +1334,17 @@ export default function Table() {
                             myRound={myRound}
                             isLocked={meldLocks.meld3}
                             onToggleLock={() => toggleMeldLock("meld3")}
+                            tableId={tableId}
+                            onRefresh={refresh}
+                            gameMode={info.wild_joker_mode}
+                          />
+                          <MeldSlotBox
+                            title="Meld 4"
+                            slots={meld4}
+                            setSlots={setMeld4}
+                            myRound={myRound}
+                            isLocked={meldLocks.meld4}
+                            onToggleLock={() => toggleMeldLock("meld4")}
                             tableId={tableId}
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
