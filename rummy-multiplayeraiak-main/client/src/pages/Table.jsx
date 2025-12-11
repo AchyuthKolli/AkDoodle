@@ -268,85 +268,62 @@ const LeftoverSlotBox = ({
     // However, the original code had 4-card seq logic here. I should probably DISABLE lock for Deadwood.
     toast.info("Leftover card is for discard/deadwood. No need to lock.");
   };
-  setLocking(true);
-  try {
-    const meldCards = cards.map((card) => ({ rank: card.rank, suit: card.suit || null }));
-    const body = { table_id: tableId, meld: meldCards };
-    const res = await apiclient.lock_sequence(body);
-    const data = await res.json();
-    if (data.success) {
-      toast.success(data.message);
-      if (onToggleLock) onToggleLock();
-      if (data.wild_joker_revealed && data.wild_joker_rank) {
-        setRevealedRank(data.wild_joker_rank);
-        setShowRevealModal(true);
-      }
-      onRefresh();
-    } else {
-      toast.error(data.message || "Lock failed");
-    }
-  } catch (err) {
-    console.error("Lock error", err);
-    toast.error("Failed to lock sequence");
-  } finally {
-    setLocking(false);
-  }
-};
 
-return (
-  <>
-    <div className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}>
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] text-blue-400">Discard / Deadwood</p>
-        <div className="flex items-center gap-1">
-          {/* Removed Lock button for Deadwood */}
-          {onToggleLock && (
-            <button
-              onClick={onToggleLock}
-              className={`text-[10px] px-1.5 py-0.5 rounded ${isLocked ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"}`}
-            >
-              {isLocked ? "🔒" : "🔓"}
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="flex gap-1">
-        {slots.map((card, i) => (
-          <div
-            key={i}
-            onDragOver={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.add("ring-2", "ring-cyan-400");
-            }}
-            onDragLeave={(e) => {
-              e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
-              const cardData = e.dataTransfer.getData("card");
-              if (cardData) handleSlotDrop(i, cardData);
-            }}
-            onClick={() => handleSlotClick(i)}
-            className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
-          >
-            {card ? (
-              <div className="w-full h-full p-1">
-                <PlayingCard card={card} onClick={() => { }} draggable={false} className="w-full h-full shadow-md" />
-              </div>
-            ) : (
-              <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
+
+  return (
+    <>
+      <div className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] text-blue-400">Discard / Deadwood</p>
+          <div className="flex items-center gap-1">
+            {/* Removed Lock button for Deadwood */}
+            {onToggleLock && (
+              <button
+                onClick={onToggleLock}
+                className={`text-[10px] px-1.5 py-0.5 rounded ${isLocked ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"}`}
+              >
+                {isLocked ? "🔒" : "🔓"}
+              </button>
             )}
           </div>
-        ))}
+        </div>
+        <div className="flex gap-1">
+          {slots.map((card, i) => (
+            <div
+              key={i}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add("ring-2", "ring-cyan-400");
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
+                const cardData = e.dataTransfer.getData("card");
+                if (cardData) handleSlotDrop(i, cardData);
+              }}
+              onClick={() => handleSlotClick(i)}
+              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
+            >
+              {card ? (
+                <div className="w-full h-full p-1">
+                  <PlayingCard card={card} onClick={() => { }} draggable={false} className="w-full h-full shadow-md" />
+                </div>
+              ) : (
+                <span className="text-xs text-slate-600 font-bold">{i + 1}</span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
 
-    {revealedRank && (
-      <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
-    )}
-  </>
-);
+      {revealedRank && (
+        <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
+      )}
+    </>
+  );
 };
 
 const RummyPlayersList = ({ info, activeUserId }) => {
