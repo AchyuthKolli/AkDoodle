@@ -146,8 +146,8 @@ export default function VoicePanel({
       <button
         onClick={() => setIsOpen(true)}
         className={`fixed top-8 right-4 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
-            ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
-            : "bg-green-800 hover:bg-green-700 text-green-100"
+          ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
+          : "bg-green-800 hover:bg-green-700 text-green-100"
           }`}
       >
         <ChevronRight className="w-4 h-4" />
@@ -199,15 +199,28 @@ export default function VoicePanel({
                   className="flex items-center justify-between p-3 rounded-lg bg-slate-800 border border-slate-700"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
-                      <span className="text-white font-semibold text-sm">
-                        {(p.display_name || p.user_id).slice(0, 2).toUpperCase()}
-                      </span>
+                    <div className="relative">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border ${p.is_speaking ? "border-green-500 ring-2 ring-green-500/50" : "border-slate-500"} bg-slate-700`}>
+                        {(() => {
+                          const playerInfo = players?.find(x => x.user_id === p.user_id);
+                          if (playerInfo?.profile_image_url) {
+                            return <img src={playerInfo.profile_image_url} alt={playerInfo.display_name} className="w-full h-full object-cover" />;
+                          }
+                          return (
+                            <span className="text-white font-semibold text-sm">
+                              {(playerInfo?.display_name || p.display_name || p.user_id).slice(0, 2).toUpperCase()}
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </div>
 
                     <div>
-                      <p className={isMe ? "text-green-400" : "text-white"}>
-                        {p.display_name || p.user_id.slice(0, 8)}
+                      <p className={isMe ? "text-green-400 font-medium" : "text-white font-medium"}>
+                        {(() => {
+                          const playerInfo = players?.find(x => x.user_id === p.user_id);
+                          return playerInfo?.display_name || p.display_name || p.user_id.slice(0, 8);
+                        })()}
                         {isMe && " (You)"}
                       </p>
                     </div>

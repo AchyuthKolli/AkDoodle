@@ -72,6 +72,7 @@ class RummyEngine {
       hasDrawn: false,
       dropped: false,
       drop_points: 0,
+      profile_image_url: p.profile_image_url || null,
     }));
 
     // round / engine state
@@ -113,7 +114,9 @@ class RummyEngine {
         display_name: p.display_name,
         seat: p.seat,
         hand_count: p.hand.length,
+        hand_count: p.hand.length,
         dropped: !!p.dropped,
+        profile_image_url: p.profile_image_url || null,
       })),
       game_mode: this.table.wild_joker_mode,
     };
@@ -512,13 +515,14 @@ class RummyEngine {
           valid = out;
           reason = valid ? "Valid hand" : "Invalid hand";
         } else {
-          valid = true;
-          reason = "Validation tool returned unknown shape; accepted by default";
+          valid = false;
+          reason = "Validation tool returned unknown shape; rejected by default";
         }
       } else {
-        // No scoring validator present — accept declaration (NOT RECOMMENDED)
-        valid = true;
-        reason = "No server-side validator available; accepted by default";
+        // No scoring validator present — REJECT declaration for safety
+        console.error("CRITICAL: Scoring validator function missing in RummyEngine!");
+        valid = false;
+        reason = "Server validation configuration error";
       }
     } catch (e) {
       valid = false;

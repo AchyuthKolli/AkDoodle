@@ -48,6 +48,7 @@ import MeldBoard from "../games/rummy/components/MeldBoard.jsx";
 import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
 import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
+import { RummyProvider } from "../games/rummy/RummyContext.jsx"; // [NEW] Context
 
 
 // utilities
@@ -1137,7 +1138,7 @@ export default function Table() {
             <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
               {loading && <p className="text-muted-foreground">Loading…</p>}
               {!loading && info && (
-                <>
+                <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
@@ -1393,7 +1394,7 @@ export default function Table() {
                       </div>
                     </div>
                   )}
-                </>
+                </RummyProvider>
               )}
 
               {/* --- existing UI continues unchanged --- */}

@@ -1,7 +1,9 @@
 import React from 'react';
+import { useRummy } from "../RummyContext.jsx";
 
 export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
   console.log('🎨 CasinoTable3D rendering with color:', tableColor);
+  const { isMyTurn } = useRummy();
 
   // Calculate colors directly - no useMemo to ensure instant updates
   const mainColor = tableColor === 'green' ? '#15803d' : '#6b2f2f';
@@ -27,17 +29,15 @@ export const CasinoTable3D = ({ children, tableColor = 'green' }) => {
       }}>
         {/* Main Casino Table - GREEN/RED-BROWN FELT */}
         <div
-          className="relative w-full max-w-3xl aspect-square max-h-[500px] rounded-[30px] shadow-2xl transition-colors duration-500"
+          className="relative w-full max-w-3xl aspect-square max-h-[500px] rounded-[30px] shadow-2xl transition-all duration-500"
           style={{
             transform: 'rotateX(20deg) rotateZ(0deg)',
             transformStyle: 'preserve-3d',
             backgroundColor: mainColor,
             backgroundImage: gradientColor,
-            boxShadow: `
-              0 40px 80px rgba(0, 0, 0, 0.6),
-              inset 0 2px 4px rgba(255, 255, 255, 0.1),
-              inset 0 -2px 4px rgba(0, 0, 0, 0.3)
-            `
+            boxShadow: isMyTurn
+              ? `0 0 60px rgba(251, 191, 36, 0.6), 0 40px 80px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.1)`
+              : `0 40px 80px rgba(0, 0, 0, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.1), inset 0 -2px 4px rgba(0, 0, 0, 0.3)`
           }}
         >
           {/* Felt Texture Overlay */}

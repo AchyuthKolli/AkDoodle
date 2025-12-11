@@ -139,3 +139,4 @@ export default {
 };
 
 export const declare = declare_round; // Named export alias
+export const get_revealed_hands = get_scoreboard; // Fix for Table.jsx using get_revealed_hands
