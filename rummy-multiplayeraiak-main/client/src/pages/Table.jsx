@@ -401,6 +401,9 @@ export default function Table() {
   const [showScoreboardPanel, setShowScoreboardPanel] = useState(false);
   const [revealedHands, setRevealedHands] = useState(null);
 
+  // Dragged card tracking (local UI fix for lag)
+  const [draggedCardIndex, setDraggedCardIndex] = useState(null);
+
   // keep previous players list to detect leaves
   const prevPlayersRef = useRef(null);
 
@@ -1330,6 +1333,8 @@ export default function Table() {
                             selectedIndex={selectedCardIndex}
                             highlightIndex={-1}
                             onReorder={onReorderHand}
+                            draggedIndexExternal={draggedCardIndex}
+                            setDraggedIndexExternal={setDraggedCardIndex}
                           />
                         </div>
                       </div>
@@ -1391,6 +1396,15 @@ export default function Table() {
                         )}
                       </div>
                     </div>
+                  )}
+
+                  {/* Move ChatSidebar and VoicePanel INSIDE Provider to access useRummy context for avatars */}
+                  {user && info && tableId && (
+                    <ChatSidebar tableId={tableId} currentUserId={user.id} players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))} />
+                  )}
+
+                  {user && info && tableId && (
+                    <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
                   )}
                 </RummyProvider>
               )}
@@ -1561,107 +1575,110 @@ export default function Table() {
                           </div>
                         </div>
 
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
-                          <div className="space-y-1.5">
-                            {info.players.map((p) => (
-                              <div key={p.user_id} className="flex items-center gap-2 text-sm bg-background px-2 py-1 rounded border border-border">
-                                <div className="w-8 h-8 rounded-full bg-green-800/50 flex items-center justify-center">
-                                  <User2 className="w-4 h-4 text-green-200" />
+                        {!tableInfoMinimized && (
+                          <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+                            {loading && <p className="text-muted-foreground">Loading…</p>}
+                            {!loading && info && (
+                              <>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Room Code</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <code className="text-lg font-mono text-foreground bg-background px-3 py-1 rounded border border-border">{info.code}</code>
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(info.code);
+                                        toast.success("Code copied!");
+                                      }}
+                                      className="p-1.5 hover:bg-muted rounded"
+                                    >
+                                      <Copy className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-foreground text-sm truncate">{p.display_name || p.user_id.slice(0, 6)}</p>
-                                  <p className="text-muted-foreground text-xs truncate">Seat {p.seat}</p>
+
+                                <div>
+                                  <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
+                                  <div className="space-y-1.5">
+                                    {/* REPLACED manual loop with reactive component for Avatars */}
+                                    <RummyPlayersList info={info} activeUserId={info.active_user_id} />
+                                  </div>
                                 </div>
-                                {p.user_id === info.host_user_id && <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded"><Crown className="w-3 h-3" /> Host</span>}
-                                {info.status === "playing" && p.user_id === info.active_user_id && <span className="text-xs text-amber-400 font-medium">Active</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
 
-                        <div className="border-t border-border pt-3">
-                          <p className="text-sm text-muted-foreground">Status: <span className="text-foreground font-medium">{info?.status ?? "-"}</span></p>
-                          {user && info.host_user_id === user.id && (
-                            <button onClick={onStart} disabled={!canStart || starting} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 mt-2">
-                              <Play className="w-5 h-5" />
-                              {starting ? "Starting…" : "Start Game"}
-                            </button>
-                          )}
-                          {info && info.status === "waiting" && user && user.id !== info.host_user_id && (
-                            <p className="text-sm text-muted-foreground text-center py-2">Waiting for host to start...</p>
-                          )}
-                        </div>
+                                <div className="border-t border-border pt-3">
+                                  <p className="text-sm text-muted-foreground">Status: <span className="text-foreground font-medium">{info?.status ?? "-"}</span></p>
+                                  {user && info.host_user_id === user.id && (
+                                    <button onClick={onStart} disabled={!canStart || starting} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 mt-2">
+                                      <Play className="w-5 h-5" />
+                                      {starting ? "Starting…" : "Start Game"}
+                                    </button>
+                                  )}
+                                  {info && info.status === "waiting" && user && user.id !== info.host_user_id && (
+                                    <p className="text-sm text-muted-foreground text-center py-2">Waiting for host to start...</p>
+                                  )}
+                                </div>
 
-                        {/* Round History & Points Table */}
-                        {roundHistory.length > 0 && (
-                          <div className="border-t border-border pt-3">
-                            <h4 className="text-sm font-semibold text-foreground mb-2">Round History</h4>
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="border-b border-border">
-                                    <th className="text-left py-2 px-2 font-semibold text-foreground">Player</th>
-                                    {roundHistory.map((round, idx) => (
-                                      <th key={idx} className="text-center py-2 px-1 font-semibold text-foreground">R{round.round_number}</th>
-                                    ))}
-                                    <th className="text-right py-2 px-2 font-semibold text-yellow-600">Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {info.players.map((player) => {
-                                    let runningTotal = 0;
-                                    return (
-                                      <tr key={player.user_id} className="border-b border-border/50">
-                                        <td className="py-2 px-2 text-foreground"><div className="flex items-center gap-1">{player.display_name || "Player"}</div></td>
-                                        {roundHistory.map((round, idx) => {
-                                          const isWinner = round.winner_user_id === player.user_id;
-                                          const roundScore = round.scores[player.user_id] || 0;
-                                          runningTotal += roundScore;
-                                          return (
-                                            <td key={idx} className="text-center py-2 px-1">
-                                              <div className="flex flex-col items-center">
-                                                <span className={isWinner ? "text-green-600 dark:text-green-500 font-semibold" : "text-muted-foreground"}>{roundScore}</span>
-                                                {isWinner && <Trophy className="w-3 h-3 text-yellow-500" />}
-                                              </div>
-                                            </td>
-                                          );
-                                        })}
-                                        <td className="text-right py-2 px-2 font-bold text-yellow-600">{runningTotal}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
+                                {/* Round History & Points Table */}
+                                {roundHistory.length > 0 && (
+                                  <div className="border-t border-border pt-3">
+                                    <h4 className="text-sm font-semibold text-foreground mb-2">Round History</h4>
+                                    <div className="overflow-x-auto">
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="border-b border-border">
+                                            <th className="text-left py-2 px-2 font-semibold text-foreground">Player</th>
+                                            {roundHistory.map((round, idx) => (
+                                              <th key={idx} className="text-center py-2 px-1 font-semibold text-foreground">R{round.round_number}</th>
+                                            ))}
+                                            <th className="text-right py-2 px-2 font-semibold text-yellow-600">Total</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {info.players.map((player) => {
+                                            let runningTotal = 0;
+                                            return (
+                                              <tr key={player.user_id} className="border-b border-border/50">
+                                                <td className="py-2 px-2 text-foreground"><div className="flex items-center gap-1">{player.display_name || "Player"}</div></td>
+                                                {roundHistory.map((round, idx) => {
+                                                  const isWinner = round.winner_user_id === player.user_id;
+                                                  const roundScore = round.scores[player.user_id] || 0;
+                                                  runningTotal += roundScore;
+                                                  return (
+                                                    <td key={idx} className="text-center py-2 px-1">
+                                                      <div className="flex flex-col items-center">
+                                                        <span className={isWinner ? "text-green-600 dark:text-green-500 font-semibold" : "text-muted-foreground"}>{roundScore}</span>
+                                                        {isWinner && <Trophy className="w-3 h-3 text-yellow-500" />}
+                                                      </div>
+                                                    </td>
+                                                  );
+                                                })}
+                                                <td className="text-right py-2 px-2 font-bold text-yellow-600">{runningTotal}</td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         )}
-                      </>
+                      </div>
+            )}
+
+                    {!tableInfoVisible && (
+                      <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 z-20 bg-card border border-border rounded-lg shadow-lg px-4 py-2 hover:bg-accent/50 transition-colors">
+                        Show Table Info
+                      </button>
                     )}
                   </div>
-                )}
-              </div>
-            )}
 
-            {!tableInfoVisible && (
-              <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 z-20 bg-card border border-border rounded-lg shadow-lg px-4 py-2 hover:bg-accent/50 transition-colors">
-                Show Table Info
-              </button>
-            )}
           </div>
-
-          {/* ChatSidebar and VoicePanel */}
-          {user && info && tableId && (
-            <ChatSidebar tableId={tableId} currentUserId={user.id} players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))} />
-          )}
-
-          {user && info && tableId && (
-            <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
-          )}
         </div>
-      </div>
-      {/* Mobile Styles for Table and Hand */}
-      <style>{`
+        </div>
+        {/* Mobile Styles for Table and Hand */}
+        <style>{`
         @media (max-width: 768px) {
           .hand-strip-container {
             position: fixed;
@@ -1692,6 +1709,6 @@ export default function Table() {
           }
         }
       `}</style>
-    </div>
-  );
+      </div>
+      );
 }

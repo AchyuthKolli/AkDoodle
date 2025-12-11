@@ -8,7 +8,7 @@ export const GameRules = ({ defaultOpen = false }) => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-32 right-4 z-40 bg-green-800 hover:bg-green-700 text-green-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm"
+        className="fixed top-44 right-4 z-40 bg-green-800 hover:bg-green-700 text-green-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm"
       >
         <ChevronRight className="w-4 h-4" />
         Game Rules
@@ -17,7 +17,7 @@ export const GameRules = ({ defaultOpen = false }) => {
   }
 
   return (
-    <div className="fixed top-32 right-4 z-40 w-80 bg-background border border-border rounded-lg shadow-xl">
+    <div className="fixed top-44 right-4 z-40 w-80 bg-background border border-border rounded-lg shadow-xl">
       <div className="flex items-center justify-between p-3 border-b border-border bg-green-900/20">
         <h3 className="font-semibold text-green-100 flex items-center gap-2">
           <ChevronDown className="w-4 h-4" />

@@ -7,8 +7,18 @@ export const HandStrip = ({
   selectedIndex,
   highlightIndex,
   onReorder,
+  draggedIndexExternal,
+  setDraggedIndexExternal,
 }) => {
-  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [draggedIndexLocal, setDraggedIndexLocal] = useState(null);
+
+  // Use external state if strictly managed, or sync local
+  const draggedIndex = draggedIndexExternal !== undefined ? draggedIndexExternal : draggedIndexLocal;
+
+  const setDraggedIndex = (val) => {
+    setDraggedIndexLocal(val);
+    if (setDraggedIndexExternal) setDraggedIndexExternal(val);
+  };
   const [dropTargetIndex, setDropTargetIndex] = useState(null);
 
   // -------------------------
@@ -117,7 +127,7 @@ export const HandStrip = ({
             onTouchEnd={handleTouchEnd}
             className={`
               transition-all duration-200 relative
-              ${draggedIndex === idx ? "opacity-40 scale-90" : ""}
+              ${draggedIndex === idx ? "opacity-20 scale-90 pointer-events-none" : ""}
               ${dropTargetIndex === idx ? "scale-110 ring-2 ring-amber-400" : ""}
             `}
           >

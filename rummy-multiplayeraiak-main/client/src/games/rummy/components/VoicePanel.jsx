@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { socket } from "../../../socket";
 import { useVoice } from "../hooks/useVoice";
+import { useRummy } from "../RummyContext";
 
 import {
   Phone,
@@ -22,17 +23,29 @@ import { toast } from "sonner";
  * - tableId
  * - currentUserId
  * - isHost
- * - players
+ * - players (fallback)
  */
 export default function VoicePanel({
   tableId,
   currentUserId,
   isHost,
-  players,
+  players: initialPlayers,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { joinCall, leaveCall, toggleMute, isMuted, inCall, participants } = useVoice(tableId, currentUserId);
 
+  // Use context players if available (for avatars), else fallback
+  const context = useRummy();
+  // Safety check: if VoicePanel is ever used outside provider, context might be null
+  const playersMap = context?.players || {};
+  const playersList = Object.keys(playersMap).length > 0 ? Object.values(playersMap) : (initialPlayers || []);
+
+  // Helper to get player details
+  const getPlayer = (uid) => {
+    // Try to find in context list first
+    const p = playersList.find((p) => p.user_id === uid);
+    return p;
+  };
   // Render invisible audio elements for each remote participant
   const audioElements = participants.map((p) => (
     <audio
@@ -86,8 +99,7 @@ export default function VoicePanel({
     }
   };
 
-  // Helper to get player details
-  const getPlayer = (uid) => players.find((p) => p.user_id === uid);
+
 
   /* ---------------------------
      Minimized floating button
@@ -98,9 +110,9 @@ export default function VoicePanel({
         {audioElements}
         <button
           onClick={() => setIsOpen(true)}
-          className={`fixed top-28 right-4 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
-              ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
-              : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
+          className={`fixed top-32 right-4 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
+            ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
+            : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
             }`}
         >
           {inCall ? <Mic className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
@@ -116,7 +128,7 @@ export default function VoicePanel({
   return (
     <>
       {audioElements}
-      <div className="fixed top-28 right-4 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-72 overflow-hidden flex flex-col transition-all animate-in fade-in slide-in-from-right-5">
+      <div className="fixed top-32 right-4 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-72 overflow-hidden flex flex-col transition-all animate-in fade-in slide-in-from-right-5">
         {/* Header */}
         <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
