@@ -1216,6 +1216,20 @@ export default function Table() {
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
         <GameRules defaultOpen={false} />
+
+        {/* Mobile Portrait Warning Overlay */}
+        <div className="lg:hidden fixed inset-0 z-[60] bg-black/95 flex flex-col items-center justify-center p-8 text-center pointer-events-auto landscape:hidden">
+          <div className="mb-6 animate-bounce">
+            <svg className="w-16 h-16 text-yellow-500 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">Please Rotate Your Device</h2>
+          <p className="text-slate-400">
+            For the best Rummy experience, please flip your phone to landscape mode.
+          </p>
+        </div>
+
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
