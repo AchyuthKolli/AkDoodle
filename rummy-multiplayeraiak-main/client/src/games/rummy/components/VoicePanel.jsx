@@ -32,7 +32,7 @@ export default function VoicePanel({
   players: initialPlayers,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const { joinCall, leaveCall, toggleMute, isMuted, inCall, participants } = useVoice(tableId, currentUserId);
+  const { joinCall, leaveCall, toggleMute, isMuted, inCall, participants, connectedUsers } = useVoice(tableId, currentUserId);
 
   // Use context players if available (for avatars), else fallback
   const context = useRummy();
@@ -177,10 +177,14 @@ export default function VoicePanel({
 
               {/* OTHERS */}
               {playersList.map((player) => {
-                if (player.user_id === currentUserId) return null; // Skip self (already shown above)
+                if (player.user_id === currentUserId) return null; // Skip self
 
-                const participant = participants.find(p => p.userId === player.user_id);
-                const isConnected = !!participant;
+                // Check connection presence (socket) AND audio stream (participants)
+                const isConnected = (connectedUsers || []).includes(player.user_id);
+                const hasAudio = participants.find(p => p.userId === player.user_id);
+
+                // If they have audio, they are definitely connected
+                const showConnected = isConnected || !!hasAudio;
 
                 return (
                   <div key={player.user_id} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">

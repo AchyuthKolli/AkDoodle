@@ -31,6 +31,9 @@ export const useVoice = (tableId, userId) => {
         socket.emit("voice.leave", { table_id: tableId, user_id: userId });
     }, [tableId, userId]);
 
+    // Track socket-connected users (presence) vs stream-connected users (audio)
+    const [connectedUsers, setConnectedUsers] = useState([]);
+
     // Handle incoming signals
     useEffect(() => {
         if (!inCall) return;
@@ -64,25 +67,39 @@ export const useVoice = (tableId, userId) => {
         const handleUserJoined = async ({ user_id }) => {
             if (user_id === userId) return; // Ignore self
             console.log("User joined voice:", user_id);
+            setConnectedUsers(prev => [...new Set([...prev, user_id])]);
             createPeer(user_id, true); // Initiator
         };
 
         const handleUserLeft = ({ user_id }) => {
+            console.log("User left voice:", user_id);
             if (peersRef.current[user_id]) {
                 peersRef.current[user_id].close();
                 delete peersRef.current[user_id];
                 setParticipants(prev => prev.filter(p => p.userId !== user_id));
             }
+            setConnectedUsers(prev => prev.filter(id => id !== user_id));
+        };
+
+        // Listen for list of existing users when we join
+        const handleExistingUsers = ({ users }) => {
+            console.log("Existing voice users:", users);
+            // users is array of userIds
+            const others = users.filter(id => id !== userId);
+            setConnectedUsers(others);
+            others.forEach(uid => createPeer(uid, true));
         };
 
         socket.on("voice.signal", handleSignal);
-        socket.on("voice.joined", handleUserJoined); // Standard socket event
+        socket.on("voice.joined", handleUserJoined);
         socket.on("voice.left", handleUserLeft);
+        socket.on("voice.existing_users", handleExistingUsers); // Server needs to emit this on join!
 
         return () => {
             socket.off("voice.signal");
             socket.off("voice.joined");
             socket.off("voice.left");
+            socket.off("voice.existing_users");
         };
     }, [inCall, tableId, userId]);
 
@@ -160,5 +177,5 @@ export const useVoice = (tableId, userId) => {
         }
     };
 
-    return { joinCall, leaveCall, toggleMute, isMuted, inCall, participants };
+    return { joinCall, leaveCall, toggleMute, isMuted, inCall, participants, connectedUsers };
 };

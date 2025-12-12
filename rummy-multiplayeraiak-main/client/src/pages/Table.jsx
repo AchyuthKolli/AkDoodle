@@ -157,6 +157,9 @@ const MeldSlotBox = ({
     }
   };
 
+  const isNoJoker = (gameMode || "").toLowerCase().includes("no") && (gameMode || "").toLowerCase().includes("joker");
+  // Also check if mode is explicitly "classic" if that implies no joker? Assuming "No Joker" string from user report.
+
   return (
     <>
       <div
@@ -165,10 +168,11 @@ const MeldSlotBox = ({
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] text-purple-400">{title} ({capacity} cards)</p>
           <div className="flex items-center gap-1">
-            {!isLocked && gameMode !== "no_joker" && (
+            {!isLocked && !isNoJoker && (
               <button
                 onClick={handleLockSequence}
-                disabled={locking || slots.filter((s) => s !== null).length !== capacity}
+                disabled={locking}
+                title={slots.filter(s => s !== null).length < 3 ? "Add 3+ cards first" : "Lock & Reveal Wildcard (Requires Pure Sequence)"}
                 className="text-[10px] px-2 py-0.5 bg-green-700 text-green-100 rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {locking ? "..." : "🔒 Lock & Reveal"}
