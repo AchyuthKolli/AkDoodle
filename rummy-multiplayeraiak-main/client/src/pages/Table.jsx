@@ -1155,11 +1155,18 @@ export default function Table() {
           </div>
 
           {/* layout - left main, right sidebar */}
-          <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px]">
-            <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
-              {loading && <p className="text-muted-foreground">Loading…</p>}
-              {!loading && info && (
-                <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
+          {loading ? (
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <p className="text-muted-foreground animate-pulse">Loading Table...</p>
+            </div>
+          ) : !info ? (
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <p className="text-muted-foreground">Table info not available.</p>
+            </div>
+          ) : (
+            <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
+              <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px]">
+                <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
@@ -1406,251 +1413,252 @@ export default function Table() {
                   {user && info && tableId && (
                     <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
                   )}
-                </RummyProvider>
-              )}
 
-              {/* --- existing UI continues unchanged --- */}
 
-              {/* Scoreboard Modal */}
-              <ScoreboardModal
-                isOpen={showScoreboardModal && !!revealedHands}
-                onClose={() => setShowScoreboardModal(false)}
-                data={revealedHands}
-                players={info?.players || []}
-                currentUserId={user?.id || ""}
-                tableId={tableId || ""}
-                hostUserId={info?.host_user_id || ""}
-                onNextRound={() => {
-                  setShowScoreboardModal(false);
-                  onNextRound();
-                }}
-              />
+                  {/* --- existing UI continues unchanged --- */}
 
-              {/* Side Panel for Scoreboard - Legacy */}
-              {showScoreboardPanel && revealedHands && (
-                <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 border-l-2 border-yellow-500 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
-                  <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-2xl font-bold text-yellow-400">Round Results</h2>
-                      <button onClick={() => setShowScoreboardPanel(false)} className="text-gray-400 hover:text-white transition-colors">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+                  {/* Scoreboard Modal */}
+                  <ScoreboardModal
+                    isOpen={showScoreboardModal && !!revealedHands}
+                    onClose={() => setShowScoreboardModal(false)}
+                    data={revealedHands}
+                    players={info?.players || []}
+                    currentUserId={user?.id || ""}
+                    tableId={tableId || ""}
+                    hostUserId={info?.host_user_id || ""}
+                    onNextRound={() => {
+                      setShowScoreboardModal(false);
+                      onNextRound();
+                    }}
+                  />
 
-                    {/* Round Scores */}
-                    <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-yellow-600">
-                      <h3 className="text-lg font-semibold text-yellow-400 mb-3">Scores</h3>
-                      {Object.entries(revealedHands.scores || {}).map(([uid, score]) => {
-                        const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                        return (
-                          <div key={uid} className="flex justify-between py-2 border-b border-gray-700 last:border-0">
-                            <span className={uid === user?.id ? "text-yellow-400 font-semibold" : "text-gray-300"}>{playerName}</span>
-                            <span className={`font-bold ${score === 0 ? "text-green-400" : "text-red-400"}`}>{score} pts</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  {/* Side Panel for Scoreboard - Legacy */}
+                  {showScoreboardPanel && revealedHands && (
+                    <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 border-l-2 border-yellow-500 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
+                      <div className="p-6">
+                        <div className="flex justify-between items-center mb-6">
+                          <h2 className="text-2xl font-bold text-yellow-400">Round Results</h2>
+                          <button onClick={() => setShowScoreboardPanel(false)} className="text-gray-400 hover:text-white transition-colors">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
 
-                    {/* All Players' Hands */}
-                    <div className="space-y-6">
-                      {Object.entries(revealedHands.organized_melds || {}).map(([uid, melds]) => {
-                        const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                        const playerScore = revealedHands.scores?.[uid] || 0;
-                        const isWinner = playerScore === 0;
-
-                        return (
-                          <div key={uid} className="p-4 bg-gray-800 rounded-lg border-2" style={{ borderColor: isWinner ? "#10b981" : "#6b7280" }}>
-                            <div className="flex justify-between items-center mb-3">
-                              <h4 className={`font-bold text-lg ${isWinner ? "text-green-400" : uid === user?.id ? "text-yellow-400" : "text-gray-300"}`}>
-                                {playerName}
-                                {isWinner && " 🏆"}
-                              </h4>
-                              <span className={`font-bold ${playerScore === 0 ? "text-green-400" : "text-red-400"}`}>{playerScore} pts</span>
-                            </div>
-
-                            {melds && melds.length > 0 ? (
-                              <div className="space-y-3">
-                                {melds.map((meld, idx) => {
-                                  const meldType = meld.type || "unknown";
-                                  let bgColor = "bg-gray-700";
-                                  let borderColor = "border-gray-600";
-                                  let label = "Cards";
-
-                                  if (meldType === "pure") {
-                                    bgColor = "bg-blue-900/40";
-                                    borderColor = "border-blue-500";
-                                    label = "Pure Sequence";
-                                  } else if (meldType === "impure") {
-                                    bgColor = "bg-purple-900/40";
-                                    borderColor = "border-purple-500";
-                                    label = "Impure Sequence";
-                                  } else if (meldType === "set") {
-                                    bgColor = "bg-orange-900/40";
-                                    borderColor = "border-orange-500";
-                                    label = "Set";
-                                  }
-
-                                  return (
-                                    <div key={idx} className={`p-3 rounded border ${bgColor} ${borderColor}`}>
-                                      <div className="text-xs text-gray-400 mb-2">{label}</div>
-                                      <div className="flex flex-wrap gap-2">
-                                        {(meld.cards || []).map((card, cardIdx) => (
-                                          <div key={cardIdx} className="text-sm font-mono bg-white text-gray-900 px-2 py-1 rounded">
-                                            {card.name || card.code || "??"}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
+                        {/* Round Scores */}
+                        <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-yellow-600">
+                          <h3 className="text-lg font-semibold text-yellow-400 mb-3">Scores</h3>
+                          {Object.entries(revealedHands.scores || {}).map(([uid, score]) => {
+                            const playerName = revealedHands.player_names?.[uid] || "Unknown";
+                            return (
+                              <div key={uid} className="flex justify-between py-2 border-b border-gray-700 last:border-0">
+                                <span className={uid === user?.id ? "text-yellow-400 font-semibold" : "text-gray-300"}>{playerName}</span>
+                                <span className={`font-bold ${score === 0 ? "text-green-400" : "text-red-400"}`}>{score} pts</span>
                               </div>
-                            ) : (
-                              <div className="text-gray-500 text-sm">No melds</div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+
+                        {/* All Players' Hands */}
+                        <div className="space-y-6">
+                          {Object.entries(revealedHands.organized_melds || {}).map(([uid, melds]) => {
+                            const playerName = revealedHands.player_names?.[uid] || "Unknown";
+                            const playerScore = revealedHands.scores?.[uid] || 0;
+                            const isWinner = playerScore === 0;
+
+                            return (
+                              <div key={uid} className="p-4 bg-gray-800 rounded-lg border-2" style={{ borderColor: isWinner ? "#10b981" : "#6b7280" }}>
+                                <div className="flex justify-between items-center mb-3">
+                                  <h4 className={`font-bold text-lg ${isWinner ? "text-green-400" : uid === user?.id ? "text-yellow-400" : "text-gray-300"}`}>
+                                    {playerName}
+                                    {isWinner && " 🏆"}
+                                  </h4>
+                                  <span className={`font-bold ${playerScore === 0 ? "text-green-400" : "text-red-400"}`}>{playerScore} pts</span>
+                                </div>
+
+                                {melds && melds.length > 0 ? (
+                                  <div className="space-y-3">
+                                    {melds.map((meld, idx) => {
+                                      const meldType = meld.type || "unknown";
+                                      let bgColor = "bg-gray-700";
+                                      let borderColor = "border-gray-600";
+                                      let label = "Cards";
+
+                                      if (meldType === "pure") {
+                                        bgColor = "bg-blue-900/40";
+                                        borderColor = "border-blue-500";
+                                        label = "Pure Sequence";
+                                      } else if (meldType === "impure") {
+                                        bgColor = "bg-purple-900/40";
+                                        borderColor = "border-purple-500";
+                                        label = "Impure Sequence";
+                                      } else if (meldType === "set") {
+                                        bgColor = "bg-orange-900/40";
+                                        borderColor = "border-orange-500";
+                                        label = "Set";
+                                      }
+
+                                      return (
+                                        <div key={idx} className={`p-3 rounded border ${bgColor} ${borderColor}`}>
+                                          <div className="text-xs text-gray-400 mb-2">{label}</div>
+                                          <div className="flex flex-wrap gap-2">
+                                            {(meld.cards || []).map((card, cardIdx) => (
+                                              <div key={cardIdx} className="text-sm font-mono bg-white text-gray-900 px-2 py-1 rounded">
+                                                {card.name || card.code || "??"}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-500 text-sm">No melds</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {revealedHands.can_start_next && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await apiclient.start_next_round();
+                                setShowScoreboardPanel(false);
+                                setRevealedHands(null);
+                                await refresh();
+                                toast.success("New round started!");
+                              } catch (error) {
+                                console.error("Error starting next round:", error);
+                                toast.error("Failed to start next round");
+                              }
+                            }}
+                            className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+                          >
+                            Start Next Round
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+
+                {/* Sidebar - Table Info with Round History */}
+                {tableInfoVisible && (
+                  <div className={`bg-card border border-border rounded-lg shadow-lg ${tableInfoMinimized ? "w-auto" : "order-1 lg:order-2"}`}>
+                    <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
+                      <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setTableInfoMinimized(!tableInfoMinimized)} className="p-1 hover:bg-muted rounded" title={tableInfoMinimized ? "Expand" : "Minimize"}>
+                          {tableInfoMinimized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => setTableInfoVisible(false)} className="p-1 hover:bg-muted rounded" title="Close">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    {revealedHands.can_start_next && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await apiclient.start_next_round();
-                            setShowScoreboardPanel(false);
-                            setRevealedHands(null);
-                            await refresh();
-                            toast.success("New round started!");
-                          } catch (error) {
-                            console.error("Error starting next round:", error);
-                            toast.error("Failed to start next round");
-                          }
-                        }}
-                        className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-                      >
-                        Start Next Round
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-
-            {/* Sidebar - Table Info with Round History */}
-            {tableInfoVisible && (
-              <div className={`bg-card border border-border rounded-lg shadow-lg ${tableInfoMinimized ? "w-auto" : "order-1 lg:order-2"}`}>
-                <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
-                  <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setTableInfoMinimized(!tableInfoMinimized)} className="p-1 hover:bg-muted rounded" title={tableInfoMinimized ? "Expand" : "Minimize"}>
-                      {tableInfoMinimized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => setTableInfoVisible(false)} className="p-1 hover:bg-muted rounded" title="Close">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {!tableInfoMinimized && (
-                  <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-                    {loading && <p className="text-muted-foreground">Loading…</p>}
-                    {!loading && info && (
-                      <>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Room Code</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <code className="text-lg font-mono text-foreground bg-background px-3 py-1 rounded border border-border">{info.code}</code>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(info.code);
-                                toast.success("Code copied!");
-                              }}
-                              className="p-1.5 hover:bg-muted rounded"
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
-                          <div className="space-y-1.5">
-                            {/* REPLACED manual loop with reactive component for Avatars */}
-                            <RummyPlayersList info={info} activeUserId={info.active_user_id} />
-                          </div>
-                        </div>
-
-                        <div className="border-t border-border pt-3">
-                          <p className="text-sm text-muted-foreground">Status: <span className="text-foreground font-medium">{info?.status ?? "-"}</span></p>
-                          {user && info.host_user_id === user.id && (
-                            <button onClick={onStart} disabled={!canStart || starting} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 mt-2">
-                              <Play className="w-5 h-5" />
-                              {starting ? "Starting…" : "Start Game"}
-                            </button>
-                          )}
-                          {info && info.status === "waiting" && user && user.id !== info.host_user_id && (
-                            <p className="text-sm text-muted-foreground text-center py-2">Waiting for host to start...</p>
-                          )}
-                        </div>
-
-                        {/* Round History & Points Table */}
-                        {roundHistory.length > 0 && (
-                          <div className="border-t border-border pt-3">
-                            <h4 className="text-sm font-semibold text-foreground mb-2">Round History</h4>
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="border-b border-border">
-                                    <th className="text-left py-2 px-2 font-semibold text-foreground">Player</th>
-                                    {roundHistory.map((round, idx) => (
-                                      <th key={idx} className="text-center py-2 px-1 font-semibold text-foreground">R{round.round_number}</th>
-                                    ))}
-                                    <th className="text-right py-2 px-2 font-semibold text-yellow-600">Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {info.players.map((player) => {
-                                    let runningTotal = 0;
-                                    return (
-                                      <tr key={player.user_id} className="border-b border-border/50">
-                                        <td className="py-2 px-2 text-foreground"><div className="flex items-center gap-1">{player.display_name || "Player"}</div></td>
-                                        {roundHistory.map((round, idx) => {
-                                          const isWinner = round.winner_user_id === player.user_id;
-                                          const roundScore = round.scores[player.user_id] || 0;
-                                          runningTotal += roundScore;
-                                          return (
-                                            <td key={idx} className="text-center py-2 px-1">
-                                              <div className="flex flex-col items-center">
-                                                <span className={isWinner ? "text-green-600 dark:text-green-500 font-semibold" : "text-muted-foreground"}>{roundScore}</span>
-                                                {isWinner && <Trophy className="w-3 h-3 text-yellow-500" />}
-                                              </div>
-                                            </td>
-                                          );
-                                        })}
-                                        <td className="text-right py-2 px-2 font-bold text-yellow-600">{runningTotal}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
+                    {!tableInfoMinimized && (
+                      <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+                        {loading && <p className="text-muted-foreground">Loading…</p>}
+                        {!loading && info && (
+                          <>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Room Code</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <code className="text-lg font-mono text-foreground bg-background px-3 py-1 rounded border border-border">{info.code}</code>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(info.code);
+                                    toast.success("Code copied!");
+                                  }}
+                                  className="p-1.5 hover:bg-muted rounded"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
+
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
+                              <div className="space-y-1.5">
+                                {/* REPLACED manual loop with reactive component for Avatars */}
+                                <RummyPlayersList info={info} activeUserId={info.active_user_id} />
+                              </div>
+                            </div>
+
+                            <div className="border-t border-border pt-3">
+                              <p className="text-sm text-muted-foreground">Status: <span className="text-foreground font-medium">{info?.status ?? "-"}</span></p>
+                              {user && info.host_user_id === user.id && (
+                                <button onClick={onStart} disabled={!canStart || starting} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 mt-2">
+                                  <Play className="w-5 h-5" />
+                                  {starting ? "Starting…" : "Start Game"}
+                                </button>
+                              )}
+                              {info && info.status === "waiting" && user && user.id !== info.host_user_id && (
+                                <p className="text-sm text-muted-foreground text-center py-2">Waiting for host to start...</p>
+                              )}
+                            </div>
+
+                            {/* Round History & Points Table */}
+                            {roundHistory.length > 0 && (
+                              <div className="border-t border-border pt-3">
+                                <h4 className="text-sm font-semibold text-foreground mb-2">Round History</h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="border-b border-border">
+                                        <th className="text-left py-2 px-2 font-semibold text-foreground">Player</th>
+                                        {roundHistory.map((round, idx) => (
+                                          <th key={idx} className="text-center py-2 px-1 font-semibold text-foreground">R{round.round_number}</th>
+                                        ))}
+                                        <th className="text-right py-2 px-2 font-semibold text-yellow-600">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {info.players.map((player) => {
+                                        let runningTotal = 0;
+                                        return (
+                                          <tr key={player.user_id} className="border-b border-border/50">
+                                            <td className="py-2 px-2 text-foreground"><div className="flex items-center gap-1">{player.display_name || "Player"}</div></td>
+                                            {roundHistory.map((round, idx) => {
+                                              const isWinner = round.winner_user_id === player.user_id;
+                                              const roundScore = round.scores[player.user_id] || 0;
+                                              runningTotal += roundScore;
+                                              return (
+                                                <td key={idx} className="text-center py-2 px-1">
+                                                  <div className="flex flex-col items-center">
+                                                    <span className={isWinner ? "text-green-600 dark:text-green-500 font-semibold" : "text-muted-foreground"}>{roundScore}</span>
+                                                    {isWinner && <Trophy className="w-3 h-3 text-yellow-500" />}
+                                                  </div>
+                                                </td>
+                                              );
+                                            })}
+                                            <td className="text-right py-2 px-2 font-bold text-yellow-600">{runningTotal}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
+                {!tableInfoVisible && (
+                  <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 z-20 bg-card border border-border rounded-lg shadow-lg px-4 py-2 hover:bg-accent/50 transition-colors">
+                    Show Table Info
+                  </button>
+                )}
               </div>
-            )}
-            {!tableInfoVisible && (
-              <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 z-20 bg-card border border-border rounded-lg shadow-lg px-4 py-2 hover:bg-accent/50 transition-colors">
-                Show Table Info
-              </button>
-            )}
-          </div>
+            </RummyProvider>
+          )}
 
         </div>
 
