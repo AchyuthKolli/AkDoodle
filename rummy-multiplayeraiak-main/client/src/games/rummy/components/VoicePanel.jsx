@@ -176,23 +176,31 @@ export default function VoicePanel({
               </div>
 
               {/* OTHERS */}
-              {participants.map((p) => {
-                const player = getPlayer(p.userId);
+              {playersList.map((player) => {
+                if (player.user_id === currentUserId) return null; // Skip self (already shown above)
+
+                const participant = participants.find(p => p.userId === player.user_id);
+                const isConnected = !!participant;
+
                 return (
-                  <div key={p.userId} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">
+                  <div key={player.user_id} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">
                     <div className="flex items-center gap-3">
                       <img
-                        src={player?.profile_image_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.userId}`}
-                        className="w-8 h-8 rounded-full bg-slate-700"
+                        src={player.profile_image_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${player.user_id}`}
+                        className={`w-8 h-8 rounded-full ${isConnected ? "bg-slate-700" : "bg-slate-800 opacity-50"}`}
                         alt="av"
                       />
                       <div>
-                        <p className="text-sm font-medium text-slate-200">{player?.display_name || "User"}</p>
-                        <p className="text-[10px] text-slate-500">Connected</p>
+                        <p className={`text-sm font-medium ${isConnected ? "text-slate-200" : "text-slate-500"}`}>
+                          {player.display_name || "User"}
+                        </p>
+                        <p className={`text-[10px] ${isConnected ? "text-green-400" : "text-slate-600"}`}>
+                          {isConnected ? "Connected" : "Not in call"}
+                        </p>
                       </div>
                     </div>
-                    {isHost && (
-                      <button onClick={() => mutePlayer(p.userId, false)} className="text-xs text-slate-500 hover:text-red-400">
+                    {isHost && isConnected && (
+                      <button onClick={() => mutePlayer(player.user_id, false)} className="text-xs text-slate-500 hover:text-red-400">
                         Mute
                       </button>
                     )}
