@@ -9,6 +9,7 @@ export const HandStrip = ({
   onReorder,
   draggedIndexExternal,
   setDraggedIndexExternal,
+  onExternalDrop,
 }) => {
   const [draggedIndexLocal, setDraggedIndexLocal] = useState(null);
 
@@ -69,6 +70,7 @@ export const HandStrip = ({
   // MOBILE DRAG (FAST + FIXED)
   // -------------------------
   const touchStartRef = React.useRef(null);
+  const externalDropRef = React.useRef(null); // track external target
 
   const handleTouchStart = (e, index) => {
     const t = e.touches[0];
@@ -77,36 +79,63 @@ export const HandStrip = ({
       x: t.clientX,
       y: t.clientY,
     };
+    externalDropRef.current = null;
     setDraggedIndex(index);
   };
 
   const handleTouchMove = (e) => {
     if (!touchStartRef.current) return;
-    e.preventDefault(); // no scroll
+
+    // Allow small scroll? Or prevent default to drag? 
+    // Usually strict drag needs preventDefault.
+    e.preventDefault();
 
     const t = e.touches[0];
     const el = document.elementFromPoint(t.clientX, t.clientY);
 
     if (!el) return;
 
+    // Check for internal reorder target
     const wrapper = el.closest("[data-card-index]");
-    if (!wrapper) return;
+    if (wrapper) {
+      const targetIndex = Number(wrapper.dataset.cardIndex);
+      if (targetIndex !== dropTargetIndex) {
+        setDropTargetIndex(targetIndex);
+      }
+      externalDropRef.current = null; // Clear external if back in hand
+    } else {
+      setDropTargetIndex(null); // Not over hand slot
 
-    const targetIndex = Number(wrapper.dataset.cardIndex);
-    if (targetIndex !== dropTargetIndex) {
-      setDropTargetIndex(targetIndex);
+      // Check for external drop zone
+      const dropZone = el.closest("[data-drop-zone]");
+      if (dropZone) {
+        externalDropRef.current = dropZone.dataset.dropZone;
+      } else {
+        externalDropRef.current = null;
+      }
     }
   };
 
   const handleTouchEnd = () => {
     const start = touchStartRef.current;
-    if (start != null && dropTargetIndex != null && dropTargetIndex !== start.index) {
+
+    // Check external drop first
+    if (start != null && externalDropRef.current) {
+      // Trigger external drop
+      if (onExternalDrop) {
+        onExternalDrop(start.index, externalDropRef.current);
+      }
+    }
+    // Check internal reorder
+    else if (start != null && dropTargetIndex != null && dropTargetIndex !== start.index) {
       const newHand = [...hand];
       const [c] = newHand.splice(start.index, 1);
       newHand.splice(dropTargetIndex, 0, c);
       onReorder?.(newHand);
     }
+
     touchStartRef.current = null;
+    externalDropRef.current = null;
     endDrag();
   };
 

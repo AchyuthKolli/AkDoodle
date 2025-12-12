@@ -89,6 +89,7 @@ const MeldSlotBox = ({
   hideLockButton,
   gameMode,
   capacity = 3,
+  boxIndex, // New prop
 }) => {
   const [locking, setLocking] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
@@ -359,7 +360,10 @@ const LeftoverSlotBox = ({
 
   return (
     <>
-      <div className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}>
+      <div
+        data-drop-zone="deadwood" // For mobile drag detection
+        className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}
+      >
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] text-blue-400">Discard / Deadwood (14th Card)</p>
           <div className="flex items-center gap-1">
@@ -414,9 +418,11 @@ const LeftoverSlotBox = ({
         </div>
       </div>
 
+
       {revealedRank && (
         <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
-      )}
+      )
+      }
     </>
   );
 };
@@ -1396,6 +1402,7 @@ export default function Table() {
                             tableId={tableId}
                             onRefresh={refresh}
                             capacity={4}
+                            boxIndex={i}
                           />
                           <LeftoverSlotBox
                             slots={leftover}
@@ -1450,6 +1457,18 @@ export default function Table() {
                             onReorder={onReorderHand}
                             draggedIndexExternal={draggedCardIndex}
                             setDraggedIndexExternal={setDraggedCardIndex}
+                            onExternalDrop={(cardIndex, zoneId) => {
+                              if (!myRound.hand || !myRound.hand[cardIndex]) return;
+                              const card = myRound.hand[cardIndex];
+                              const cardJson = JSON.stringify(card);
+
+                              if (zoneId.startsWith("meld-")) {
+                                const meldIdx = parseInt(zoneId.split("-")[1]);
+                                if (!isNaN(meldIdx)) handleSlotDrop(meldIdx, cardJson);
+                              } else if (zoneId === "deadwood") {
+                                handleSlotDrop(4, cardJson);
+                              }
+                            }}
                           />
                         </div>
                       </div>
