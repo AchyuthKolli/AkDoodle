@@ -1367,6 +1367,7 @@ export default function Table() {
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
                             capacity={3}
+                            boxIndex={0}
                           />
                           <MeldSlotBox
                             title="Meld 2"
@@ -1379,6 +1380,7 @@ export default function Table() {
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
                             capacity={3}
+                            boxIndex={1}
                           />
                           <MeldSlotBox
                             title="Meld 3"
@@ -1391,6 +1393,7 @@ export default function Table() {
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
                             capacity={3}
+                            boxIndex={2}
                           />
                           <MeldSlotBox
                             title="Meld 4"
@@ -1402,7 +1405,7 @@ export default function Table() {
                             tableId={tableId}
                             onRefresh={refresh}
                             capacity={4}
-                            boxIndex={i}
+                            boxIndex={3}
                           />
                           <LeftoverSlotBox
                             slots={leftover}
@@ -1413,6 +1416,7 @@ export default function Table() {
                             tableId={tableId}
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
+                            boxIndex={4}
                           />
                         </div>
 
