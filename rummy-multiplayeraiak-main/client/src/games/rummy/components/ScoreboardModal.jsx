@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
-import { Trophy, Crown, ChevronDown, ChevronUp } from "lucide-react";
+import { Trophy, Crown, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 
 // FIXED PATH – now from games/rummy/components
 import PlayingCard from "./PlayingCard";
@@ -41,7 +41,11 @@ export const ScoreboardModal = ({
       rawCards: data.revealed_hands[p.user_id] || [],
       isWinner: p.user_id === data.winner_user_id,
     }))
-    .sort((a, b) => a.score - b.score);
+    .sort((a, b) => {
+      const scoreA = typeof a.score === "object" && a.score !== null ? a.score.points : a.score;
+      const scoreB = typeof b.score === "object" && b.score !== null ? b.score.points : b.score;
+      return scoreA - scoreB;
+    });
 
   const [expanded, setExpanded] = useState({});
   const togglePlayer = (uid) =>
@@ -81,7 +85,14 @@ export const ScoreboardModal = ({
               {data.status === "invalid" ? (
                 <span>Invalid Declaration! Declarer penalised 80 pts.</span>
               ) : (
-                <span>{winnerName} wins with {sortedPlayers[0]?.score || 0} points!</span>
+                <span>
+                  {winnerName} wins with {
+                    (() => {
+                      const s = sortedPlayers[0]?.score;
+                      return typeof s === "object" && s !== null ? (s.points || 0) : (s || 0);
+                    })()
+                  } points!
+                </span>
               )}
             </div>
           </div>
@@ -129,7 +140,7 @@ export const ScoreboardModal = ({
 
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-bold text-amber-400">
-                      {p.score} pts
+                      {typeof p.score === "object" && p.score !== null ? (p.score.points || 0) : p.score} pts
                     </span>
                     <button
                       onClick={() => togglePlayer(p.user_id)}
@@ -146,106 +157,108 @@ export const ScoreboardModal = ({
 
                 {expanded[p.user_id] && (
                   <div className="mt-4 space-y-4 border-t border-slate-700 pt-4">
-                    {p.organized?.pure_sequences?.length > 0 && (
-                      <div>
-                        <div className="text-xs font-bold text-emerald-400 mb-1">
-                          PURE SEQUENCES
-                        </div>
-                        <div className="space-y-2">
-                          {p.organized.pure_sequences.map(
-                            (meld, mIdx) => (
-                              <div
-                                key={mIdx}
-                                className="border border-emerald-600/40 bg-emerald-950/30 rounded-lg p-2"
-                              >
-                                <div className="flex gap-1 flex-wrap">
-                                  {meld.map((c, idx) => (
-                                    <div key={idx} className="transform scale-75 origin-top-left">
-                                      <PlayingCard card={c} />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {p.organized?.impure_sequences?.length > 0 && (
-                      <div>
-                        <div className="text-xs font-bold text-blue-400 mb-1">
-                          IMPURE SEQUENCES
-                        </div>
-                        <div className="space-y-2">
-                          {p.organized.impure_sequences.map(
-                            (meld, mIdx) => (
-                              <div
-                                key={mIdx}
-                                className="border border-blue-600/40 bg-blue-950/30 rounded-lg p-2"
-                              >
-                                <div className="flex gap-1 flex-wrap">
-                                  {meld.map((c, idx) => (
-                                    <div key={idx} className="transform scale-75 origin-top-left">
-                                      <PlayingCard card={c} />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {p.organized?.sets?.length > 0 && (
-                      <div>
-                        <div className="text-xs font-bold text-purple-400 mb-1">
-                          SETS
-                        </div>
-                        <div className="space-y-2">
-                          {p.organized.sets.map((meld, mIdx) => (
-                            <div
-                              key={mIdx}
-                              className="border border-purple-600/40 bg-purple-950/30 rounded-lg p-2"
-                            >
-                              <div className="flex gap-1 flex-wrap">
-                                {meld.map((c, idx) => (
-                                  <div key={idx} className="transform scale-75 origin-top-left">
-                                    <PlayingCard card={c} />
+                    {/* Organized View */}
+                    {p.organized ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* VALID MELDS SECTION */}
+                        <div className="bg-slate-900/50 p-3 rounded-lg border border-emerald-900/30">
+                          <h4 className="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                            <Check className="w-4 h-4" /> Valid Melds
+                          </h4>
+                          <div className="space-y-3">
+                            {/* Pure Sequences */}
+                            {p.organized.pure_sequences?.map((meld, mIdx) => (
+                              <div key={`pure-${mIdx}`} className="flex items-center gap-3">
+                                <span className="text-xs text-emerald-500/80 font-mono w-16 uppercase">Pure Seq</span>
+                                <div className="border border-emerald-600/40 bg-emerald-950/30 rounded-lg p-2 flex-1">
+                                  <div className="flex gap-1 flex-wrap">
+                                    {meld.map((c, idx) => (
+                                      <div key={idx} className="transform scale-75 origin-top-left -mr-4 last:mr-0">
+                                        <PlayingCard card={c} />
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                </div>
                               </div>
+                            ))}
+
+                            {/* Impure Sequences */}
+                            {p.organized.impure_sequences?.map((meld, mIdx) => (
+                              <div key={`impure-${mIdx}`} className="flex items-center gap-3">
+                                <span className="text-xs text-blue-500/80 font-mono w-16 uppercase">Impure</span>
+                                <div className="border border-blue-600/40 bg-blue-950/30 rounded-lg p-2 flex-1">
+                                  <div className="flex gap-1 flex-wrap">
+                                    {meld.map((c, idx) => (
+                                      <div key={idx} className="transform scale-75 origin-top-left -mr-4 last:mr-0">
+                                        <PlayingCard card={c} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* Sets */}
+                            {p.organized.sets?.map((meld, mIdx) => (
+                              <div key={`set-${mIdx}`} className="flex items-center gap-3">
+                                <span className="text-xs text-purple-500/80 font-mono w-16 uppercase">Set</span>
+                                <div className="border border-purple-600/40 bg-purple-950/30 rounded-lg p-2 flex-1">
+                                  <div className="flex gap-1 flex-wrap">
+                                    {meld.map((c, idx) => (
+                                      <div key={idx} className="transform scale-75 origin-top-left -mr-4 last:mr-0">
+                                        <PlayingCard card={c} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {(!p.organized.pure_sequences?.length && !p.organized.impure_sequences?.length && !p.organized.sets?.length) && (
+                              <div className="text-slate-500 text-sm italic px-2">No valid melds formed.</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* HAND / DEADWOOD SECTION */}
+                        <div className="bg-red-950/10 p-3 rounded-lg border border-red-900/30">
+                          <div className="flex justify-between items-center mb-3">
+                            <h4 className="text-sm font-bold text-red-400 flex items-center gap-2">
+                              <X className="w-4 h-4" /> Remaining Hand (Deadwood)
+                            </h4>
+                            <span className="text-xs bg-red-900/40 text-red-200 px-2 py-1 rounded border border-red-800/50">
+                              Penalty Points: {typeof p.score === "object" && p.score !== null ? (p.score.points || 0) : p.score}
+                            </span>
+                          </div>
+
+                          <div className="border border-red-700/30 bg-red-900/10 rounded-lg p-3 min-h-[100px]">
+                            <div className="flex gap-1 flex-wrap">
+                              {(p.organized.ungrouped || p.organized.deadwood || []).map((c, idx) => (
+                                <div key={idx} className="transform scale-75 origin-top-left -mr-4 last:mr-0 relative group">
+                                  <PlayingCard card={c} />
+                                  {/* Tooltip for card point? Optional */}
+                                </div>
+                              ))}
+                              {!(p.organized.ungrouped?.length || p.organized.deadwood?.length) && (
+                                <div className="text-emerald-500 text-sm italic flex items-center gap-2">
+                                  <Check className="w-4 h-4" /> All cards melded!
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* RAW VIEW (Fallback) */
+                      <div className="bg-slate-900/50 p-4 rounded-lg">
+                        <h4 className="text-sm font-bold text-slate-400 mb-2">Unorganized Hand</h4>
+                        <div className="flex gap-1 flex-wrap">
+                          {p.rawCards.map((c, idx) => (
+                            <div key={idx} className="transform scale-75 origin-top-left -mr-4">
+                              <PlayingCard card={c} />
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
-
-                    {(p.organized?.ungrouped?.length > 0 || p.organized?.deadwood?.length > 0) && (
-                      <div>
-                        <div className="text-xs font-bold text-red-400 mb-1">
-                          DEADWOOD (Ungrouped)
-                        </div>
-                        <div className="border border-red-600/40 bg-red-950/30 rounded-lg p-2">
-                          <div className="flex gap-1 flex-wrap">
-                            {(p.organized.ungrouped || p.organized.deadwood).map((c, idx) => (
-                              <div key={idx} className="transform scale-75 origin-top-left">
-                                <PlayingCard card={c} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {!p.organized && (
-                      <div className="flex gap-1 flex-wrap">
-                        {p.rawCards.map((c, idx) => (
-                          <div key={idx} className="transform scale-75 origin-top-left">
-                            <PlayingCard card={c} />
-                          </div>
-                        ))}
                       </div>
                     )}
                   </div>
