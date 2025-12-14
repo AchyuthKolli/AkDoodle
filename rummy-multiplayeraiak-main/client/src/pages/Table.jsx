@@ -637,9 +637,9 @@ export default function Table() {
 
   // Get cards that are placed in slots (not in hand anymore)
   const placedCards = useMemo(() => {
-    const placed = [...meld1, ...meld2, ...meld3, ...leftover].filter((c) => c !== null);
+    const placed = [...meld1, ...meld2, ...meld3, ...meld4, ...leftover].filter((c) => c !== null);
     return placed;
-  }, [meld1, meld2, meld3, leftover]);
+  }, [meld1, meld2, meld3, meld4, leftover]);
 
   // Filter hand to exclude placed cards - FIX for duplicate cards
   const availableHand = useMemo(() => {
@@ -1473,8 +1473,8 @@ export default function Table() {
                             draggedIndexExternal={draggedCardIndex}
                             setDraggedIndexExternal={setDraggedCardIndex}
                             onExternalDrop={(cardIndex, zoneId) => {
-                              if (!myRound.hand || !myRound.hand[cardIndex]) return;
-                              const card = myRound.hand[cardIndex];
+                              if (!availableHand || !availableHand[cardIndex]) return;
+                              const card = availableHand[cardIndex];
                               const cardJson = JSON.stringify(card);
 
                               if (zoneId.startsWith("meld-")) {
