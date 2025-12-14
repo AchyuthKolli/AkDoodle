@@ -196,6 +196,7 @@ const MeldSlotBox = ({
               key={i}
               onDragOver={(e) => {
                 e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
                 e.currentTarget.classList.add("ring-2", "ring-purple-400");
               }}
               onDragLeave={(e) => {
@@ -385,6 +386,7 @@ const LeftoverSlotBox = ({
               key={i}
               onDragOver={(e) => {
                 e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
                 e.currentTarget.classList.add("ring-2", "ring-cyan-400");
               }}
               onDragLeave={(e) => {

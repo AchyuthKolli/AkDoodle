@@ -163,6 +163,7 @@ export const HandStrip = ({
             <PlayingCard
               card={card}
               selected={selectedIndex === idx}
+              draggable={false} // Disable inner drag so wrapper div handles it
               onClick={onCardClick ? () => onCardClick(card, idx) : undefined}
             />
 
