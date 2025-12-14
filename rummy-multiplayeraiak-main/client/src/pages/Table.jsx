@@ -644,22 +644,31 @@ export default function Table() {
   // Filter hand to exclude placed cards - FIX for duplicate cards
   const availableHand = useMemo(() => {
     if (!myRound) return [];
+
+    // Normalize key helper
+    const getKey = (c) => `${String(c.rank)}-${String(c.suit || "null")}`;
+
     const placedCounts = new Map();
     placedCards.forEach((card) => {
-      const key = `${card.rank}-${card.suit || "null"}`;
+      const key = getKey(card);
       placedCounts.set(key, (placedCounts.get(key) || 0) + 1);
     });
+
     const seenCounts = new Map();
-    return myRound.hand.filter((handCard) => {
-      const key = `${handCard.rank}-${handCard.suit || "null"}`;
+    const result = myRound.hand.filter((handCard) => {
+      const key = getKey(handCard);
       const placedCount = placedCounts.get(key) || 0;
       const seenCount = seenCounts.get(key) || 0;
+
       if (seenCount < placedCount) {
         seenCounts.set(key, seenCount + 1);
-        return false;
+        return false; // Filter out (it's placed)
       }
-      return true;
+      return true; // Keep in hand
     });
+
+    // console.log("availableHand calc:", { total: myRound.hand.length, placed: placedCards.length, remaining: result.length });
+    return result;
   }, [myRound, placedCards]);
 
   // Helper to determine number of decks based on player count

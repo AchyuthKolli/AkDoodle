@@ -38,6 +38,9 @@ export const useVoice = (tableId, userId) => {
     useEffect(() => {
         if (!inCall) return;
 
+        // Emit join AFTER listeners are set up (next tick effectively, but safe here)
+        socket.emit("voice.join", { table_id: tableId, user_id: userId });
+
         const handleSignal = async ({ sender_id, type, data }) => {
             let peer = peersRef.current[sender_id];
 
@@ -161,19 +164,10 @@ export const useVoice = (tableId, userId) => {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
             localStreamRef.current = stream;
             setInCall(true);
-            // Socket join emitted by UI or here? UI does it. We just prep WebRTC.
-            // Wait, we need to know existing users to connect to them.
-            // Usually server sends "voice.existing-users" or we wait for them to say hello.
-            // For simplicity, we assume we just wait for "voice.joined" from others,
-            // OR rely on "voice.join" triggering server to broadcast "voice.joined" to EVERYONE including us?
-            // If server broadcasts, we handle our own ID (ignored) and others (connect).
-
-            // We also need to emit join if UI hasn't.
-            socket.emit("voice.join", { table_id: tableId, user_id: userId });
-
+            // Socket join emitted in useEffect to ensure listeners are ready
         } catch (e) {
             console.error("Failed to get local stream", e);
-            // handle error
+            toast.error("Could not access microphone.");
         }
     };
 
