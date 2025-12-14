@@ -36,6 +36,7 @@ module.exports = function (io) {
         socketByUserId: {}, // userId => socketId
         timer: null,
         meta: { createdAt: Date.now(), spectateRequests: [] },
+        voiceUsers: new Set(),
       };
     }
     return tables[tableId];
@@ -473,7 +474,16 @@ module.exports = function (io) {
     socket.on("voice.join", (data = {}, ack) => {
       const tableId = data.table_id || socket.tableId;
       const userId = (socket.user && socket.user.user_id) || data.user_id;
+
       if (tableId && tables[tableId]) {
+        const t = ensureTable(tableId);
+        if (!t.voiceUsers) t.voiceUsers = new Set();
+        t.voiceUsers.add(userId);
+
+        // Send existing users to this socket
+        socket.emit("voice.existing_users", { users: Array.from(t.voiceUsers) });
+
+        // Broadcast join
         io.to(tableId).emit("voice.joined", { user_id: userId });
         if (ack) ack({ ok: true });
       } else if (ack) ack({ ok: false });
@@ -482,7 +492,11 @@ module.exports = function (io) {
     socket.on("voice.leave", (data = {}, ack) => {
       const tableId = data.table_id || socket.tableId;
       const userId = (socket.user && socket.user.user_id) || data.user_id;
+
       if (tableId && tables[tableId]) {
+        const t = tables[tableId];
+        if (t.voiceUsers) t.voiceUsers.delete(userId);
+
         io.to(tableId).emit("voice.left", { user_id: userId });
         if (ack) ack({ ok: true });
       } else if (ack) ack({ ok: false });
@@ -521,6 +535,15 @@ module.exports = function (io) {
       delete t.playersBySocket[socket.id];
       delete t.userIdBySocket[socket.id];
       if (userId) delete t.socketByUserId[userId];
+
+      // Cleanup voice
+      if (t.voiceUsers && userId) {
+        if (t.voiceUsers.has(userId)) {
+          t.voiceUsers.delete(userId);
+          io.to(tableId).emit("voice.left", { user_id: userId }); // ensure others know
+        }
+      }
+
       io.to(tableId).emit("player.disconnected", { user_id: userId });
       broadcastTableState(tableId);
 

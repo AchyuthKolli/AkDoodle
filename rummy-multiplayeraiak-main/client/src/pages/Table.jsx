@@ -164,6 +164,7 @@ const MeldSlotBox = ({
   return (
     <>
       <div
+        data-drop-zone={`meld-${boxIndex}`} // ADDED: For mobile drag detection by HandStrip
         className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-purple-500/30 bg-purple-900/10"}`}
       >
         <div className="flex items-center justify-between mb-2">

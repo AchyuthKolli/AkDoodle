@@ -125,6 +125,14 @@ export const useVoice = (tableId, userId) => {
             }
         };
 
+        peer.oniceconnectionstatechange = () => {
+            console.log(`ICE state for ${targetId}: ${peer.iceConnectionState}`);
+            if (peer.iceConnectionState === 'failed') {
+                console.warn("ICE connection failed, restarting...");
+                peer.restartIce();
+            }
+        };
+
         peer.ontrack = (event) => {
             const stream = event.streams[0];
             setParticipants(prev => {
