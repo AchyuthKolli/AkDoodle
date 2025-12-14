@@ -44,7 +44,6 @@ import SpectateControls from "../games/rummy/components/SpectateControls.jsx";
 import { WildJokerRevealModal } from "../games/rummy/components/WildJokerRevealModal.jsx";
 import { ScoreboardModal } from "../games/rummy/components/ScoreboardModal.jsx";
 import { PointsTable } from "../games/rummy/components/PointsTable.jsx";
-import MeldBoard from "../games/rummy/components/MeldBoard.jsx";
 import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
 import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";

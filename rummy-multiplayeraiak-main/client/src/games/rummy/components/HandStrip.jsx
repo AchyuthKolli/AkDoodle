@@ -156,7 +156,7 @@ export const HandStrip = ({
             onTouchEnd={handleTouchEnd}
             className={`
               transition-all duration-200 relative
-              ${draggedIndex === idx ? "opacity-20 scale-90 pointer-events-none" : ""}
+              ${draggedIndex === idx ? "opacity-20 scale-90" : ""}
               ${dropTargetIndex === idx ? "scale-110 ring-2 ring-amber-400" : ""}
             `}
           >
