@@ -59,6 +59,15 @@ import { initCursorSpark } from "../utils/cursor-spark"; // sparkles
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
 
+const normalizeScoreValue = (value) => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") return Number(value) || 0;
+  if (value && typeof value === "object" && "points" in value) {
+    return Number(value.points) || 0;
+  }
+  return 0;
+};
+
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
   <div className={`relative bg-white rounded-lg border-2 border-gray-300 shadow-lg ${className}`}>
@@ -1617,11 +1626,12 @@ export default function Table() {
                         <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-yellow-600">
                           <h3 className="text-lg font-semibold text-yellow-400 mb-3">Scores</h3>
                           {Object.entries(revealedHands.scores || {}).map(([uid, score]) => {
+                            const normalizedScore = normalizeScoreValue(score);
                             const playerName = revealedHands.player_names?.[uid] || "Unknown";
                             return (
                               <div key={uid} className="flex justify-between py-2 border-b border-gray-700 last:border-0">
                                 <span className={uid === user?.id ? "text-yellow-400 font-semibold" : "text-gray-300"}>{playerName}</span>
-                                <span className={`font-bold ${score === 0 ? "text-green-400" : "text-red-400"}`}>{score} pts</span>
+                                <span className={`font-bold ${normalizedScore === 0 ? "text-green-400" : "text-red-400"}`}>{normalizedScore} pts</span>
                               </div>
                             );
                           })}
@@ -1631,7 +1641,7 @@ export default function Table() {
                         <div className="space-y-6">
                           {Object.entries(revealedHands.organized_melds || {}).map(([uid, melds]) => {
                             const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                            const playerScore = revealedHands.scores?.[uid] || 0;
+                            const playerScore = normalizeScoreValue(revealedHands.scores?.[uid]);
                             const isWinner = playerScore === 0;
 
                             return (

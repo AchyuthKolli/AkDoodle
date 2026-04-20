@@ -37,6 +37,14 @@ const request = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
 
+    // Server may exchange Google token for a longer-lived local JWT.
+    // Persist it so users don't need to re-login frequently.
+    const refreshedToken = response.headers.get("X-Auth-Token");
+    if (refreshedToken) {
+      localStorage.setItem("auth_token", refreshedToken);
+      localStorage.setItem("token", refreshedToken);
+    }
+
     // Token can expire in localStorage (Google access token).
     // Clear stale session so user can sign in again cleanly.
     if (response.status === 401) {
@@ -96,6 +104,7 @@ export const declare_round = async (body) => post(`${RUMMY_API_PREFIX}/declare`,
 
 export const get_round_history = async (query) => get(`${RUMMY_API_PREFIX}/round/history`, query);
 export const get_scoreboard = async (query) => get(`${RUMMY_API_PREFIX}/round/scoreboard`, query);
+export const get_revealed_hands = async (query) => get(`${RUMMY_API_PREFIX}/round/revealed-hands`, query);
 export const next_round = async (body) => post(`${RUMMY_API_PREFIX}/round/next`, body);
 export const drop_player = async (body) => post(`${RUMMY_API_PREFIX}/game/drop`, body);
 export const request_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/request-spectate`, body);
@@ -135,6 +144,7 @@ export default {
   declare_round,
   get_round_history,
   get_scoreboard,
+  get_revealed_hands,
   next_round,
   start_next_round, // exported alias
   drop_player,
@@ -147,8 +157,7 @@ export default {
   update_table_voice_settings,
   update_table_voice_settings,
   declare: declare_round, // Alias for Table.jsx
-  get_revealed_hands: get_scoreboard // [NEW] Fix for Table.jsx
+  get_revealed_hands
 };
 
 export const declare = declare_round; // Named export alias
-export const get_revealed_hands = get_scoreboard; // Fix for Table.jsx using get_revealed_hands
