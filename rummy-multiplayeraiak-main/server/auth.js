@@ -6,7 +6,10 @@ const dotenv = require("dotenv");
 const { fetchrow, execute } = require("./db");
 dotenv.config();
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  process.env.Google_Client_Id ||
+  process.env.GOOGLE_CLIENT_Id;
 const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 if (!GOOGLE_CLIENT_ID) {
   console.warn("GOOGLE_CLIENT_ID not set — Google auth will fail");

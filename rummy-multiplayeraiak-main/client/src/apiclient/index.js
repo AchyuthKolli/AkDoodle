@@ -37,6 +37,15 @@ const request = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
 
+    // Token can expire in localStorage (Google access token).
+    // Clear stale session so user can sign in again cleanly.
+    if (response.status === 401) {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_user");
+      localStorage.removeItem("token");
+      console.warn("🔒 Session expired or invalid token. Cleared local auth state.");
+    }
+
     // IMPORTANT: We return the raw response object because Table.jsx checks:
     // if (!res.ok) { ... }
     // const data = await res.json();
