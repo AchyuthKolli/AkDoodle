@@ -544,6 +544,7 @@ export default function Table() {
   const [leftover, setLeftover] = useState([null]); // Deadwood (1 slot)
   const [prevRoundFinished, setPrevRoundFinished] = useState(null);
   const [showPointsTable, setShowPointsTable] = useState(true);
+  const previousRoundNumberRef = useRef(null);
 
   // Table Info box state
   const [tableInfoVisible, setTableInfoVisible] = useState(true);
@@ -590,6 +591,25 @@ export default function Table() {
   const toggleMeldLock = (meldName) => {
     setMeldLocks((prev) => ({ ...prev, [meldName]: !prev[meldName] }));
     toast.success(`${meldName} ${!meldLocks[meldName] ? "locked" : "unlocked"}`);
+  };
+
+  const resetMeldBoard = () => {
+    setMeld1([null, null, null]);
+    setMeld2([null, null, null]);
+    setMeld3([null, null, null]);
+    setMeld4([null, null, null, null]);
+    setLeftover([null]);
+    setMeldLocks({
+      meld1: false,
+      meld2: false,
+      meld3: false,
+      meld4: false,
+      leftover: false,
+    });
+    setSelectedCard(null);
+    setSelectedCardIndex(null);
+    setLastDrawnCard(null);
+    setHasDrawn(false);
   };
 
   // Debug user object
@@ -1140,13 +1160,22 @@ export default function Table() {
 
 
   const onClearMelds = () => {
-    setMeld1([null, null, null]);
-    setMeld2([null, null, null]);
-    setMeld3([null, null, null]);
-    setMeld4([null, null, null, null]);
-    setLeftover([null]);
+    resetMeldBoard();
     toast.success("Melds cleared");
   };
+
+  useEffect(() => {
+    const currentRound = myRound?.round_number ?? null;
+    if (currentRound === null) return;
+    if (previousRoundNumberRef.current === null) {
+      previousRoundNumberRef.current = currentRound;
+      return;
+    }
+    if (currentRound !== previousRoundNumberRef.current) {
+      previousRoundNumberRef.current = currentRound;
+      resetMeldBoard();
+    }
+  }, [myRound?.round_number]);
 
   const onDeclare = async () => {
     console.log("🎯 Declare clicked");

@@ -995,15 +995,21 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
       ? (declarations[declared_by].valid ? "valid" : "invalid")
       : (rnd.winner_user_id ? "valid" : "invalid");
 
-    // Build organized melds from declarations if present
+    const declarationRecord = declared_by ? declarations[declared_by] : null;
+    const organizedByUser = declarationRecord && declarationRecord.organized_melds && typeof declarationRecord.organized_melds === "object"
+      ? declarationRecord.organized_melds
+      : {};
+
+    // Build organized melds for all players
     const organized_melds = {};
     for (const uid of Object.keys(hands)) {
-      if (declarations[uid] && declarations[uid].organized_melds) {
-        organized_melds[uid] = declarations[uid].organized_melds;
-      } else if (declarations[uid] && declarations[uid].groups) {
-        organized_melds[uid] = { pure_sequences: declarations[uid].groups, sequences: [], sets: [], deadwood: [] };
+      if (organizedByUser[uid]) {
+        organized_melds[uid] = organizedByUser[uid];
       } else {
-        organized_melds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: hands[uid] || [] };
+        const handCards = hands[uid] || [];
+        organized_melds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
+          ? scoring.organizeHandByMelds(handCards, null, true)
+          : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
       }
     }
 
@@ -1079,7 +1085,11 @@ router.post("/round/next", requireAuth, async (req, res) => {
     const { table_id } = req.body;
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
-    const tbl = await db.fetchrow(`SELECT id, host_user_id, status, disqualify_score FROM rummy_tables WHERE id=$1`, [table_id]);
+    const tbl = await db.fetchrow(
+      `SELECT id, host_user_id, status, disqualify_score, wild_joker_mode, ace_value
+       FROM rummy_tables WHERE id=$1`,
+      [table_id]
+    );
     if (!tbl) return res.status(404).json({ error: "Table not found" });
     if (tbl.host_user_id !== req.user.sub) return res.status(403).json({ error: "Only host can start next round" });
 
@@ -1088,9 +1098,16 @@ router.post("/round/next", requireAuth, async (req, res) => {
     if (!last || !last.finished_at) return res.status(400).json({ error: "Last round not finished yet" });
 
     // Disqualify players over threshold and build active list
-    const players = await db.fetch(`SELECT user_id, total_points FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`, [table_id]);
+    const players = await db.fetch(
+      `SELECT user_id, seat, total_points, disqualified
+       FROM rummy_table_players
+       WHERE table_id=$1
+       ORDER BY seat ASC`,
+      [table_id]
+    );
     const activePlayers = [];
     for (const p of players) {
+      if (p.disqualified) continue;
       const total = parseInt(p.total_points || 0, 10);
       if (total >= (tbl.disqualify_score || 200)) {
         await db.execute(`UPDATE rummy_table_players SET disqualified = true, eliminated_at = now() WHERE table_id=$1 AND user_id=$2`, [table_id, p.user_id]);
@@ -1105,31 +1122,73 @@ router.post("/round/next", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Not enough players for next round; table finished" });
     }
 
-    // Create deal (we don't have the deal library here; generate placeholders)
-    // In production you should call the same Deal engine used earlier. For now produce empty hands and shuffled stock.
-    // We'll create a new round entry with shuffled deck (lightweight)
     const nextNumber = parseInt(last.number || 0, 10) + 1;
 
     // Cyclic start player logic: Round 1 -> Seat 1, Round 2 -> Seat 2, etc.
     const startIdx = (nextNumber - 1) % activePlayers.length;
     const startPlayer = activePlayers[startIdx];
 
-    // Create deal (we don't have the deal library here; generate placeholders)
-    // In production you should call the same Deal engine used earlier. For now produce empty hands and shuffled stock.
-    // We'll create a new round entry with shuffled deck (lightweight)
+    // Restore dropped-but-not-disqualified players for new round.
+    await db.execute(
+      `UPDATE rummy_table_players
+       SET is_spectator=false, spectator_allowed='[]'::jsonb
+       WHERE table_id=$1 AND disqualified=false`,
+      [table_id]
+    );
 
-    // simple deck generation: not trying to be deterministic
-    const singleDeck = [
-      /* minimal representation left intentionally simple - ideally call your DeckConfig/deal_initial */
-    ];
-    // store empty hands object and minimal stock/discard
+    // Build a fresh deal for next round.
+    const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+    const suits = ["H", "D", "S", "C"];
+    const deckCount = activePlayers.length <= 2 ? 1 : activePlayers.length <= 4 ? 2 : 3;
+    const deck = [];
+    for (let d = 0; d < deckCount; d++) {
+      for (const r of ranks) {
+        for (const s of suits) {
+          deck.push({ rank: r, suit: s, joker: false });
+        }
+      }
+      deck.push({ rank: "JOKER", suit: null, joker: true });
+      deck.push({ rank: "JOKER", suit: null, joker: true });
+    }
+
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+
     const hands = {};
-    for (const uid of activePlayers) hands[uid] = [];
+    for (const uid of activePlayers) {
+      hands[uid] = [];
+      for (let i = 0; i < 13; i++) {
+        hands[uid].push(deck.pop());
+      }
+    }
+
+    const discard = [];
+    if (deck.length > 0) discard.push(deck.pop());
+    const stock = [];
+    while (deck.length > 0) stock.push(deck.pop());
+
+    let wild_joker_rank = null;
+    if ((tbl.wild_joker_mode || "open_joker") !== "no_joker") {
+      wild_joker_rank = ranks[Math.floor(Math.random() * ranks.length)];
+    }
 
     await db.execute(
-      `INSERT INTO rummy_rounds (id, table_id, number, stock, discard, hands, active_user_id, game_mode, ace_value)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-      [require('uuid').v4(), table_id, nextNumber, JSON.stringify([]), JSON.stringify([]), JSON.stringify(hands), startPlayer, tbl.wild_joker_mode || "open_joker", tbl.ace_value || 10]
+      `INSERT INTO rummy_rounds (id, table_id, number, wild_joker_rank, stock, discard, hands, active_user_id, game_mode, ace_value)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [
+        require('uuid').v4(),
+        table_id,
+        nextNumber,
+        wild_joker_rank,
+        JSON.stringify(stock),
+        JSON.stringify(discard),
+        JSON.stringify(hands),
+        startPlayer,
+        tbl.wild_joker_mode || "open_joker",
+        tbl.ace_value || 10
+      ]
     );
 
     await db.execute(`UPDATE rummy_tables SET status='playing', updated_at=now() WHERE id=$1`, [table_id]);
