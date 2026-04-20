@@ -123,7 +123,6 @@ function validateHand(melds = [], leftover = [], wildRank = null, revealed = fal
     return { valid: false, reason: `Total cards must be 13, got ${total}` };
 
   let hasPure = false;
-
   for (const g of melds) {
     if (!Array.isArray(g) || g.length < 3)
       return { valid: false, reason: "Each meld must have ≥3 cards" };

@@ -545,6 +545,8 @@ export default function Table() {
   const [prevRoundFinished, setPrevRoundFinished] = useState(null);
   const [showPointsTable, setShowPointsTable] = useState(true);
   const previousRoundNumberRef = useRef(null);
+  const refreshInFlightRef = useRef(false);
+  const refreshPendingRef = useRef(false);
 
   // Table Info box state
   const [tableInfoVisible, setTableInfoVisible] = useState(true);
@@ -712,6 +714,11 @@ export default function Table() {
       console.error("❌ refresh() called without tableId");
       return;
     }
+    if (refreshInFlightRef.current) {
+      refreshPendingRef.current = true;
+      return;
+    }
+    refreshInFlightRef.current = true;
     try {
       const query = { table_id: tableId };
       const res = await apiclient.get_table_info(query);
@@ -777,12 +784,18 @@ export default function Table() {
         const newHasDrawn = roundData.hand.length === 14;
         setHasDrawn(newHasDrawn);
       }
-      await fetchRoundHistory();
+      fetchRoundHistory();
       setLoading(false);
     } catch (e) {
       console.error("❌ Failed to refresh:", e);
       toast.error("Connection error - retrying...");
       setLoading(false);
+    } finally {
+      refreshInFlightRef.current = false;
+      if (refreshPendingRef.current) {
+        refreshPendingRef.current = false;
+        void refresh();
+      }
     }
   };
 
@@ -1031,6 +1044,10 @@ export default function Table() {
 
   const onNextRound = async () => {
     if (!tableId || !info) return;
+    if (!user || user.id !== info.host_user_id) {
+      toast.error("Only table host can start next round.");
+      return;
+    }
     setStarting(true);
     try {
       const players = info.players || [];

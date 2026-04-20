@@ -70,10 +70,14 @@ CREATE TABLE IF NOT EXISTS spectate_permissions (
   table_id UUID REFERENCES rummy_tables(id) ON DELETE CASCADE,
   spectator_id VARCHAR(255),
   player_id VARCHAR(255),
+  admin_approved BOOLEAN DEFAULT false,
   granted BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   PRIMARY KEY (table_id, spectator_id, player_id)
 );
+
+ALTER TABLE spectate_permissions
+ADD COLUMN IF NOT EXISTS admin_approved BOOLEAN DEFAULT false;
 
 -- 6. Chat Messages
 CREATE TABLE IF NOT EXISTS chat_messages (

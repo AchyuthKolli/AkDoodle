@@ -21,6 +21,30 @@ function serializeCard(card) {
   return `${card.rank}${card.suit || ""}`;
 }
 
+function classifyDeclaredGroups(groups = [], wildJokerRank = null) {
+  const out = {
+    pure_sequences: [],
+    impure_sequences: [],
+    sets: [],
+    invalid_groups: [],
+    ungrouped: [],
+  };
+  for (const group of groups) {
+    if (!Array.isArray(group) || group.length < 3) {
+      out.invalid_groups.push(group || []);
+      continue;
+    }
+    const isPure = scoring.isPureSequence ? scoring.isPureSequence(group, wildJokerRank, true) : false;
+    const isSeq = scoring.isSequence ? scoring.isSequence(group, wildJokerRank, true) : false;
+    const isSet = scoring.isSet ? scoring.isSet(group, wildJokerRank, true) : false;
+    if (isPure) out.pure_sequences.push(group);
+    else if (isSeq) out.impure_sequences.push(group);
+    else if (isSet) out.sets.push(group);
+    else out.invalid_groups.push(group);
+  }
+  return out;
+}
+
 /* ---------------------------
     GET TABLE INFO
 ------------------------------ */
@@ -837,7 +861,10 @@ router.post("/declare", requireAuth, async (req, res) => {
       if (isValidDeclaration) {
         // Winner gets 0
         scores[req.user.sub] = 0;
-        organizedMelds[req.user.sub] = { pure_sequences: groups, sequences: [], sets: [], deadwood: [] };
+        organizedMelds[req.user.sub] = {
+          ...classifyDeclaredGroups(groups, wild_joker_rank),
+          deadwood: [],
+        };
 
         // compute other players
         for (const uid of Object.keys(hands)) {
@@ -847,29 +874,32 @@ router.post("/declare", requireAuth, async (req, res) => {
             // Player dropped/eliminated. Use 20 pts (or 0 if already accounted, but for round history we show 20)
             // Drop endpoint already added 20 to total_points. We just record 20 here for history display.
             scores[uid] = 20;
-            organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: hands[uid] || [] };
+            organizedMelds[uid] = {
+              pure_sequences: [],
+              impure_sequences: [],
+              sets: [],
+              invalid_groups: [],
+              ungrouped: hands[uid] || [],
+              deadwood: hands[uid] || [],
+            };
           } else {
             const oppHand = hands[uid] || [];
-            let bestMelds = { melds: [], leftover: oppHand };
-
-            if (scoring && typeof scoring.autoOrganizeHand === "function") {
-              bestMelds = scoring.autoOrganizeHand(oppHand, wild_joker_rank, true);
-            }
-
             let pts = 0;
             if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
-              pts = scoring.calculateDeadwoodPoints(bestMelds.leftover, wild_joker_rank, true, ace_value);
+              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, true, ace_value);
             } else {
-              pts = bestMelds.leftover.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
+              pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
             }
 
             scores[uid] = Math.min(pts, 80);
-
-            if (scoring && typeof scoring.organizeHandByMelds === "function") {
-              organizedMelds[uid] = scoring.organizeHandByMelds(oppHand, wild_joker_rank, true);
-            } else {
-              organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: oppHand };
-            }
+            organizedMelds[uid] = {
+              pure_sequences: [],
+              impure_sequences: [],
+              sets: [],
+              invalid_groups: [],
+              ungrouped: oppHand,
+              deadwood: oppHand,
+            };
           }
         }
       } else {
@@ -879,18 +909,25 @@ router.post("/declare", requireAuth, async (req, res) => {
           const handCards = hands[uid] || [];
           if (uid === req.user.sub) {
             scores[uid] = declarer_pts;
-            organizedMelds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
-              ? scoring.organizeHandByMelds(handCards, wild_joker_rank, true)
-              : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
+            organizedMelds[uid] = {
+              ...classifyDeclaredGroups(groups, wild_joker_rank),
+              ungrouped: handCards,
+              deadwood: handCards,
+            };
           } else {
             if (spectatorMap[uid]) {
               scores[uid] = 20; // Dropped player
             } else {
               scores[uid] = 0;
             }
-            organizedMelds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
-              ? scoring.organizeHandByMelds(handCards, wild_joker_rank, true)
-              : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
+            organizedMelds[uid] = {
+              pure_sequences: [],
+              impure_sequences: [],
+              sets: [],
+              invalid_groups: [],
+              ungrouped: handCards,
+              deadwood: handCards,
+            };
           }
         }
         isValidDeclaration = false;
@@ -916,9 +953,20 @@ router.post("/declare", requireAuth, async (req, res) => {
       for (const uid of Object.keys(hands)) {
         const handCards = hands[uid] || [];
         scores[uid] = (uid === req.user.sub) ? declarer_pts : 0;
-        organizedMelds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
-          ? scoring.organizeHandByMelds(handCards, wild_joker_rank, true)
-          : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
+        organizedMelds[uid] = uid === req.user.sub
+          ? {
+            ...classifyDeclaredGroups(groups, wild_joker_rank),
+            ungrouped: handCards,
+            deadwood: handCards,
+          }
+          : {
+            pure_sequences: [],
+            impure_sequences: [],
+            sets: [],
+            invalid_groups: [],
+            ungrouped: handCards,
+            deadwood: handCards,
+          };
       }
       isValidDeclaration = false;
     }
@@ -1000,16 +1048,21 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
       ? declarationRecord.organized_melds
       : {};
 
-    // Build organized melds for all players
+    // Build organized melds for all players (do not auto-create valid melds for non-declarers).
     const organized_melds = {};
     for (const uid of Object.keys(hands)) {
       if (organizedByUser[uid]) {
         organized_melds[uid] = organizedByUser[uid];
       } else {
         const handCards = hands[uid] || [];
-        organized_melds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
-          ? scoring.organizeHandByMelds(handCards, null, true)
-          : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
+        organized_melds[uid] = {
+          pure_sequences: [],
+          impure_sequences: [],
+          sets: [],
+          invalid_groups: [],
+          ungrouped: handCards,
+          deadwood: handCards,
+        };
       }
     }
 
@@ -1300,7 +1353,13 @@ router.post("/game/request-spectate", requireAuth, async (req, res) => {
     const spect = await db.fetchrow(`SELECT is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`, [table_id, req.user.sub]);
     if (!spect || !spect.is_spectator) return res.status(403).json({ error: "Must be eliminated to request spectate" });
 
-    await db.execute(`INSERT INTO spectate_permissions (table_id, spectator_id, player_id, granted) VALUES ($1,$2,$3,false) ON CONFLICT DO NOTHING`, [table_id, req.user.sub, player_id]);
+    await db.execute(
+      `INSERT INTO spectate_permissions (table_id, spectator_id, player_id, admin_approved, granted)
+       VALUES ($1,$2,$3,false,false)
+       ON CONFLICT (table_id, spectator_id, player_id)
+       DO UPDATE SET admin_approved=false, granted=false`,
+      [table_id, req.user.sub, player_id]
+    );
     return res.json({ success: true });
   } catch (e) {
     console.error("request-spectate error", e);
@@ -1314,13 +1373,49 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
     const { table_id, spectator_id, granted } = req.body;
     if (!table_id || !spectator_id || typeof granted === "undefined") return res.status(400).json({ error: "Invalid request" });
 
-    // The player granting permission must be the target player (req.user)
-    await db.execute(`UPDATE spectate_permissions SET granted=$1 WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`, [granted, table_id, spectator_id, req.user.sub]);
-    if (granted) {
-      // optionally mark spectator allowed (frontend uses this)
-      await db.execute(`UPDATE rummy_table_players SET spectator_allowed = COALESCE(spectator_allowed, '[]'::jsonb) || $1 WHERE table_id=$2 AND user_id=$3`, [JSON.stringify([spectator_id]), table_id, req.user.sub]);
+    const table = await db.fetchrow(`SELECT host_user_id FROM rummy_tables WHERE id=$1`, [table_id]);
+    if (!table) return res.status(404).json({ error: "Table not found" });
+
+    const pending = await db.fetchrow(
+      `SELECT table_id, spectator_id, player_id, admin_approved, granted
+       FROM spectate_permissions
+       WHERE table_id=$1 AND spectator_id=$2`,
+      [table_id, spectator_id]
+    );
+    if (!pending) return res.status(404).json({ error: "No spectate request found" });
+
+    // Step 1: host/admin approval
+    if (req.user.sub === table.host_user_id) {
+      await db.execute(
+        `UPDATE spectate_permissions SET admin_approved=$1, granted=CASE WHEN $1 THEN granted ELSE false END
+         WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`,
+        [!!granted, table_id, spectator_id, pending.player_id]
+      );
+      return res.json({ success: true, stage: "admin", admin_approved: !!granted });
     }
-    return res.json({ success: true });
+
+    // Step 2: target player approval (only after admin approved)
+    if (req.user.sub !== pending.player_id) {
+      return res.status(403).json({ error: "Only host or target player can update spectate request" });
+    }
+    if (!pending.admin_approved) {
+      return res.status(400).json({ error: "Host approval required before player permission" });
+    }
+
+    await db.execute(
+      `UPDATE spectate_permissions SET granted=$1
+       WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`,
+      [!!granted, table_id, spectator_id, pending.player_id]
+    );
+    if (granted) {
+      await db.execute(
+        `UPDATE rummy_table_players
+         SET spectator_allowed = COALESCE(spectator_allowed, '[]'::jsonb) || $1
+         WHERE table_id=$2 AND user_id=$3`,
+        [JSON.stringify([spectator_id]), table_id, pending.player_id]
+      );
+    }
+    return res.json({ success: true, stage: "player", granted: !!granted });
   } catch (e) {
     console.error("grant-spectate error", e);
     res.status(500).json({ error: "Failed to update spectate permission" });

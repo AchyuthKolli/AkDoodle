@@ -80,18 +80,6 @@ export function validateHand(melds = [], wildRank = null, revealed = false) {
         return { valid: false, reason: `Total cards must be 13, got ${total}` };
 
     let hasPure = false;
-    let hasFirstSeq = false; // "First sequence" logic: usually implies Pure. But standard Rummy needs 2 sequences, one pure.
-    // Wait, standard Indian Rummy:
-    // 1. One pure sequence required.
-    // 2. Second sequence required (can be pure or impure).
-    // The server implementation in scoring.js checked:
-    // if (!hasPure) return { ... "At least one pure sequence required" }
-    // And loop checks each g is (Sequence OR Set).
-    // It does NOT strictly enforce "Two sequences".
-    // However, for purposes of "client-side check strictly", I will stick to what scoring.js implements.
-    // scoring.js validation:
-    // - All groups must be valid (Seq or Set)
-    // - At least one Pure Sequence.
 
     for (const g of melds) {
         if (!Array.isArray(g) || g.length < 3)
