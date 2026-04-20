@@ -27,18 +27,21 @@ export const ScoreboardModal = ({
   onNextRound,
 }) => {
   const [startingNextRound, setStartingNextRound] = useState(false);
+  const [expanded, setExpanded] = useState({});
 
   if (!data) return null;
 
   const isHost = currentUserId === hostUserId;
+  const safeScores = (data.scores && typeof data.scores === "object") ? data.scores : {};
+  const safeRevealedHands = (data.revealed_hands && typeof data.revealed_hands === "object") ? data.revealed_hands : {};
 
-  const sortedPlayers = players
-    .filter((p) => data.scores[p.user_id] !== undefined)
+  const sortedPlayers = (players || [])
+    .filter((p) => safeScores[p.user_id] !== undefined)
     .map((p) => ({
       ...p,
-      score: data.scores[p.user_id],
+      score: safeScores[p.user_id],
       organized: data.organized_melds?.[p.user_id] || null,
-      rawCards: data.revealed_hands[p.user_id] || [],
+      rawCards: safeRevealedHands[p.user_id] || [],
       isWinner: p.user_id === data.winner_user_id,
     }))
     .sort((a, b) => {
@@ -46,8 +49,6 @@ export const ScoreboardModal = ({
       const scoreB = typeof b.score === "object" && b.score !== null ? b.score.points : b.score;
       return scoreA - scoreB;
     });
-
-  const [expanded, setExpanded] = useState({});
   const togglePlayer = (uid) =>
     setExpanded((prev) => ({ ...prev, [uid]: !prev[uid] }));
 
