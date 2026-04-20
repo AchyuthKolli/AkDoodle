@@ -757,6 +757,7 @@ export default function Table() {
         const newHasDrawn = roundData.hand.length === 14;
         setHasDrawn(newHasDrawn);
       }
+      await fetchRoundHistory();
       setLoading(false);
     } catch (e) {
       console.error("❌ Failed to refresh:", e);
@@ -766,9 +767,9 @@ export default function Table() {
   };
 
   const fetchRoundHistory = async () => {
-    if (!info?.table_id) return;
+    if (!tableId) return;
     try {
-      const response = await apiclient.get_round_history({ table_id: info.table_id });
+      const response = await apiclient.get_round_history({ table_id: tableId });
       const data = await response.json();
       setRoundHistory(data.rounds || []);
     } catch (error) {
@@ -1605,7 +1606,7 @@ export default function Table() {
                     hostUserId={info?.host_user_id || ""}
                     onNextRound={() => {
                       setShowScoreboardModal(false);
-                      onNextRound();
+                      return onNextRound();
                     }}
                   />
 

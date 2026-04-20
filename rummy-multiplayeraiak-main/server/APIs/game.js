@@ -10,6 +10,7 @@ console.log("Loading game.js. requireAuth type:", typeof requireAuth);
 console.log("game.js router created:", !!router);
 const { v4: uuidv4 } = require("uuid");
 const scoring = require("./scoring");
+const INVALID_DECLARE_PENALTY = 20;
 
 /* ---------------------------
     Helpers
@@ -873,18 +874,23 @@ router.post("/declare", requireAuth, async (req, res) => {
         }
       } else {
         // invalid declaration
-        let declarer_pts = 80;
+        let declarer_pts = INVALID_DECLARE_PENALTY;
         for (const uid of Object.keys(hands)) {
+          const handCards = hands[uid] || [];
           if (uid === req.user.sub) {
             scores[uid] = declarer_pts;
-            organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: myHand };
+            organizedMelds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
+              ? scoring.organizeHandByMelds(handCards, wild_joker_rank, true)
+              : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
           } else {
             if (spectatorMap[uid]) {
               scores[uid] = 20; // Dropped player
             } else {
               scores[uid] = 0;
             }
-            organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: hands[uid] || [] };
+            organizedMelds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
+              ? scoring.organizeHandByMelds(handCards, wild_joker_rank, true)
+              : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
           }
         }
         isValidDeclaration = false;
@@ -906,10 +912,13 @@ router.post("/declare", requireAuth, async (req, res) => {
       };
     } else {
       // invalid/no groups => failed declaration: declarer gets 80 points penalty
-      let declarer_pts = 80;
+      let declarer_pts = INVALID_DECLARE_PENALTY;
       for (const uid of Object.keys(hands)) {
+        const handCards = hands[uid] || [];
         scores[uid] = (uid === req.user.sub) ? declarer_pts : 0;
-        organizedMelds[uid] = { pure_sequences: [], sequences: [], sets: [], deadwood: (uid === req.user.sub ? myHand : []) };
+        organizedMelds[uid] = (scoring && typeof scoring.organizeHandByMelds === "function")
+          ? scoring.organizeHandByMelds(handCards, wild_joker_rank, true)
+          : { pure_sequences: [], sequences: [], sets: [], deadwood: handCards };
       }
       isValidDeclaration = false;
     }
@@ -937,6 +946,7 @@ router.post("/declare", requireAuth, async (req, res) => {
       declared_by: req.user.sub,
       valid: isValidDeclaration,
       status: isValidDeclaration ? "valid" : "invalid",
+      message: isValidDeclaration ? "Valid declaration" : `Invalid declaration. ${INVALID_DECLARE_PENALTY} penalty points applied.`,
       scores,
     };
 
@@ -980,6 +990,10 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     const hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
     const scores = rnd.scores || {};
     const declarations = rnd.declarations || {};
+    const declared_by = Object.keys(declarations)[0] || null;
+    const declaration_status = declared_by && declarations[declared_by]
+      ? (declarations[declared_by].valid ? "valid" : "invalid")
+      : (rnd.winner_user_id ? "valid" : "invalid");
 
     // Build organized melds from declarations if present
     const organized_melds = {};
@@ -996,6 +1010,8 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     return res.json({
       table_id,
       round_number: rnd.number,
+      status: declaration_status,
+      declared_by,
       winner_user_id: rnd.winner_user_id || null,
       revealed_hands: hands,
       organized_melds,
@@ -1141,7 +1157,11 @@ router.get("/round/history", requireAuth, async (req, res) => {
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
     const rows = await db.fetch(
-      `SELECT number, winner_user_id, scores FROM rummy_rounds WHERE table_id=$1 AND finished_at IS NOT NULL ORDER BY number ASC`,
+      `SELECT r.number, r.winner_user_id, r.scores, r.finished_at, p.display_name AS winner_name
+       FROM rummy_rounds r
+       LEFT JOIN rummy_table_players p ON p.table_id = r.table_id AND p.user_id = r.winner_user_id
+       WHERE r.table_id=$1 AND r.finished_at IS NOT NULL
+       ORDER BY r.number ASC`,
       [table_id]
     );
 
@@ -1149,10 +1169,18 @@ router.get("/round/history", requireAuth, async (req, res) => {
 
     const out = [];
     for (const r of rows) {
-      const scores = r.scores || {};
-      const playersArr = Object.keys(scores).map(uid => ({ user_id: uid, score: parseInt(scores[uid] || 0, 10) }));
-      playersArr.sort((a, b) => a.score - b.score);
-      out.push({ round_number: r.number, winner_user_id: r.winner_user_id || null, players: playersArr });
+      const rawScores = r.scores || {};
+      const normalizedScores = {};
+      for (const [uid, points] of Object.entries(rawScores)) {
+        normalizedScores[uid] = parseInt(points || 0, 10);
+      }
+      out.push({
+        round_number: r.number,
+        winner_user_id: r.winner_user_id || null,
+        winner_name: r.winner_name || null,
+        scores: normalizedScores,
+        completed_at: r.finished_at ? new Date(r.finished_at).toISOString() : null,
+      });
     }
     return res.json({ rounds: out });
   } catch (e) {

@@ -11,9 +11,6 @@ import { Trophy, Crown, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 // FIXED PATH – now from games/rummy/components
 import PlayingCard from "./PlayingCard";
 
-// FIXED PATH – now from apiclient
-import apiclient from "../../../apiclient";
-
 import { toast } from "sonner";
 
 export const ScoreboardModal = ({
@@ -58,10 +55,11 @@ export const ScoreboardModal = ({
   const handleStartNextRound = async () => {
     setStartingNextRound(true);
     try {
-      await apiclient.start_next_round({ table_id: tableId });
+      if (onNextRound) {
+        await onNextRound();
+      }
       toast.success("Starting next round...");
       onClose();
-      onNextRound && onNextRound();
     } catch (error) {
       toast.error(error?.error?.detail || "Failed to start next round");
     } finally {
@@ -84,7 +82,7 @@ export const ScoreboardModal = ({
             <div className="flex items-center justify-center gap-2 text-xl font-bold text-yellow-300 drop-shadow">
               <Crown className="w-6 h-6" />
               {data.status === "invalid" ? (
-                <span>Invalid Declaration! Declarer penalised 80 pts.</span>
+                <span>Invalid Declaration! Declarer penalised 20 pts. No winner this round.</span>
               ) : (
                 <span>
                   {winnerName} wins with {
