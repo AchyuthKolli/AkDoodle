@@ -39,6 +39,7 @@ async function requireAuth(req, res, next) {
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = {
       id: payload.sub,
+      sub: payload.sub,
       email: payload.email,
       name: payload.name,
       picture: payload.picture,
