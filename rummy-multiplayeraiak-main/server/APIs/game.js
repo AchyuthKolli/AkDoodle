@@ -1036,17 +1036,37 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     for (const p of players) names[p.user_id] = p.display_name || "Player";
 
     const hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
-    const scores = rnd.scores || {};
-    const declarations = rnd.declarations || {};
-    const declared_by = Object.keys(declarations)[0] || null;
+    const scores = typeof rnd.scores === "string" ? JSON.parse(rnd.scores) : (rnd.scores || {});
+    const declarations = typeof rnd.declarations === "string" ? JSON.parse(rnd.declarations) : (rnd.declarations || {});
+    const declared_by = rnd.winner_user_id || Object.keys(declarations)[0] || null;
     const declaration_status = declared_by && declarations[declared_by]
       ? (declarations[declared_by].valid ? "valid" : "invalid")
       : (rnd.winner_user_id ? "valid" : "invalid");
 
-    const declarationRecord = declared_by ? declarations[declared_by] : null;
-    const organizedByUser = declarationRecord && declarationRecord.organized_melds && typeof declarationRecord.organized_melds === "object"
-      ? declarationRecord.organized_melds
-      : {};
+    const declarationRecordRaw = declared_by ? declarations[declared_by] : null;
+    const declarationRecord = typeof declarationRecordRaw === "string"
+      ? JSON.parse(declarationRecordRaw)
+      : (declarationRecordRaw || null);
+    let organizedByUser = {};
+    if (declarationRecord && declarationRecord.organized_melds) {
+      organizedByUser = typeof declarationRecord.organized_melds === "string"
+        ? JSON.parse(declarationRecord.organized_melds)
+        : declarationRecord.organized_melds;
+    }
+
+    // Fallback: if declarer's organized data is missing, rebuild it from submitted groups.
+    if (declared_by && (!organizedByUser || !organizedByUser[declared_by])) {
+      const declaredHand = hands[declared_by] || [];
+      const declaredGroupsRaw = declarationRecord && Array.isArray(declarationRecord.groups)
+        ? declarationRecord.groups
+        : [];
+      organizedByUser = organizedByUser || {};
+      organizedByUser[declared_by] = {
+        ...classifyDeclaredGroups(declaredGroupsRaw, rnd.wild_joker_rank || null),
+        ungrouped: declaredHand,
+        deadwood: declaredHand,
+      };
+    }
 
     // Build organized melds for all players (do not auto-create valid melds for non-declarers).
     const organized_melds = {};

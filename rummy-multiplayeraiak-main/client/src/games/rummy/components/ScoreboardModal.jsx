@@ -213,7 +213,23 @@ export const ScoreboardModal = ({
                               </div>
                             ))}
 
-                            {(!p.organized.pure_sequences?.length && !p.organized.impure_sequences?.length && !p.organized.sets?.length) && (
+                            {/* Invalid groups from a failed declaration */}
+                            {p.organized.invalid_groups?.map((meld, mIdx) => (
+                              <div key={`invalid-${mIdx}`} className="flex items-center gap-3">
+                                <span className="text-xs text-red-500/90 font-mono w-16 uppercase">Invalid</span>
+                                <div className="border border-red-600/50 bg-red-950/30 rounded-lg p-2 flex-1">
+                                  <div className="flex gap-1 flex-wrap">
+                                    {meld.map((c, idx) => (
+                                      <div key={idx} className="transform scale-75 origin-top-left -mr-4 last:mr-0">
+                                        <PlayingCard card={c} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {(!p.organized.pure_sequences?.length && !p.organized.impure_sequences?.length && !p.organized.sets?.length && !p.organized.invalid_groups?.length) && (
                               <div className="text-slate-500 text-sm italic px-2">No valid melds formed.</div>
                             )}
                           </div>
