@@ -822,8 +822,11 @@ router.post("/declare", requireAuth, async (req, res) => {
         return res.status(400).json({ error: "Declared cards do not match your hand" });
       }
 
-      // Accept declaration as valid for now (plug your strict validator here)
-      isValidDeclaration = true;
+      // Strict server-side validation (authoritative).
+      const validation = scoring.validateHand
+        ? scoring.validateHand(groups, [], wild_joker_rank, true)
+        : { valid: false, reason: "Validator unavailable" };
+      isValidDeclaration = !!validation.valid;
 
       // Get player status to identify dropped players
       const tablePlayers = await db.fetch(`SELECT user_id, is_spectator FROM rummy_table_players WHERE table_id=$1`, [table_id]);
@@ -932,6 +935,7 @@ router.post("/declare", requireAuth, async (req, res) => {
       table_id,
       round_number: rnd.number,
       declared_by: req.user.sub,
+      valid: isValidDeclaration,
       status: isValidDeclaration ? "valid" : "invalid",
       scores,
     };

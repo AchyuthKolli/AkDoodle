@@ -688,7 +688,14 @@ export default function Table() {
       const res = await apiclient.get_table_info(query);
       if (!res.ok) {
         console.error("❌ get_table_info failed with status:", res.status);
-        toast.error("Failed to refresh table info");
+        let errMsg = `Failed to refresh table info (${res.status})`;
+        try {
+          const err = await res.json();
+          errMsg = err?.error || err?.detail || errMsg;
+        } catch (_) {
+          // keep fallback
+        }
+        toast.error(errMsg);
         setLoading(false);
         return;
       }
@@ -834,6 +841,10 @@ export default function Table() {
 
   const onDrawStock = async () => {
     if (!tableId || !isMyTurn || hasDrawn) return;
+    if (myRound?.finished_at) {
+      toast.error("Round already finished. Start next round to continue.");
+      return;
+    }
     setActing(true);
     try {
       const body = { table_id: tableId };
@@ -867,6 +878,10 @@ export default function Table() {
 
   const onDrawDiscard = async () => {
     if (!tableId || !isMyTurn || hasDrawn) return;
+    if (myRound?.finished_at) {
+      toast.error("Round already finished. Start next round to continue.");
+      return;
+    }
     setActing(true);
     try {
       const body = { table_id: tableId };
@@ -908,6 +923,10 @@ export default function Table() {
 
   const onDiscard = async () => {
     if (!tableId || !selectedCard || !hasDrawn) return;
+    if (myRound?.finished_at) {
+      toast.error("Round already finished. You cannot discard after declaration.");
+      return;
+    }
     setActing(true);
     try {
       const body = { table_id: tableId, card: selectedCard };
@@ -1177,6 +1196,12 @@ export default function Table() {
         const data = await res.json();
         socket.emit("declare_made", { tableId });
 
+        // Server marks round finished after declaration; prevent extra discard/draw actions.
+        setSelectedCard(null);
+        setSelectedCardIndex(null);
+        setHasDrawn(false);
+        setLastDrawnCard(null);
+
         if (data.valid) {
           toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
           await fetchRevealedHands();
@@ -1184,6 +1209,7 @@ export default function Table() {
           toast.error(`⚠️ Invalid declaration! ${data.message || 'Penalty applied.'}`);
           await fetchRevealedHands();
         }
+        await refresh();
       } else {
         let errorMessage = "Failed to declare";
         try {
