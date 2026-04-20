@@ -22,6 +22,10 @@ CREATE TABLE IF NOT EXISTS rummy_tables (
   max_players INT DEFAULT 6,
   disqualify_score INT DEFAULT 200,
   wild_joker_mode VARCHAR(20) DEFAULT 'open_joker', -- open_joker, closed_joker, no_joker
+  -- Loser deadwood when someone else wins with a valid declare:
+  -- auto_optimal = valid submitted meld slots score 0; invalid slots pay; unplaced cards get greedy auto-melds then pay remainder.
+  -- submit_or_full = same slot rules; unplaced cards pay full face value (no auto-melds). No snapshot = full hand pays.
+  loser_deadwood_mode VARCHAR(32) DEFAULT 'auto_optimal',
   ace_value INT DEFAULT 10,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -59,6 +63,7 @@ CREATE TABLE IF NOT EXISTS rummy_rounds (
   scores JSONB,  -- Map user_id -> score for this round
   declarations JSONB, -- Map user_id -> declaration details
   players_with_first_sequence JSONB, -- List of users who revealed/locked pure sequence
+  meld_snapshots JSONB DEFAULT '{}'::jsonb, -- user_id -> { meld1..meld4, leftover } for loser scoring modes
   points_accumulated BOOLEAN DEFAULT false, -- If scores added to table_players
   finished_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
@@ -78,6 +83,12 @@ CREATE TABLE IF NOT EXISTS spectate_permissions (
 
 ALTER TABLE spectate_permissions
 ADD COLUMN IF NOT EXISTS admin_approved BOOLEAN DEFAULT false;
+
+ALTER TABLE rummy_tables
+ADD COLUMN IF NOT EXISTS loser_deadwood_mode VARCHAR(32) DEFAULT 'auto_optimal';
+
+ALTER TABLE rummy_rounds
+ADD COLUMN IF NOT EXISTS meld_snapshots JSONB DEFAULT '{}'::jsonb;
 
 -- 6. Chat Messages
 CREATE TABLE IF NOT EXISTS chat_messages (

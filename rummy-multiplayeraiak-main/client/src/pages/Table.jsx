@@ -438,7 +438,7 @@ const LeftoverSlotBox = ({
   );
 };
 
-const RummyPlayersList = ({ info, activeUserId }) => {
+const RummyPlayersList = ({ info, activeUserId, onKickPlayer }) => {
   const { players } = useRummy();
   const { user } = useAuth();
   // Prefer context players if available (reactive), fallback to info.players
@@ -455,6 +455,14 @@ const RummyPlayersList = ({ info, activeUserId }) => {
     };
   });
   console.log("Unified Players for Sidebar:", unifiedPlayers); // Debug avatars
+
+  const activeCount = (info?.players || []).filter((x) => !x.is_spectator).length;
+  const canHostKick =
+    onKickPlayer &&
+    user?.id &&
+    info?.host_user_id === user.id &&
+    info?.status === "playing" &&
+    activeCount >= 3;
 
   return (
     <>
@@ -475,6 +483,15 @@ const RummyPlayersList = ({ info, activeUserId }) => {
             <span className="inline-flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20">
               <Crown className="w-3 h-3" /> Host
             </span>
+          )}
+          {canHostKick && p.user_id !== info.host_user_id && !p.is_spectator && (
+            <button
+              type="button"
+              className="text-xs px-2 py-1 rounded border border-red-700/60 text-red-300 hover:bg-red-950/40 shrink-0"
+              onClick={() => onKickPlayer(p.user_id)}
+            >
+              Kick
+            </button>
           )}
         </div>
       ))}
@@ -570,10 +587,11 @@ export default function Table() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const { meld1: m1, meld2: m2, meld3: m3, leftover: lo, locks } = parsed;
+        const { meld1: m1, meld2: m2, meld3: m3, meld4: m4, leftover: lo, locks } = parsed;
         if (locks?.meld1) setMeld1(m1);
         if (locks?.meld2) setMeld2(m2);
         if (locks?.meld3) setMeld3(m3);
+        if (locks?.meld4 && Array.isArray(m4)) setMeld4(m4);
         if (locks?.leftover) setLeftover(lo);
         if (locks) setMeldLocks(locks);
       } catch (e) {
@@ -586,9 +604,9 @@ export default function Table() {
   useEffect(() => {
     if (!tableId) return;
     const storageKey = `rummy_melds_${tableId}`;
-    const data = { meld1, meld2, meld3, leftover, locks: meldLocks };
+    const data = { meld1, meld2, meld3, meld4, leftover, locks: meldLocks };
     localStorage.setItem(storageKey, JSON.stringify(data));
-  }, [tableId, meld1, meld2, meld3, leftover, meldLocks]);
+  }, [tableId, meld1, meld2, meld3, meld4, leftover, meldLocks]);
 
   const toggleMeldLock = (meldName) => {
     setMeldLocks((prev) => ({ ...prev, [meldName]: !prev[meldName] }));
@@ -1079,6 +1097,58 @@ export default function Table() {
       toast.error(e?.message || "Failed to start next round");
     } finally {
       setStarting(false);
+    }
+  };
+
+  const serializeCardsForSnapshot = (arr) =>
+    (arr || [])
+      .filter((c) => c != null && typeof c === "object" && c.rank)
+      .map((c) => ({ rank: c.rank, suit: c.suit || null, joker: !!c.joker }));
+
+  useEffect(() => {
+    if (!tableId || !info || info.status !== "playing" || !myRound || myRound.finished_at) return;
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const body = {
+            table_id: tableId,
+            meld1: serializeCardsForSnapshot(meld1),
+            meld2: serializeCardsForSnapshot(meld2),
+            meld3: serializeCardsForSnapshot(meld3),
+            meld4: serializeCardsForSnapshot(meld4),
+            leftover: serializeCardsForSnapshot(leftover),
+          };
+          const res = await apiclient.meld_snapshot(body);
+          if (!res.ok && res.status !== 400) {
+            /* avoid spamming toasts for transient errors */
+          }
+        } catch {
+          /* ignore */
+        }
+      })();
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [tableId, info?.status, myRound?.finished_at, meld1, meld2, meld3, meld4, leftover, myRound]);
+
+  const handleKickPlayer = async (targetUserId) => {
+    if (!tableId || !info || user.id !== info.host_user_id) return;
+    const active = (info.players || []).filter((p) => !p.is_spectator).length;
+    if (active < 3) {
+      toast.error("At least 3 active players are required before the host can kick someone.");
+      return;
+    }
+    if (!window.confirm("Remove this player from the current game? They receive a 20-point penalty.")) return;
+    try {
+      const res = await apiclient.kick_player({ table_id: tableId, target_user_id: targetUserId });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "Kick failed");
+        toast.error(errText);
+        return;
+      }
+      toast.success("Player removed from the table");
+      await refresh();
+    } catch (e) {
+      toast.error(e?.message || "Kick failed");
     }
   };
 
@@ -1618,7 +1688,7 @@ export default function Table() {
                               <p className="text-sm text-muted-foreground mb-2">Players</p>
                               <div className="grid grid-cols-1 gap-3">
                                 {/* Use RummyContext players if available for reactive updates */}
-                                <RummyPlayersList info={info} activeUserId={info.active_user_id} />
+                                <RummyPlayersList info={info} activeUserId={info.active_user_id} onKickPlayer={handleKickPlayer} />
                               </div>
                             </div>
                           </div>
@@ -1810,7 +1880,7 @@ export default function Table() {
                               <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
                               <div className="space-y-1.5">
                                 {/* REPLACED manual loop with reactive component for Avatars */}
-                                <RummyPlayersList info={info} activeUserId={info.active_user_id} />
+                                <RummyPlayersList info={info} activeUserId={info.active_user_id} onKickPlayer={handleKickPlayer} />
                               </div>
                             </div>
 

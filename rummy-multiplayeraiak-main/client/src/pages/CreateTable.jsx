@@ -60,6 +60,8 @@ export default function CreateTable() {
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [disqualifyScore, setDisqualifyScore] = useState(200);
   const [aceValue, setAceValue] = useState(10);
+  /** auto_optimal: wrong meld slots pay; unplaced uses greedy valid melds. submit_or_full: no greedy melds on unplaced; no snapshot = full hand pays. */
+  const [loserDeadwoodMode, setLoserDeadwoodMode] = useState("auto_optimal");
   const [creating, setCreating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
   const [tableId, setTableId] = useState(null);
@@ -100,6 +102,7 @@ export default function CreateTable() {
         disqualify_score: disqualifyScore,
         wild_joker_mode: variant.wildJokerMode,
         ace_value: aceValue,
+        loser_deadwood_mode: loserDeadwoodMode,
       };
 
       const res = await apiclient.create_table(body);
@@ -361,6 +364,47 @@ export default function CreateTable() {
                   <div className="text-2xl font-bold">10</div>
                   <div className="text-xs mt-1 opacity-80">Points</div>
                 </button>
+              </div>
+            </div>
+
+            {/* Loser scoring when someone wins with a valid declare */}
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Loser card count (others lose the round)
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-600 bg-slate-900/40 cursor-pointer hover:border-slate-500">
+                  <input
+                    type="radio"
+                    name="loserDeadwood"
+                    className="mt-1"
+                    checked={loserDeadwoodMode === "auto_optimal"}
+                    onChange={() => setLoserDeadwoodMode("auto_optimal")}
+                  />
+                  <div>
+                    <div className="text-slate-200 text-sm font-medium">Auto + your meld board</div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Wrong meld slots count. Cards you never put on the meld board get greedy valid-meld reduction.
+                      Send your layout from the table (auto-saved while you play).
+                    </p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-600 bg-slate-900/40 cursor-pointer hover:border-slate-500">
+                  <input
+                    type="radio"
+                    name="loserDeadwood"
+                    className="mt-1"
+                    checked={loserDeadwoodMode === "submit_or_full"}
+                    onChange={() => setLoserDeadwoodMode("submit_or_full")}
+                  />
+                  <div>
+                    <div className="text-slate-200 text-sm font-medium">Strict (no auto on unplaced)</div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Valid meld slots only reduce points. Unplaced cards pay full value (no auto-melds). If you never
+                      sync your meld board, the whole hand counts.
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
 

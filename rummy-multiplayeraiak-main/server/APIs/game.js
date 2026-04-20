@@ -21,7 +21,31 @@ function serializeCard(card) {
   return `${card.rank}${card.suit || ""}`;
 }
 
-function classifyDeclaredGroups(groups = [], wildJokerRank = null) {
+function parseJsonArray(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    try {
+      const x = JSON.parse(v);
+      return Array.isArray(x) ? x : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/** Open joker: wild acts as joker from the start. Closed: only after someone locks a pure sequence. */
+function wildJokerEffectivelyRevealed(gameMode, wildJokerRank, playersWithFirstSequence) {
+  if (!wildJokerRank) return false;
+  const mode = String(gameMode || "open_joker").toLowerCase();
+  if (mode === "no_joker") return false;
+  if (mode === "open_joker" || mode.startsWith("open")) return true;
+  const seq = parseJsonArray(playersWithFirstSequence);
+  return seq.length > 0;
+}
+
+function classifyDeclaredGroups(groups = [], wildJokerRank = null, wildRevealed = true) {
   const out = {
     pure_sequences: [],
     impure_sequences: [],
@@ -34,15 +58,212 @@ function classifyDeclaredGroups(groups = [], wildJokerRank = null) {
       out.invalid_groups.push(group || []);
       continue;
     }
-    const isPure = scoring.isPureSequence ? scoring.isPureSequence(group, wildJokerRank, true) : false;
-    const isSeq = scoring.isSequence ? scoring.isSequence(group, wildJokerRank, true) : false;
-    const isSet = scoring.isSet ? scoring.isSet(group, wildJokerRank, true) : false;
+    const isPure = scoring.isPureSequence ? scoring.isPureSequence(group, wildJokerRank, wildRevealed) : false;
+    const isSeq = scoring.isSequence ? scoring.isSequence(group, wildJokerRank, wildRevealed) : false;
+    const isSet = scoring.isSet ? scoring.isSet(group, wildJokerRank, wildRevealed) : false;
     if (isPure) out.pure_sequences.push(group);
     else if (isSeq) out.impure_sequences.push(group);
     else if (isSet) out.sets.push(group);
     else out.invalid_groups.push(group);
   }
   return out;
+}
+
+/** Normalize JSON object keys so client lookups always match `user_id` strings from JWT/DB. */
+function normId(id) {
+  if (id === undefined || id === null) return id;
+  return String(id);
+}
+
+function normalizeKeyedJson(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return obj || {};
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) out[normId(k)] = v;
+  return out;
+}
+
+/** Cards still in hand after removing declared groups (14th card / leftovers). */
+function extractLeftoverFromHand(hand, groups) {
+  const handCopy = (hand || []).slice();
+  for (const grp of groups || []) {
+    for (const c of grp || []) {
+      const idx = handCopy.findIndex(
+        (h) =>
+          h.rank === c.rank &&
+          (h.suit || null) === (c.suit || null) &&
+          (!!h.joker) === (!!c.joker)
+      );
+      if (idx !== -1) handCopy.splice(idx, 1);
+    }
+  }
+  return handCopy;
+}
+
+function classifySingleGroup(group, wildJokerRank, wildRevealed = true) {
+  if (!Array.isArray(group) || group.length < 3) return "invalid";
+  if (scoring.isPureSequence(group, wildJokerRank, wildRevealed)) return "pure";
+  if (scoring.isSequence(group, wildJokerRank, wildRevealed)) return "impure";
+  if (scoring.isSet(group, wildJokerRank, wildRevealed)) return "set";
+  return "invalid";
+}
+
+/** Up to four auto-detected melds for non-declarers (pure → impure → set), remainder in hand. */
+function splitAutoMeldsIntoSlots(organized) {
+  const auto = organized || {};
+  const ordered = [
+    ...(auto.pure_sequences || []).map((cards) => ({ kind: "pure", cards })),
+    ...(auto.impure_sequences || []).map((cards) => ({ kind: "impure", cards })),
+    ...(auto.sets || []).map((cards) => ({ kind: "set", cards })),
+  ];
+  const meld1 = ordered[0]?.cards || [];
+  const meld2 = ordered[1]?.cards || [];
+  const meld3 = ordered[2]?.cards || [];
+  const meld4 = ordered[3]?.cards || [];
+  const spill = ordered.slice(4).flatMap((g) => g.cards);
+  const remainder = [...(auto.ungrouped || []), ...spill];
+  const slot_kind = [
+    ordered[0]?.kind || null,
+    ordered[1]?.kind || null,
+    ordered[2]?.kind || null,
+    ordered[3]?.kind || null,
+  ];
+  return { meld1, meld2, meld3, meld4, remainder, slot_kind };
+}
+
+/**
+ * Single source of truth for scoreboard card layout (declarer slots + deadwood + others auto-meld).
+ */
+function buildOrganizedScoreboardForUser({
+  userId,
+  declarerUserId,
+  hand,
+  declarationGroups,
+  isSpectator,
+  wildJokerRank,
+  wildJokerRevealed = true,
+}) {
+  const uid = normId(userId);
+  const declarer = declarerUserId ? normId(declarerUserId) : null;
+  const groups = Array.isArray(declarationGroups) ? declarationGroups : [];
+  const isDeclarer = declarer && uid === declarer;
+
+  if (isSpectator) {
+    return {
+      pure_sequences: [],
+      impure_sequences: [],
+      sets: [],
+      invalid_groups: [],
+      meld1: [],
+      meld2: [],
+      meld3: [],
+      meld4: [],
+      deadwood: hand || [],
+      hand_remainder: [],
+      ungrouped: [],
+      slot_kind: [null, null, null, null],
+    };
+  }
+
+  if (isDeclarer && groups.length > 0) {
+    const classified = classifyDeclaredGroups(groups, wildJokerRank, wildJokerRevealed);
+    const leftover = extractLeftoverFromHand(hand, groups);
+    const meld1 = groups[0] || [];
+    const meld2 = groups[1] || [];
+    const meld3 = groups[2] || [];
+    const meld4 = groups[3] || [];
+    const slot_kind = [meld1, meld2, meld3, meld4].map((g) =>
+      g.length ? classifySingleGroup(g, wildJokerRank, wildJokerRevealed) : null
+    );
+    return {
+      ...classified,
+      meld1,
+      meld2,
+      meld3,
+      meld4,
+      deadwood: leftover,
+      hand_remainder: [],
+      ungrouped: leftover,
+      slot_kind,
+    };
+  }
+
+  // Declarer submitted no groups: show full hand as deadwood only (do not auto-meld).
+  if (isDeclarer) {
+    const h = hand || [];
+    return {
+      pure_sequences: [],
+      impure_sequences: [],
+      sets: [],
+      invalid_groups: [],
+      meld1: [],
+      meld2: [],
+      meld3: [],
+      meld4: [],
+      deadwood: h,
+      hand_remainder: [],
+      ungrouped: [],
+      slot_kind: [null, null, null, null],
+    };
+  }
+
+  const auto = scoring.organizeHandByMelds(hand || [], wildJokerRank, wildJokerRevealed);
+  const { meld1, meld2, meld3, meld4, remainder, slot_kind } = splitAutoMeldsIntoSlots(auto);
+  return {
+    pure_sequences: auto.pure_sequences,
+    impure_sequences: auto.impure_sequences,
+    sets: auto.sets,
+    invalid_groups: [],
+    meld1,
+    meld2,
+    meld3,
+    meld4,
+    deadwood: [],
+    hand_remainder: remainder,
+    ungrouped: remainder,
+    slot_kind,
+  };
+}
+
+function pickDeclarerUserId(declarations, winnerUserId) {
+  if (winnerUserId != null && winnerUserId !== "") return normId(winnerUserId);
+  const dec = declarations && typeof declarations === "object" ? declarations : {};
+  const keys = Object.keys(dec);
+  if (!keys.length) return null;
+  if (keys.length === 1) return normId(keys[0]);
+  let best = keys[0];
+  let bestN = -1;
+  for (const k of keys) {
+    const g = dec[k]?.groups;
+    const n = Array.isArray(g) ? g.reduce((s, row) => s + (Array.isArray(row) ? row.length : 0), 0) : 0;
+    if (n > bestN) {
+      bestN = n;
+      best = k;
+    }
+  }
+  return normId(best);
+}
+
+function sanitizeMeldSlotForSnapshot(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter((c) => c && typeof c === "object" && c.rank)
+    .map((c) => ({ rank: String(c.rank), suit: c.suit || null, joker: !!c.joker }));
+}
+
+function nextActiveAfterKick(activeUserId, seatOrder, kickedUserId) {
+  const kicked = normId(kickedUserId);
+  const full = (seatOrder || []).map(normId);
+  const remaining = new Set(full.filter((id) => id !== kicked));
+  if (!remaining.size) return null;
+  const cur = normId(activeUserId);
+  if (cur !== kicked && remaining.has(cur)) return cur;
+  const ki = full.indexOf(kicked);
+  if (ki === -1) return [...remaining][0];
+  for (let i = 1; i <= full.length; i++) {
+    const u = full[(ki + i) % full.length];
+    if (remaining.has(u)) return u;
+  }
+  return [...remaining][0];
 }
 
 /* ---------------------------
@@ -93,7 +314,11 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 
 router.post("/tables", requireAuth, async (req, res) => {
   try {
-    const { max_players, disqualify_score, wild_joker_mode, ace_value } = req.body;
+    const { max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode } = req.body;
+    const loserMode =
+      String(loser_deadwood_mode || "auto_optimal").toLowerCase() === "submit_or_full"
+        ? "submit_or_full"
+        : "auto_optimal";
 
     const table_id = uuidv4();
     // Generate 6-char alphanumeric code
@@ -105,10 +330,10 @@ router.post("/tables", requireAuth, async (req, res) => {
 
     await db.fetchrow(
       `
-      INSERT INTO rummy_tables (id, code, host_user_id, max_players, disqualify_score, wild_joker_mode, ace_value)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO rummy_tables (id, code, host_user_id, max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
-      [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value]
+      [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value, loserMode]
     );
 
     // Fetch host name
@@ -492,6 +717,79 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
   }
 });
 
+// POST /round/meld-snapshot — host table setting may use this for loser deadwood (see loser_deadwood_mode).
+router.post("/round/meld-snapshot", requireAuth, async (req, res) => {
+  try {
+    const { table_id, meld1, meld2, meld3, meld4, leftover } = req.body;
+    if (!table_id) return res.status(400).json({ error: "table_id required" });
+
+    const membership = await db.fetchrow(
+      `SELECT 1 FROM rummy_table_players WHERE table_id=$1 AND user_id=$2 AND is_spectator=false`,
+      [table_id, req.user.sub]
+    );
+    if (!membership) return res.status(403).json({ error: "Not an active player at this table" });
+
+    const rnd = await db.fetchrow(
+      `SELECT id, hands, finished_at, meld_snapshots FROM rummy_rounds WHERE table_id=$1 AND finished_at IS NULL ORDER BY number DESC LIMIT 1`,
+      [table_id]
+    );
+    if (!rnd) return res.status(400).json({ error: "No active round" });
+
+    let hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
+    hands = normalizeKeyedJson(hands);
+    const sub = normId(req.user.sub);
+    const myHand = hands[sub];
+    if (!myHand || !Array.isArray(myHand)) return res.status(404).json({ error: "No hand" });
+
+    const s1 = sanitizeMeldSlotForSnapshot(meld1);
+    const s2 = sanitizeMeldSlotForSnapshot(meld2);
+    const s3 = sanitizeMeldSlotForSnapshot(meld3);
+    const s4 = sanitizeMeldSlotForSnapshot(meld4);
+    const slo = sanitizeMeldSlotForSnapshot(leftover);
+
+    const placed = [...s1, ...s2, ...s3, ...s4, ...slo];
+    const handCopy = myHand.slice();
+    for (const c of placed) {
+      const idx = handCopy.findIndex(
+        (h) => h.rank === c.rank && (h.suit || null) === (c.suit || null) && (!!h.joker) === (!!c.joker)
+      );
+      if (idx === -1) return res.status(400).json({ error: "Snapshot contains a card not in your current hand" });
+      handCopy.splice(idx, 1);
+    }
+
+    let ms = rnd.meld_snapshots;
+    if (typeof ms === "string") {
+      try {
+        ms = JSON.parse(ms);
+      } catch {
+        ms = {};
+      }
+    }
+    ms = normalizeKeyedJson(ms || {});
+    ms[sub] = {
+      meld1: s1,
+      meld2: s2,
+      meld3: s3,
+      meld4: s4,
+      leftover: slo,
+      updated_at: new Date().toISOString(),
+    };
+
+    await db.execute(`UPDATE rummy_rounds SET meld_snapshots=$1::jsonb, updated_at=now() WHERE id=$2`, [
+      JSON.stringify(ms),
+      rnd.id,
+    ]);
+
+    res.json({ ok: true });
+    const io = req.app.get("io");
+    if (io) io.to(table_id).emit("game_update", { table_id });
+    return;
+  } catch (e) {
+    console.error("meld-snapshot error", e);
+    res.status(500).json({ error: "Failed to save meld snapshot" });
+  }
+});
+
 /* ---------------------------
    POST /draw/stock
    body: { table_id }
@@ -784,15 +1082,29 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     // Basic table & round fetch + membership check
     const rnd = await db.fetchrow(
-      `SELECT id, number, hands, discard, wild_joker_rank, players_with_first_sequence, ace_value
+      `SELECT id, number, hands, discard, wild_joker_rank, players_with_first_sequence, ace_value, game_mode, meld_snapshots
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
     if (!rnd) return res.status(404).json({ error: "No active round" });
 
     // ensure requester is active player (optional)
-    const table = await db.fetchrow(`SELECT status FROM rummy_tables WHERE id=$1`, [table_id]);
+    const table = await db.fetchrow(`SELECT status, loser_deadwood_mode FROM rummy_tables WHERE id=$1`, [table_id]);
     if (!table || table.status !== "playing") return res.status(400).json({ error: "Game not in playing state" });
+    const loserDeadwoodMode =
+      String(table.loser_deadwood_mode || "auto_optimal").toLowerCase() === "submit_or_full"
+        ? "submit_or_full"
+        : "auto_optimal";
+
+    let meld_snapshots_raw = rnd.meld_snapshots;
+    if (typeof meld_snapshots_raw === "string") {
+      try {
+        meld_snapshots_raw = JSON.parse(meld_snapshots_raw);
+      } catch {
+        meld_snapshots_raw = {};
+      }
+    }
+    const meld_snapshots = normalizeKeyedJson(meld_snapshots_raw || {});
 
     // membership
     const membership = await db.fetchrow(
@@ -801,9 +1113,11 @@ router.post("/declare", requireAuth, async (req, res) => {
     );
     if (!membership) return res.status(403).json({ error: "Not part of table" });
 
-    // load hands
-    const hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
-    const myHand = hands[req.user.sub];
+    // load hands (normalize keys so JSON numeric subs match DB text ids)
+    let hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
+    hands = normalizeKeyedJson(hands);
+    const sub = normId(req.user.sub);
+    const myHand = hands[sub];
     if (!myHand) return res.status(404).json({ error: "No hand found for player" });
     if (myHand.length !== 14) {
       return res.status(400).json({ error: `Must have 14 cards to declare. Found ${myHand.length}` });
@@ -817,11 +1131,22 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     const wild_joker_rank = rnd.wild_joker_rank || null;
     const ace_value = rnd.ace_value || 10;
+    const wild_joker_revealed = wildJokerEffectivelyRevealed(
+      rnd.game_mode,
+      wild_joker_rank,
+      rnd.players_with_first_sequence
+    );
 
     // Validate groups if provided
     let isValidDeclaration = false;
-    let organizedMelds = {};
     const scores = {};
+
+    const tablePlayers = await db.fetch(
+      `SELECT user_id, is_spectator FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`,
+      [table_id]
+    );
+    const spectatorMap = {};
+    for (const p of tablePlayers) spectatorMap[normId(p.user_id)] = p.is_spectator;
 
     if (Array.isArray(groups) && groups.length > 0) {
       // quick sanity: total declared card count must be 13
@@ -849,140 +1174,113 @@ router.post("/declare", requireAuth, async (req, res) => {
 
       // Strict server-side validation (authoritative).
       const validation = scoring.validateHand
-        ? scoring.validateHand(groups, [], wild_joker_rank, true)
+        ? scoring.validateHand(groups, [], wild_joker_rank, wild_joker_revealed)
         : { valid: false, reason: "Validator unavailable" };
       isValidDeclaration = !!validation.valid;
 
-      // Get player status to identify dropped players
-      const tablePlayers = await db.fetch(`SELECT user_id, is_spectator FROM rummy_table_players WHERE table_id=$1`, [table_id]);
-      const spectatorMap = {};
-      for (const p of tablePlayers) spectatorMap[p.user_id] = p.is_spectator;
-
       if (isValidDeclaration) {
-        // Winner gets 0
-        scores[req.user.sub] = 0;
-        organizedMelds[req.user.sub] = {
-          ...classifyDeclaredGroups(groups, wild_joker_rank),
-          deadwood: [],
-        };
-
-        // compute other players
-        for (const uid of Object.keys(hands)) {
-          if (uid === req.user.sub) continue;
-
+        scores[sub] = 0;
+        for (const p of tablePlayers) {
+          const uid = normId(p.user_id);
+          if (uid === sub) continue;
           if (spectatorMap[uid]) {
-            // Player dropped/eliminated. Use 20 pts (or 0 if already accounted, but for round history we show 20)
-            // Drop endpoint already added 20 to total_points. We just record 20 here for history display.
             scores[uid] = 20;
-            organizedMelds[uid] = {
-              pure_sequences: [],
-              impure_sequences: [],
-              sets: [],
-              invalid_groups: [],
-              ungrouped: hands[uid] || [],
-              deadwood: hands[uid] || [],
-            };
           } else {
             const oppHand = hands[uid] || [];
             let pts = 0;
-            if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
-              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, true, ace_value);
+            if (scoring && typeof scoring.calculateLoserDeadwoodPoints === "function") {
+              const snapUid = meld_snapshots[normId(uid)] || null;
+              pts = scoring.calculateLoserDeadwoodPoints(
+                oppHand,
+                loserDeadwoodMode,
+                snapUid,
+                wild_joker_rank,
+                wild_joker_revealed,
+                ace_value
+              );
+            } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
+              pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value);
+            } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
+              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value);
             } else {
               pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
             }
-
             scores[uid] = Math.min(pts, 80);
-            organizedMelds[uid] = {
-              pure_sequences: [],
-              impure_sequences: [],
-              sets: [],
-              invalid_groups: [],
-              ungrouped: oppHand,
-              deadwood: oppHand,
-            };
           }
         }
       } else {
-        // invalid declaration
-        let declarer_pts = INVALID_DECLARE_PENALTY;
-        for (const uid of Object.keys(hands)) {
-          const handCards = hands[uid] || [];
-          if (uid === req.user.sub) {
-            scores[uid] = declarer_pts;
-            organizedMelds[uid] = {
-              ...classifyDeclaredGroups(groups, wild_joker_rank),
-              ungrouped: handCards,
-              deadwood: handCards,
-            };
-          } else {
-            if (spectatorMap[uid]) {
-              scores[uid] = 20; // Dropped player
-            } else {
-              scores[uid] = 0;
-            }
-            organizedMelds[uid] = {
-              pure_sequences: [],
-              impure_sequences: [],
-              sets: [],
-              invalid_groups: [],
-              ungrouped: handCards,
-              deadwood: handCards,
-            };
-          }
+        const declarer_pts = INVALID_DECLARE_PENALTY;
+        for (const p of tablePlayers) {
+          const uid = normId(p.user_id);
+          if (uid === sub) scores[uid] = declarer_pts;
+          else if (spectatorMap[uid]) scores[uid] = 20;
+          else scores[uid] = 0;
         }
         isValidDeclaration = false;
       }
-
-      // UPDATE TOTAL POINTS for active players only (dropped players already updated)
-      for (const [uid, pts] of Object.entries(scores)) {
-        if (!spectatorMap[uid]) {
-          await db.execute(`UPDATE rummy_table_players SET total_points = COALESCE(total_points,0) + $1 WHERE table_id=$2 AND user_id=$3`, [pts, table_id, uid]);
-        }
-      }
-
-      // persist scoring and mark finished
-      const declarationPayload = {
-        groups: groups || [],
-        valid: isValidDeclaration,
-        revealed_hands: hands,
-        organized_melds: organizedMelds
-      };
     } else {
-      // invalid/no groups => failed declaration: declarer gets 80 points penalty
-      let declarer_pts = INVALID_DECLARE_PENALTY;
-      for (const uid of Object.keys(hands)) {
-        const handCards = hands[uid] || [];
-        scores[uid] = (uid === req.user.sub) ? declarer_pts : 0;
-        organizedMelds[uid] = uid === req.user.sub
-          ? {
-            ...classifyDeclaredGroups(groups, wild_joker_rank),
-            ungrouped: handCards,
-            deadwood: handCards,
-          }
-          : {
-            pure_sequences: [],
-            impure_sequences: [],
-            sets: [],
-            invalid_groups: [],
-            ungrouped: handCards,
-            deadwood: handCards,
-          };
+      const declarer_pts = INVALID_DECLARE_PENALTY;
+      for (const p of tablePlayers) {
+        const uid = normId(p.user_id);
+        scores[uid] = uid === sub ? declarer_pts : 0;
       }
       isValidDeclaration = false;
     }
 
-    // persist scoring and mark finished
+    // Persist round points for seated players (skip spectators / dropped)
+    for (const [uid, pts] of Object.entries(scores)) {
+      const n = normId(uid);
+      if (!spectatorMap[n]) {
+        await db.execute(
+          `UPDATE rummy_table_players SET total_points = COALESCE(total_points,0) + $1 WHERE table_id=$2 AND user_id=$3`,
+          [pts, table_id, n]
+        );
+      }
+    }
+
+    const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
+    const organizedMelds = {};
+    for (const p of tablePlayers) {
+      const uid = normId(p.user_id);
+      if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+      organizedMelds[uid] = buildOrganizedScoreboardForUser({
+        userId: uid,
+        declarerUserId: sub,
+        hand: hands[uid] || [],
+        declarationGroups,
+        isSpectator: !!spectatorMap[uid],
+        wildJokerRank: wild_joker_rank,
+        wildJokerRevealed: wild_joker_revealed,
+      });
+    }
+    for (const uid of Object.keys(hands)) {
+      const n = normId(uid);
+      if (organizedMelds[n]) continue;
+      organizedMelds[n] = buildOrganizedScoreboardForUser({
+        userId: n,
+        declarerUserId: sub,
+        hand: hands[n] || [],
+        declarationGroups,
+        isSpectator: !!spectatorMap[n],
+        wildJokerRank: wild_joker_rank,
+        wildJokerRevealed: wild_joker_revealed,
+      });
+    }
+
     const declarationPayload = {
-      groups: groups || [],
+      groups: declarationGroups,
       valid: isValidDeclaration,
       revealed_hands: hands,
       organized_melds: organizedMelds
     };
 
+    const scoresForDb = {};
+    for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
+
     await db.execute(
       `UPDATE rummy_rounds SET winner_user_id=$1, scores=$2::jsonb, declarations = COALESCE(declarations, '{}'::jsonb) || $3::jsonb, finished_at=now(), updated_at=now()
        WHERE id=$4`,
-      [isValidDeclaration ? req.user.sub : null, JSON.stringify(scores), JSON.stringify({ [req.user.sub]: declarationPayload }), rnd.id]
+      [isValidDeclaration ? sub : null, JSON.stringify(scoresForDb), JSON.stringify({ [sub]: declarationPayload }), rnd.id]
     );
 
     // Also update table status to round_complete
@@ -991,11 +1289,11 @@ router.post("/declare", requireAuth, async (req, res) => {
     const responseData = {
       table_id,
       round_number: rnd.number,
-      declared_by: req.user.sub,
+      declared_by: sub,
       valid: isValidDeclaration,
       status: isValidDeclaration ? "valid" : "invalid",
       message: isValidDeclaration ? "Valid declaration" : `Invalid declaration. ${INVALID_DECLARE_PENALTY} penalty points applied.`,
-      scores,
+      scores: scoresForDb,
     };
 
     res.json(responseData);
@@ -1005,8 +1303,8 @@ router.post("/declare", requireAuth, async (req, res) => {
     if (io) {
       io.to(table_id).emit("game_update", { table_id });
       io.to(table_id).emit("round.declare", {
-        declared_by: req.user.sub,
-        result: { valid: isValidDeclaration, scores }
+        declared_by: sub,
+        result: { valid: isValidDeclaration, scores: scoresForDb }
       });
     }
     return;
@@ -1023,67 +1321,75 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
     const rnd = await db.fetchrow(
-      `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id
+      `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id, wild_joker_rank, game_mode, players_with_first_sequence
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
     if (!rnd) return res.status(404).json({ error: "No round found" });
     if (!rnd.finished_at) return res.status(400).json({ error: "Round not finished" });
 
-    // get player names
-    const players = await db.fetch(`SELECT user_id, display_name FROM rummy_table_players WHERE table_id=$1`, [table_id]);
+    // Seat order: stable scoreboard rows + names + spectator flag
+    const seatRows = await db.fetch(
+      `SELECT user_id, display_name, is_spectator FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`,
+      [table_id]
+    );
     const names = {};
-    for (const p of players) names[p.user_id] = p.display_name || "Player";
+    for (const p of seatRows) names[normId(p.user_id)] = p.display_name || "Player";
 
-    const hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
-    const scores = typeof rnd.scores === "string" ? JSON.parse(rnd.scores) : (rnd.scores || {});
-    const declarations = typeof rnd.declarations === "string" ? JSON.parse(rnd.declarations) : (rnd.declarations || {});
-    const declared_by = rnd.winner_user_id || Object.keys(declarations)[0] || null;
-    const declaration_status = declared_by && declarations[declared_by]
-      ? (declarations[declared_by].valid ? "valid" : "invalid")
-      : (rnd.winner_user_id ? "valid" : "invalid");
+    let hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
+    hands = normalizeKeyedJson(hands);
+    let scores = typeof rnd.scores === "string" ? JSON.parse(rnd.scores) : (rnd.scores || {});
+    scores = normalizeKeyedJson(scores);
+    let declarations = typeof rnd.declarations === "string" ? JSON.parse(rnd.declarations) : (rnd.declarations || {});
+    declarations = normalizeKeyedJson(declarations);
 
+    const declared_by = pickDeclarerUserId(declarations, rnd.winner_user_id);
     const declarationRecordRaw = declared_by ? declarations[declared_by] : null;
     const declarationRecord = typeof declarationRecordRaw === "string"
       ? JSON.parse(declarationRecordRaw)
       : (declarationRecordRaw || null);
-    let organizedByUser = {};
-    if (declarationRecord && declarationRecord.organized_melds) {
-      organizedByUser = typeof declarationRecord.organized_melds === "string"
-        ? JSON.parse(declarationRecord.organized_melds)
-        : declarationRecord.organized_melds;
-    }
+    const declaration_status = declared_by && declarationRecord
+      ? (declarationRecord.valid ? "valid" : "invalid")
+      : (rnd.winner_user_id ? "valid" : "invalid");
 
-    // Fallback: if declarer's organized data is missing, rebuild it from submitted groups.
-    if (declared_by && (!organizedByUser || !organizedByUser[declared_by])) {
-      const declaredHand = hands[declared_by] || [];
-      const declaredGroupsRaw = declarationRecord && Array.isArray(declarationRecord.groups)
-        ? declarationRecord.groups
-        : [];
-      organizedByUser = organizedByUser || {};
-      organizedByUser[declared_by] = {
-        ...classifyDeclaredGroups(declaredGroupsRaw, rnd.wild_joker_rank || null),
-        ungrouped: declaredHand,
-        deadwood: declaredHand,
-      };
-    }
+    const wildJokerRank = rnd.wild_joker_rank || null;
+    const wild_joker_revealed = wildJokerEffectivelyRevealed(
+      rnd.game_mode,
+      wildJokerRank,
+      rnd.players_with_first_sequence
+    );
+    const declarationGroups =
+      declarationRecord && Array.isArray(declarationRecord.groups) ? declarationRecord.groups : [];
 
-    // Build organized melds for all players (do not auto-create valid melds for non-declarers).
     const organized_melds = {};
+    const spectatorByUser = {};
+    for (const row of seatRows) spectatorByUser[normId(row.user_id)] = !!row.is_spectator;
+
+    for (const row of seatRows) {
+      const uid = normId(row.user_id);
+      if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+      organized_melds[uid] = buildOrganizedScoreboardForUser({
+        userId: uid,
+        declarerUserId: declared_by,
+        hand: hands[uid] || [],
+        declarationGroups,
+        isSpectator: spectatorByUser[uid],
+        wildJokerRank,
+        wildJokerRevealed: wild_joker_revealed,
+      });
+    }
     for (const uid of Object.keys(hands)) {
-      if (organizedByUser[uid]) {
-        organized_melds[uid] = organizedByUser[uid];
-      } else {
-        const handCards = hands[uid] || [];
-        organized_melds[uid] = {
-          pure_sequences: [],
-          impure_sequences: [],
-          sets: [],
-          invalid_groups: [],
-          ungrouped: handCards,
-          deadwood: handCards,
-        };
-      }
+      const n = normId(uid);
+      if (organized_melds[n]) continue;
+      organized_melds[n] = buildOrganizedScoreboardForUser({
+        userId: n,
+        declarerUserId: declared_by,
+        hand: hands[n] || [],
+        declarationGroups,
+        isSpectator: !!spectatorByUser[n],
+        wildJokerRank,
+        wildJokerRevealed: wild_joker_revealed,
+      });
     }
 
     return res.json({
@@ -1091,7 +1397,7 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
       round_number: rnd.number,
       status: declaration_status,
       declared_by,
-      winner_user_id: rnd.winner_user_id || null,
+      winner_user_id: rnd.winner_user_id ? normId(rnd.winner_user_id) : null,
       revealed_hands: hands,
       organized_melds,
       scores,
@@ -1360,6 +1666,95 @@ router.post("/game/drop", requireAuth, async (req, res) => {
   } catch (e) {
     console.error("drop error", e);
     res.status(500).json({ error: "Failed to drop" });
+  }
+});
+
+// POST /game/kick-player — host removes another active player (same 3+ players rule as self-drop).
+router.post("/game/kick-player", requireAuth, async (req, res) => {
+  try {
+    const { table_id, target_user_id } = req.body;
+    if (!table_id || !target_user_id) return res.status(400).json({ error: "table_id and target_user_id required" });
+
+    const tbl = await db.fetchrow(`SELECT host_user_id, status FROM rummy_tables WHERE id=$1`, [table_id]);
+    if (!tbl) return res.status(404).json({ error: "Table not found" });
+    if (normId(tbl.host_user_id) !== normId(req.user.sub)) {
+      return res.status(403).json({ error: "Only the table host can kick a player" });
+    }
+    if (tbl.status !== "playing") return res.status(400).json({ error: "Table is not in a playing round" });
+
+    const target = normId(target_user_id);
+    if (target === normId(req.user.sub)) {
+      return res.status(400).json({ error: "Host cannot kick themselves; use drop if available" });
+    }
+
+    const tgt = await db.fetchrow(
+      `SELECT is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+      [table_id, target]
+    );
+    if (!tgt) return res.status(404).json({ error: "Player not at this table" });
+    if (tgt.is_spectator) return res.status(400).json({ error: "Player is already dropped/spectating" });
+
+    const cntRow = await db.fetchrow(
+      `SELECT COUNT(*)::int AS n FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false`,
+      [table_id]
+    );
+    if ((cntRow?.n || 0) < 3) {
+      return res.status(400).json({ error: "Kick requires at least 3 active players before removing someone." });
+    }
+
+    const roundRow = await db.fetchrow(
+      `SELECT id, hands, active_user_id, meld_snapshots FROM rummy_rounds WHERE table_id=$1 AND finished_at IS NULL ORDER BY number DESC LIMIT 1`,
+      [table_id]
+    );
+    if (!roundRow) return res.status(400).json({ error: "No unfinished round" });
+
+    const orderRows = await db.fetch(
+      `SELECT user_id FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false ORDER BY seat ASC`,
+      [table_id]
+    );
+    const fullOrder = orderRows.map((r) => normId(r.user_id));
+
+    let hands = typeof roundRow.hands === "string" ? JSON.parse(roundRow.hands) : (roundRow.hands || {});
+    hands = normalizeKeyedJson(hands);
+    if (!Object.prototype.hasOwnProperty.call(hands, target)) {
+      return res.status(400).json({ error: "Target has no cards in the current round" });
+    }
+
+    const nextActive = nextActiveAfterKick(roundRow.active_user_id, fullOrder, target);
+    delete hands[target];
+
+    let ms = roundRow.meld_snapshots;
+    if (typeof ms === "string") {
+      try {
+        ms = JSON.parse(ms);
+      } catch {
+        ms = {};
+      }
+    }
+    ms = normalizeKeyedJson(ms || {});
+    delete ms[target];
+
+    await db.execute(
+      `UPDATE rummy_rounds SET hands=$1::jsonb, active_user_id=$2, meld_snapshots=$3::jsonb, updated_at=now() WHERE id=$4`,
+      [JSON.stringify(hands), nextActive, JSON.stringify(ms), roundRow.id]
+    );
+
+    await db.execute(
+      `UPDATE rummy_table_players SET is_spectator=true, total_points=COALESCE(total_points,0)+20, eliminated_at=now() WHERE table_id=$1 AND user_id=$2`,
+      [table_id, target]
+    );
+
+    res.json({ success: true, kicked_user_id: target, penalty_points: 20, active_user_id: nextActive });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(table_id).emit("game_update", { table_id });
+      io.to(table_id).emit("player.kicked", { user_id: target, penalty: 20, by_host: normId(req.user.sub) });
+    }
+    return;
+  } catch (e) {
+    console.error("kick-player error", e);
+    res.status(500).json({ error: "Failed to kick player" });
   }
 });
 

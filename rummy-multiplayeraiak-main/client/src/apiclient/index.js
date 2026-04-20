@@ -107,6 +107,8 @@ export const get_scoreboard = async (query) => get(`${RUMMY_API_PREFIX}/round/sc
 export const get_revealed_hands = async (query) => get(`${RUMMY_API_PREFIX}/round/revealed-hands`, query);
 export const next_round = async (body) => post(`${RUMMY_API_PREFIX}/round/next`, body);
 export const drop_player = async (body) => post(`${RUMMY_API_PREFIX}/game/drop`, body);
+export const kick_player = async (body) => post(`${RUMMY_API_PREFIX}/game/kick-player`, body);
+export const meld_snapshot = async (body) => post(`${RUMMY_API_PREFIX}/round/meld-snapshot`, body);
 export const request_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/request-spectate`, body);
 export const grant_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/grant-spectate`, body);
 
@@ -148,13 +150,15 @@ export default {
   next_round,
   start_next_round, // exported alias
   drop_player,
+  drop_game: drop_player,
+  kick_player,
+  meld_snapshot,
   request_spectate,
   grant_spectate,
   penalize_leave,
   get_my_profile,
   get_voice_participants,
   mute_player,
-  update_table_voice_settings,
   update_table_voice_settings,
   declare: declare_round, // Alias for Table.jsx
   get_revealed_hands

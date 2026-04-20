@@ -154,6 +154,117 @@ function calculateDeadwoodPoints(cards = [], wildRank = null, revealed = false, 
   return Math.min(total, 80);
 }
 
+/**
+ * Opponent penalty when someone else wins with a valid declare: only cards that are
+ * not part of any rule-valid pure sequence, impure sequence, or set count toward
+ * deadwood (greedy extraction). Cards the player left in fake/invalid meld slots
+ * on their device are not sent to the server — only mathematically valid melds
+ * reduce their score; everything else pays points.
+ */
+function calculateUngroupedDeadwoodPoints(hand = [], wildRank = null, revealed = false, aceValue = 10) {
+  const organized = organizeHandByMelds(hand, wildRank, revealed);
+  const ungrouped = organized.ungrouped || [];
+  return calculateDeadwoodPoints(ungrouped, wildRank, revealed, aceValue);
+}
+
+function _cardMatchesHandCard(h, c) {
+  return h.rank === c.rank && (h.suit || null) === (c.suit || null) && (!!h.joker) === (!!c.joker);
+}
+
+function _removeCardsFromHandCopy(handCopy, cards) {
+  for (const c of cards) {
+    const idx = handCopy.findIndex((h) => _cardMatchesHandCard(h, c));
+    if (idx === -1) return false;
+    handCopy.splice(idx, 1);
+  }
+  return true;
+}
+
+/** Pure / impure sequence or set (length ≥ 3). */
+function isValidMeldGroup(group, wildRank = null, revealed = false) {
+  if (!Array.isArray(group) || group.length < 3) return false;
+  if (isPureSequence(group, wildRank, revealed)) return true;
+  if (isSequence(group, wildRank, revealed) && !isPureSequence(group, wildRank, revealed)) return true;
+  if (isSet(group, wildRank, revealed)) return true;
+  return false;
+}
+
+function slotGroupsFromSnapshot(snap) {
+  if (!snap || typeof snap !== "object") return [];
+  const out = [];
+  for (const k of ["meld1", "meld2", "meld3", "meld4"]) {
+    const arr = snap[k];
+    if (!Array.isArray(arr)) continue;
+    const cards = arr.filter((x) => x != null && typeof x === "object");
+    if (cards.length) out.push(cards);
+  }
+  return out;
+}
+
+function leftoverFromSnapshot(snap) {
+  if (!snap || !Array.isArray(snap.leftover)) return [];
+  return snap.leftover.filter((x) => x != null && typeof x === "object");
+}
+
+function snapshotHasAnyPlacedCards(snap) {
+  return slotGroupsFromSnapshot(snap).length > 0 || leftoverFromSnapshot(snap).length > 0;
+}
+
+/**
+ * Remove snapshot-placed cards from a copy of hand. Returns ok:false if a snapshot card is not in hand.
+ * unplaced = cards the player never put on the meld board (still count for scoring).
+ */
+function analyzeHandVsSnapshot(hand, snap) {
+  if (!Array.isArray(hand)) return { ok: false, unplaced: [], slotGroups: [] };
+  const handCopy = hand.slice();
+  const slotGroups = [];
+  for (const g of slotGroupsFromSnapshot(snap)) {
+    if (!_removeCardsFromHandCopy(handCopy, g)) return { ok: false, unplaced: hand.slice(), slotGroups: [] };
+    slotGroups.push(g);
+  }
+  const lo = leftoverFromSnapshot(snap);
+  if (!_removeCardsFromHandCopy(handCopy, lo)) return { ok: false, unplaced: hand.slice(), slotGroups: [] };
+  return { ok: true, unplaced: handCopy, slotGroups };
+}
+
+/**
+ * loser_deadwood_mode:
+ * - auto_optimal: invalid / short meld slots pay; valid slots free; unplaced cards use greedy valid melds then pay remainder.
+ * - submit_or_full: same for slots; unplaced pays full card values (no greedy melds). Missing/invalid snapshot → full hand pays.
+ */
+function calculateLoserDeadwoodPoints(hand = [], loserMode, snapshot, wildRank = null, revealed = false, aceValue = 10) {
+  const mode = loserMode === "submit_or_full" ? "submit_or_full" : "auto_optimal";
+  const snap = snapshot && typeof snapshot === "object" ? snapshot : null;
+
+  if (!snap || !snapshotHasAnyPlacedCards(snap)) {
+    if (mode === "submit_or_full") {
+      return calculateDeadwoodPoints(hand, wildRank, revealed, aceValue);
+    }
+    return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue);
+  }
+
+  const analysis = analyzeHandVsSnapshot(hand, snap);
+  if (!analysis.ok) {
+    if (mode === "submit_or_full") {
+      return calculateDeadwoodPoints(hand, wildRank, revealed, aceValue);
+    }
+    return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue);
+  }
+
+  const { unplaced, slotGroups } = analysis;
+  let pts = 0;
+  for (const g of slotGroups) {
+    if (isValidMeldGroup(g, wildRank, revealed)) continue;
+    pts += calculateDeadwoodPoints(g, wildRank, revealed, aceValue);
+  }
+  if (mode === "submit_or_full") {
+    pts += calculateDeadwoodPoints(unplaced, wildRank, revealed, aceValue);
+  } else {
+    pts += calculateUngroupedDeadwoodPoints(unplaced, wildRank, revealed, aceValue);
+  }
+  return Math.min(pts, 80);
+}
+
 /* ----------------------------------
    Combinations
 ----------------------------------- */
@@ -310,6 +421,14 @@ module.exports = {
 
   calculateDeadwoodPoints,
   calculate_deadwood_points: calculateDeadwoodPoints,
+
+  calculateUngroupedDeadwoodPoints,
+  calculate_ungrouped_deadwood_points: calculateUngroupedDeadwoodPoints,
+
+  calculateLoserDeadwoodPoints,
+  calculate_loser_deadwood_points: calculateLoserDeadwoodPoints,
+  isValidMeldGroup,
+  is_valid_meld_group: isValidMeldGroup,
 
   autoOrganizeHand,
   auto_organize_hand: autoOrganizeHand,
