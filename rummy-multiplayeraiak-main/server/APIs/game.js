@@ -21,6 +21,18 @@ function serializeCard(card) {
   return `${card.rank}${card.suit || ""}`;
 }
 
+/** Emit on /rummy namespace so browser clients receive events (they do not use default "/"). */
+function nspEmit(req, tableId, event, payload) {
+  try {
+    const rootIo = req.app && req.app.get("io");
+    if (!rootIo) return;
+    const nsp = req.app.get("rummyNsp") || rootIo.of("/rummy");
+    nsp.to(tableId).emit(event, payload);
+  } catch (e) {
+    console.warn("nspEmit", event, e && e.message);
+  }
+}
+
 function parseJsonArray(v) {
   if (!v) return [];
   if (Array.isArray(v)) return v;
@@ -550,11 +562,8 @@ router.post("/start-game", requireAuth, async (req, res) => {
     });
 
     // 🚀 BROADCAST UPDATE
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      io.to(table_id).emit("round.started", { table_id, round_number: 1 });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "round.started", { table_id, round_number: 1 });
   } catch (e) {
     console.log(e);
     res.status(500).json({ error: "Start game failed" });
@@ -705,12 +714,8 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
     });
 
     // 🚀 BROADCAST UPDATE
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      // optionally specific event
-      io.to(table_id).emit("sequence.locked", { user_id: req.user.sub, wild_joker_revealed: true });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "sequence.locked", { user_id: req.user.sub, wild_joker_revealed: true });
   } catch (e) {
     console.error("lock-sequence error", e);
     res.status(500).json({ success: false, message: "Failed to lock sequence" });
@@ -781,8 +786,7 @@ router.post("/round/meld-snapshot", requireAuth, async (req, res) => {
     ]);
 
     res.json({ ok: true });
-    const io = req.app.get("io");
-    if (io) io.to(table_id).emit("game_update", { table_id });
+    nspEmit(req, table_id, "game_update", { table_id });
     return;
   } catch (e) {
     console.error("meld-snapshot error", e);
@@ -860,10 +864,7 @@ router.post("/draw/stock", requireAuth, async (req, res) => {
     res.json(responseData);
 
     // 🚀 BROADCAST UPDATE (others need to know stock count changed)
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
     return;
   } catch (e) {
     console.error("draw/stock error", e);
@@ -935,10 +936,7 @@ router.post("/draw/discard", requireAuth, async (req, res) => {
     res.json(responseData);
 
     // 🚀 BROADCAST UPDATE (others need to know discard taken)
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
     return;
   } catch (e) {
     console.error("draw/discard error", e);
@@ -1040,16 +1038,12 @@ router.post("/discard", requireAuth, async (req, res) => {
     });
 
     // 🚀 BROADCAST UPDATE (Crucial for Discard Logic Fix)
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      // Emit specific event for fast UI reaction
-      io.to(table_id).emit("card.discarded", {
-        user_id: req.user.sub,
-        discard_top: serializeCard(discard[discard.length - 1]),
-        next_active_user_id: nextUser
-      });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "card.discarded", {
+      user_id: req.user.sub,
+      discard_top: serializeCard(discard[discard.length - 1]),
+      next_active_user_id: nextUser
+    });
   } catch (e) {
     console.error("discard error", e);
     res.status(500).json({ error: "Failed to discard card" });
@@ -1298,15 +1292,12 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     res.json(responseData);
 
-    // 🚀 BROADCAST
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      io.to(table_id).emit("round.declare", {
-        declared_by: sub,
-        result: { valid: isValidDeclaration, scores: scoresForDb }
-      });
-    }
+    // 🚀 BROADCAST (must use /rummy namespace so all seated clients receive)
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "round.declare", {
+      declared_by: sub,
+      result: { valid: isValidDeclaration, scores: scoresForDb }
+    });
     return;
   } catch (e) {
     console.error("declare error", e);
@@ -1576,11 +1567,8 @@ router.post("/round/next", requireAuth, async (req, res) => {
     res.json(responseData);
 
     // 🚀 BROADCAST
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      io.to(table_id).emit("round.started", { table_id, round_number: nextNumber });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "round.started", { table_id, round_number: nextNumber });
     return;
   } catch (e) {
     console.error("round/next error", e);
@@ -1657,11 +1645,8 @@ router.post("/game/drop", requireAuth, async (req, res) => {
     res.json(responseData);
 
     // 🚀 BROADCAST
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      io.to(table_id).emit("player.dropped", { user_id: req.user.sub, penalty: 20 });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "player.dropped", { user_id: req.user.sub, penalty: 20 });
     return;
   } catch (e) {
     console.error("drop error", e);
@@ -1746,11 +1731,8 @@ router.post("/game/kick-player", requireAuth, async (req, res) => {
 
     res.json({ success: true, kicked_user_id: target, penalty_points: 20, active_user_id: nextActive });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(table_id).emit("game_update", { table_id });
-      io.to(table_id).emit("player.kicked", { user_id: target, penalty: 20, by_host: normId(req.user.sub) });
-    }
+    nspEmit(req, table_id, "game_update", { table_id });
+    nspEmit(req, table_id, "player.kicked", { user_id: target, penalty: 20, by_host: normId(req.user.sub) });
     return;
   } catch (e) {
     console.error("kick-player error", e);

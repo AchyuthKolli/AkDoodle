@@ -50,6 +50,11 @@ export const onGameUpdate = (callback) => {
     // Optionally merge or just trigger callback
     callback(data);
   });
+
+  // REST API + DB flow emits game_update on /rummy namespace (declare, draw, next round, etc.)
+  socket.on("game_update", (data) => {
+    callback(data);
+  });
 };
 
 export const onChatMessage = (callback) => {

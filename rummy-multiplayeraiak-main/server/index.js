@@ -93,6 +93,8 @@ applyRummySocketHandlers(rummyNamespace);
 
 // ✅ Attach io to app so APIs can use it (e.g. req.app.get("io"))
 app.set("io", io);
+// REST game routes must emit on this namespace — clients connect only to /rummy.
+app.set("rummyNsp", rummyNamespace);
 
 // =====================================================
 // 🚀 START SERVER (Express + Socket.io)

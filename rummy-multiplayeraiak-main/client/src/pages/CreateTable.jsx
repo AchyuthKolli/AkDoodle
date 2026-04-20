@@ -13,7 +13,10 @@ import {
   Crown,
   Copy,
   Check,
+  ChevronDown,
 } from "lucide-react";
+
+import { LoserScoringRulesHelp } from "../games/rummy/components/LoserScoringRulesHelp.jsx";
 
 import { toast } from "sonner";
 
@@ -406,6 +409,16 @@ export default function CreateTable() {
                   </div>
                 </label>
               </div>
+
+              <details className="group mt-3 rounded-lg border border-slate-600/60 bg-slate-950/40 text-slate-300 open:border-emerald-700/35">
+                <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-emerald-200/90 hover:bg-slate-800/50 rounded-lg [&::-webkit-details-marker]:hidden">
+                  <ChevronDown className="w-4 h-4 shrink-0 text-emerald-400/80 transition-transform group-open:rotate-180" />
+                  Full explanation: how loser points are counted
+                </summary>
+                <div className="px-3 pb-3 pt-1 border-t border-slate-700/50 max-h-[min(420px,55vh)] overflow-y-auto">
+                  <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+                </div>
+              </details>
             </div>
 
             {/* Create Room Button */}

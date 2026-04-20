@@ -677,10 +677,15 @@ export default function Table() {
     return () => {
       console.log("🔴 Leaving room:", tableId);
       socket.off("game_update");
+      socket.off("round.state");
+      socket.off("table.state");
+      socket.off("round.declare");
       socket.off("declare_made");
-      socket.off("voice_status");
-      socket.off("spectate_update");
-      socket.off("chat_message");
+      socket.off("voice.muted");
+      socket.off("voice.unmuted");
+      socket.off("spectate.requested");
+      socket.off("spectate.granted");
+      socket.off("chat.message");
     };
   }, [tableId, user]);
 
@@ -1720,6 +1725,7 @@ export default function Table() {
                     currentUserId={user?.id || ""}
                     tableId={tableId || ""}
                     hostUserId={info?.host_user_id || ""}
+                    loserDeadwoodMode={info?.loser_deadwood_mode}
                     onNextRound={() => {
                       setShowScoreboardModal(false);
                       return onNextRound();

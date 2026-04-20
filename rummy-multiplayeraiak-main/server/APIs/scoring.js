@@ -252,15 +252,18 @@ function calculateLoserDeadwoodPoints(hand = [], loserMode, snapshot, wildRank =
   }
 
   const { unplaced, slotGroups } = analysis;
+  const leftoverPlaced = leftoverFromSnapshot(snap);
   let pts = 0;
   for (const g of slotGroups) {
     if (isValidMeldGroup(g, wildRank, revealed)) continue;
     pts += calculateDeadwoodPoints(g, wildRank, revealed, aceValue);
   }
+  // Cards in snapshot "leftover" / deadwood slot: not meld slots — score with unplaced (were removed from hand in analyze).
   if (mode === "submit_or_full") {
     pts += calculateDeadwoodPoints(unplaced, wildRank, revealed, aceValue);
+    pts += calculateDeadwoodPoints(leftoverPlaced, wildRank, revealed, aceValue);
   } else {
-    pts += calculateUngroupedDeadwoodPoints(unplaced, wildRank, revealed, aceValue);
+    pts += calculateUngroupedDeadwoodPoints([...unplaced, ...leftoverPlaced], wildRank, revealed, aceValue);
   }
   return Math.min(pts, 80);
 }
