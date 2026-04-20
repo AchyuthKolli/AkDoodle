@@ -90,7 +90,7 @@ export default function Home() {
   // Navigation (Variant Select)
   // -----------------------------
   const handleSelectVariant = (variantId) => {
-    navigate(`/CreateTable?variant=${variantId}`);
+    navigate(`/rummy/create-table?variant=${variantId}`);
   };
 
   // -----------------------------
@@ -122,7 +122,7 @@ export default function Home() {
       const data = await res.json();
 
       toast.success(`Joined table! Seat ${data.seat}`);
-      navigate(`/Table?tableId=${data.table_id}`);
+      navigate(`/rummy/table?tableId=${data.table_id}`);
     } catch (e) {
       console.error("Join error:", e);
       toast.error(`Join failed: ${e.message}`);

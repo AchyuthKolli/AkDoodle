@@ -10,7 +10,8 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const { requireAuth } = require("./auth");
-const applySocketHandlers = require("./sockethandlers");   // ✅ IMPORTANT
+const rummyHttpRouter = require("./games/rummy/http");
+const applyRummySocketHandlers = require("./games/rummy/socket");
 const { pool } = require("./db"); // Import pool for schema init
 
 // Auto-run schema.sql to ensure DB tables exist
@@ -45,45 +46,11 @@ app.get("/health/db", async (req, res) => {
   }
 });
 
-// Auto-load routers from server/APIs/*.js
-const apisDir = path.join(__dirname, "APIs");
-if (fs.existsSync(apisDir)) {
-  const files = fs.readdirSync(apisDir).filter((f) => f.endsWith(".js"));
-  for (const file of files) {
-    try {
-      const routerPath = path.join(apisDir, file);
-      const mod = require(routerPath);
-
-      if (mod && mod.router) {
-        // Standard export: const router = express.Router(); module.exports = { router };
-        app.use("/api", mod.router);
-        console.log("Mounted router (router exported prop):", file);
-      } else if (mod && (mod.name === "router" || typeof mod === "function")) {
-        // Express routers are functions, but we must check if it's an API init function or actual Router
-        // Best guess: check if it has .get, .post, .stack
-        if (mod.stack && mod.use) {
-          app.use("/api", mod);
-          console.log("Mounted router (export is router):", file);
-        } else {
-          // It's a custom initializer function: func(app, requireAuth)
-          try {
-            mod(app, requireAuth);
-            console.log("Mounted API initializer function:", file);
-          } catch (err) {
-            console.error(`Error initializing ${file}:`, err);
-          }
-        }
-      } else {
-        console.warn(`Skipped ${file}: unknown export format`);
-      }
-    } catch (e) {
-      console.error("Failed to mount API file", file, e);
-      if (e.stack) console.error(e.stack);
-    }
-  }
-} else {
-  console.warn("No server/APIs directory found to load routers from");
-}
+// Game-scoped routers.
+// Primary namespace keeps each game isolated from future games.
+app.use("/api/rummy", rummyHttpRouter);
+// Backward-compatible alias for existing clients.
+app.use("/api", rummyHttpRouter);
 
 // Example protected route
 app.get("/api/me", requireAuth, (req, res) => {
@@ -120,8 +87,9 @@ const io = socketIO(server, {
   cors: { origin: "*" }
 });
 
-// Attach all socket handlers (your full rummy logic)
-applySocketHandlers(io);
+// Game-scoped socket namespace for rummy.
+const rummyNamespace = io.of("/rummy");
+applyRummySocketHandlers(rummyNamespace);
 
 // ✅ Attach io to app so APIs can use it (e.g. req.app.get("io"))
 app.set("io", io);

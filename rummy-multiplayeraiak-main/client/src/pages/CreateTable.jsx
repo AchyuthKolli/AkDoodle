@@ -125,7 +125,7 @@ export default function CreateTable() {
 
   const handleStartGame = () => {
     if (tableId) {
-      navigate(`/Table?tableId=${tableId}`);
+      navigate(`/rummy/table?tableId=${tableId}`);
     }
   };
 

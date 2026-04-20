@@ -4,6 +4,7 @@
 const BASE_URL = import.meta.env.PROD
   ? "" // Relative path in production
   : (import.meta.env.VITE_API_URL || "http://localhost:3001");
+const RUMMY_API_PREFIX = import.meta.env.VITE_RUMMY_API_PREFIX || "/api/rummy";
 
 /**
  * Core fetch wrapper that automatically adds Auth headers
@@ -63,36 +64,36 @@ const post = (endpoint, body) => {
 // TABLE APIs
 // -----------------------------------------
 
-export const get_table_info = async (query) => get("/api/tables/info", query);
-export const create_table = async (body) => post("/api/tables", body);
-export const join_table = async (body) => post("/api/tables/join", body);
-export const join_table_by_code = async (body) => post("/api/tables/join-by-code", body);
-export const start_game = async (body) => post("/api/start-game", body);
+export const get_table_info = async (query) => get(`${RUMMY_API_PREFIX}/tables/info`, query);
+export const create_table = async (body) => post(`${RUMMY_API_PREFIX}/tables`, body);
+export const join_table = async (body) => post(`${RUMMY_API_PREFIX}/tables/join`, body);
+export const join_table_by_code = async (body) => post(`${RUMMY_API_PREFIX}/tables/join-by-code`, body);
+export const start_game = async (body) => post(`${RUMMY_API_PREFIX}/start-game`, body);
 
 // -----------------------------------------
 // GAMEPLAY APIs
 // -----------------------------------------
 
-export const get_round_me = async (query) => get("/api/round/me", query);
-export const draw_stock = async (body) => post("/api/draw/stock", body);
-export const draw_discard = async (body) => post("/api/draw/discard", body);
-export const discard_card = async (body) => post("/api/discard", body);
-export const lock_sequence = async (body) => post("/api/lock-sequence", body);
-export const declare_round = async (body) => post("/api/declare", body);
+export const get_round_me = async (query) => get(`${RUMMY_API_PREFIX}/round/me`, query);
+export const draw_stock = async (body) => post(`${RUMMY_API_PREFIX}/draw/stock`, body);
+export const draw_discard = async (body) => post(`${RUMMY_API_PREFIX}/draw/discard`, body);
+export const discard_card = async (body) => post(`${RUMMY_API_PREFIX}/discard`, body);
+export const lock_sequence = async (body) => post(`${RUMMY_API_PREFIX}/lock-sequence`, body);
+export const declare_round = async (body) => post(`${RUMMY_API_PREFIX}/declare`, body);
 
 // -----------------------------------------
 // HISTORY & OTHERS
 // -----------------------------------------
 
-export const get_round_history = async (query) => get("/api/round/history", query);
-export const get_scoreboard = async (query) => get("/api/round/scoreboard", query);
-export const next_round = async (body) => post("/api/round/next", body);
-export const drop_player = async (body) => post("/api/game/drop", body);
-export const request_spectate = async (body) => post("/api/game/request-spectate", body);
-export const grant_spectate = async (body) => post("/api/game/grant-spectate", body);
+export const get_round_history = async (query) => get(`${RUMMY_API_PREFIX}/round/history`, query);
+export const get_scoreboard = async (query) => get(`${RUMMY_API_PREFIX}/round/scoreboard`, query);
+export const next_round = async (body) => post(`${RUMMY_API_PREFIX}/round/next`, body);
+export const drop_player = async (body) => post(`${RUMMY_API_PREFIX}/game/drop`, body);
+export const request_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/request-spectate`, body);
+export const grant_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/grant-spectate`, body);
 
 // Fallback for penalize if not on server
-export const penalize_leave = async (body) => post("/api/game/drop", body);
+export const penalize_leave = async (body) => post(`${RUMMY_API_PREFIX}/game/drop`, body);
 
 // -----------------------------------------
 // USER & PROFILE

@@ -2,10 +2,8 @@ import React, { useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 
 import Home from "./pages/Home";
-import CreateTable from "./pages/CreateTable";
-import Table from "./pages/Table";
 import Profile from "./pages/Profile";
-import RummyHome from "./pages/RummyHome";
+import { getRummyRoutes } from "./games/rummy/routes";
 
 
 export default function App() {
@@ -19,10 +17,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
-      <Route path="/CreateTable" element={<CreateTable />} />
-      <Route path="/Table" element={<Table />} />
       <Route path="/profile" element={<Profile />} />
-      <Route path="/rummy/home" element={<RummyHome />} />
+      {getRummyRoutes()}
     </Routes>
   );
 }
