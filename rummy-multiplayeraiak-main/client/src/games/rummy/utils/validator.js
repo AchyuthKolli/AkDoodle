@@ -39,6 +39,10 @@ function isSequence(cards = [], wildRank = null, revealed = false) {
         .map(c => rankIndex(_getAttr(c, "rank")))
         .sort((a, b) => a - b);
 
+    for (let i = 1; i < idx.length; i++) {
+        if (idx[i] === idx[i - 1]) return false;
+    }
+
     const gapsNeeded = idx.reduce((gaps, v, i) => {
         if (i === 0) return 0;
         const gap = v - idx[i - 1] - 1;
@@ -75,9 +79,17 @@ export function validateHand(melds = [], wildRank = null, revealed = false) {
     if (!Array.isArray(melds) || melds.length === 0)
         return { valid: false, reason: "No melds provided" };
 
+    if (melds.length !== 4)
+        return { valid: false, reason: `Exactly 4 melds required, got ${melds.length}` };
+
     const total = melds.reduce((s, g) => s + (Array.isArray(g) ? g.length : 0), 0);
     if (total !== 13)
         return { valid: false, reason: `Total cards must be 13, got ${total}` };
+
+    const sizes = melds.map((g) => (Array.isArray(g) ? g.length : 0)).sort((a, b) => a - b);
+    const okSizes = sizes.length === 4 && sizes[0] === 3 && sizes[1] === 3 && sizes[2] === 3 && sizes[3] === 4;
+    if (!okSizes)
+        return { valid: false, reason: "Meld sizes must be exactly 3,3,3,4" };
 
     let hasPure = false;
 

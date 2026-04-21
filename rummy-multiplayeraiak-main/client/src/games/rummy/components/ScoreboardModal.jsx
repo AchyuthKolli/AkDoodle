@@ -64,6 +64,7 @@ export const ScoreboardModal = ({
 }) => {
   const [startingNextRound, setStartingNextRound] = useState(false);
   const [expanded, setExpanded] = useState({});
+  const [showLoserRulesInfo, setShowLoserRulesInfo] = useState(false);
 
   if (!data) return null;
 
@@ -153,15 +154,25 @@ export const ScoreboardModal = ({
             </div>
           </div>
 
-          <details className="group rounded-lg border border-slate-600/50 bg-slate-800/50 text-left">
-            <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-slate-200 hover:bg-slate-700/40 rounded-lg [&::-webkit-details-marker]:hidden">
-              <ChevronDown className="w-4 h-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
-              How loser points work this round <span className="text-amber-300">®</span> (click for full explanation)
-            </summary>
-            <div className="px-3 pb-4 pt-1 border-t border-slate-700/60 max-h-[min(380px,50vh)] overflow-y-auto">
-              <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+          <div className="rounded-lg border border-slate-600/50 bg-slate-800/50 text-left">
+            <div className="px-3 py-2.5 flex items-center gap-2 text-sm font-medium text-slate-200">
+              <span>How loser points work this round</span>
+              <button
+                type="button"
+                onClick={() => setShowLoserRulesInfo((v) => !v)}
+                className="text-base leading-none hover:scale-110 transition-transform"
+                aria-label="Show loser scoring explanation"
+                title="Show full explanation"
+              >
+                ℹ️
+              </button>
             </div>
-          </details>
+            {showLoserRulesInfo && (
+              <div className="px-3 pb-4 pt-1 border-t border-slate-700/60">
+                <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+              </div>
+            )}
+          </div>
 
           <div className="space-y-4">
             {sortedPlayers.map((p, idx) => {

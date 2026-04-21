@@ -1732,6 +1732,28 @@ export default function Table() {
                     }}
                   />
 
+                  {revealedHands && !showScoreboardModal && (
+                    <div className="fixed bottom-5 right-5 z-[70] flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowScoreboardModal(true)}
+                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg"
+                      >
+                        Open Round Results
+                      </button>
+                      {user?.id === info?.host_user_id && (
+                        <button
+                          type="button"
+                          disabled={starting}
+                          onClick={onNextRound}
+                          className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg"
+                        >
+                          {starting ? "Starting..." : "Start Next Round"}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Side Panel for Scoreboard - Legacy */}
                   {showScoreboardPanel && revealedHands && (
                     <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 border-l-2 border-yellow-500 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">

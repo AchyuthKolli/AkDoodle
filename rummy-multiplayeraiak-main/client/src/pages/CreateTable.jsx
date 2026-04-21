@@ -13,7 +13,6 @@ import {
   Crown,
   Copy,
   Check,
-  ChevronDown,
 } from "lucide-react";
 
 import { LoserScoringRulesHelp } from "../games/rummy/components/LoserScoringRulesHelp.jsx";
@@ -69,6 +68,7 @@ export default function CreateTable() {
   const [generatedCode, setGeneratedCode] = useState("");
   const [tableId, setTableId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [showLoserRulesInfo, setShowLoserRulesInfo] = useState(false);
 
   useEffect(() => {
     if (user?.displayName) {
@@ -372,9 +372,20 @@ export default function CreateTable() {
 
             {/* Loser scoring when someone wins with a valid declare */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Loser card count (others lose the round) <span className="text-amber-300">®</span>
-              </label>
+              <div className="flex items-center gap-2 mb-2">
+                <label className="block text-sm font-medium text-slate-300">
+                  Loser card count (others lose the round)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowLoserRulesInfo((v) => !v)}
+                  className="text-base leading-none hover:scale-110 transition-transform"
+                  aria-label="Show loser scoring explanation"
+                  title="Show full explanation"
+                >
+                  ℹ️
+                </button>
+              </div>
               <div className="space-y-2">
                 <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-600 bg-slate-900/40 cursor-pointer hover:border-slate-500">
                   <input
@@ -410,15 +421,16 @@ export default function CreateTable() {
                 </label>
               </div>
 
-              <details className="group mt-3 rounded-lg border border-slate-600/60 bg-slate-950/40 text-slate-300 open:border-emerald-700/35">
-                <summary className="cursor-pointer select-none list-none flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-emerald-200/90 hover:bg-slate-800/50 rounded-lg [&::-webkit-details-marker]:hidden">
-                  <ChevronDown className="w-4 h-4 shrink-0 text-emerald-400/80 transition-transform group-open:rotate-180" />
-                  Full explanation: how loser points are counted
-                </summary>
-                <div className="px-3 pb-3 pt-1 border-t border-slate-700/50 max-h-[min(420px,55vh)] overflow-y-auto">
-                  <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+              {showLoserRulesInfo && (
+                <div className="mt-3 rounded-lg border border-slate-600/60 bg-slate-950/40 text-slate-300 open:border-emerald-700/35">
+                  <div className="px-3 py-2.5 text-sm font-medium text-emerald-200/90 border-b border-slate-700/50">
+                    Full explanation: how loser points are counted
+                  </div>
+                  <div className="px-3 pb-3 pt-2 border-t border-slate-700/50">
+                    <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+                  </div>
                 </div>
-              </details>
+              )}
             </div>
 
             {/* Create Room Button */}
