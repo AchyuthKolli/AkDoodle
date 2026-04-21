@@ -91,6 +91,12 @@ export const onDeclareUpdate = (callback) => {
   });
 };
 
+export const onCardDiscarded = (callback) => {
+  socket.on("card.discarded", (data) => {
+    callback(data);
+  });
+};
+
 export const onSpectateUpdate = (callback) => {
   // Server emits: "spectate.requested" { user_id }
   // Server emits: "spectate.granted" { user_id, granted }

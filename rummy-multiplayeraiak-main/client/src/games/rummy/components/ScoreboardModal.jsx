@@ -64,6 +64,8 @@ export const ScoreboardModal = ({
   loserDeadwoodMode,
   aceValue,
   faceCardMode,
+  roundHistory = [],
+  onSelectRound,
 }) => {
   const [startingNextRound, setStartingNextRound] = useState(false);
   const [expanded, setExpanded] = useState({});
@@ -146,6 +148,54 @@ export const ScoreboardModal = ({
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
+          {!!roundHistory.length && (
+            <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-3">
+              <p className="text-xs font-semibold text-slate-300 mb-2">All Rounds History</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-2 font-semibold text-slate-200">Player</th>
+                      {roundHistory.map((round) => (
+                        <th key={round.round_number} className="text-center py-2 px-1">
+                          <button
+                            type="button"
+                            onClick={() => onSelectRound?.(round.round_number)}
+                            className={`px-1.5 py-0.5 rounded ${Number(round.round_number) === Number(data.round_number) ? "bg-amber-700/70 text-amber-100" : "text-slate-300 hover:bg-slate-700/60"}`}
+                            title={`Open round ${round.round_number}`}
+                          >
+                            R{round.round_number}
+                          </button>
+                        </th>
+                      ))}
+                      <th className="text-right py-2 px-2 font-semibold text-yellow-500">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(players || []).map((player) => {
+                      let runningTotal = 0;
+                      return (
+                        <tr key={player.user_id} className="border-b border-slate-800/80">
+                          <td className="py-2 px-2 text-slate-200">{player.display_name || "Player"}</td>
+                          {roundHistory.map((round) => {
+                            const roundScore = Number(round?.scores?.[player.user_id] || 0);
+                            runningTotal += roundScore;
+                            return (
+                              <td key={`${player.user_id}-${round.round_number}`} className="text-center py-2 px-1 text-slate-300">
+                                {roundScore}
+                              </td>
+                            );
+                          })}
+                          <td className="text-right py-2 px-2 font-semibold text-yellow-500">{runningTotal}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="bg-gradient-to-r from-yellow-900/40 to-amber-900/40 border border-yellow-600/40 rounded-lg p-4 text-center shadow-md">
             <div className="flex items-center justify-center gap-2 text-xl font-bold text-yellow-300 drop-shadow">
               <Crown className="w-6 h-6" />

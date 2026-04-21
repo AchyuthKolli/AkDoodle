@@ -1391,13 +1391,20 @@ router.post("/declare", requireAuth, async (req, res) => {
 router.get("/round/revealed-hands", requireAuth, async (req, res) => {
   try {
     const table_id = req.query.table_id;
+    const requestedRound = Number(req.query.round_number);
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
-    const rnd = await db.fetchrow(
-      `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id, wild_joker_rank, game_mode, players_with_first_sequence, meld_snapshots
-       FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
-      [table_id]
-    );
+    const rnd = Number.isFinite(requestedRound) && requestedRound > 0
+      ? await db.fetchrow(
+        `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id, wild_joker_rank, game_mode, players_with_first_sequence, meld_snapshots
+         FROM rummy_rounds WHERE table_id=$1 AND number=$2 LIMIT 1`,
+        [table_id, requestedRound]
+      )
+      : await db.fetchrow(
+        `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id, wild_joker_rank, game_mode, players_with_first_sequence, meld_snapshots
+         FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
+        [table_id]
+      );
     if (!rnd) return res.status(404).json({ error: "No round found" });
     if (!rnd.finished_at) return res.status(400).json({ error: "Round not finished" });
 

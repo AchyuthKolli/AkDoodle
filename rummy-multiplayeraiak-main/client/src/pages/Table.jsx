@@ -9,6 +9,7 @@ import {
   onChatMessage,
   onVoiceStatus,
   onDeclareUpdate,
+  onCardDiscarded,
   onSpectateUpdate,
 } from "../socket";
 
@@ -39,11 +40,9 @@ import { CasinoTable3D } from "../games/rummy/components/CasinoTable3D.jsx";
 import { PlayerProfile } from "../games/rummy/components/PlayerProfile.jsx";
 import PlayingCard from "../games/rummy/components/PlayingCard.jsx";
 import { GameRules } from "../games/rummy/components/GameRules.jsx";
-import { GameHistory } from "../games/rummy/components/GameHistory.jsx";
 import SpectateControls from "../games/rummy/components/SpectateControls.jsx";
 import { WildJokerRevealModal } from "../games/rummy/components/WildJokerRevealModal.jsx";
 import { ScoreboardModal } from "../games/rummy/components/ScoreboardModal.jsx";
-import { PointsTable } from "../games/rummy/components/PointsTable.jsx";
 import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
 import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
@@ -60,27 +59,9 @@ import { initCursorSpark } from "../utils/cursor-spark"; // sparkles
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
 
-const normalizeScoreValue = (value) => {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") return Number(value) || 0;
-  if (value && typeof value === "object" && "points" in value) {
-    return Number(value.points) || 0;
-  }
-  return 0;
-};
-
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
-  <div className={`relative bg-white rounded-lg border-2 border-gray-300 shadow-lg ${className}`}>
-    <div className="absolute inset-0 rounded-lg overflow-hidden">
-      <div
-        className="w-full h-full"
-        style={{
-          background: "repeating-linear-gradient(45deg, #dc2626 0px, #dc2626 10px, white 10px, white 20px)",
-        }}
-      />
-    </div>
-  </div>
+  <img src="/cards/BACK.png" alt="deck back" className={`rounded-lg shadow-2xl ${className}`} draggable={false} />
 );
 
 /* ----------------- MeldSlotBox & LeftoverSlotBox (no TS) ----------------- */
@@ -428,8 +409,8 @@ export default function Table() {
   const [spectateRequested, setSpectateRequested] = useState(false);
   const [spectateRequests, setSpectateRequests] = useState([]);
   const [showScoreboardModal, setShowScoreboardModal] = useState(false);
-  const [showScoreboardPanel, setShowScoreboardPanel] = useState(false);
   const [revealedHands, setRevealedHands] = useState(null);
+  const [roundResultsByNumber, setRoundResultsByNumber] = useState({});
 
   // Dragged card tracking (local UI fix for lag)
   const [draggedCardIndex, setDraggedCardIndex] = useState(null);
@@ -462,10 +443,10 @@ export default function Table() {
   const [meld4, setMeld4] = useState([null, null, null, null]); // [NEW] Meld 4 (4 slots)
   const [leftover, setLeftover] = useState([null]); // Deadwood (1 slot)
   const [prevRoundFinished, setPrevRoundFinished] = useState(null);
-  const [showPointsTable, setShowPointsTable] = useState(true);
   const previousRoundNumberRef = useRef(null);
   const refreshInFlightRef = useRef(false);
   const refreshPendingRef = useRef(false);
+  const prevIsMyTurnRef = useRef(false);
 
   // Table Info box state
   const [tableInfoVisible, setTableInfoVisible] = useState(true);
@@ -552,14 +533,31 @@ export default function Table() {
     // game update -> refresh quickly (small debounce)
     onGameUpdate(() => {
       console.log("♻️ Real-time game update received");
-      setTimeout(() => {
-        refresh().catch((e) => console.warn("refresh error", e));
-      }, 150);
+      refresh().catch((e) => console.warn("refresh error", e));
     });
 
-    onDeclareUpdate(() => {
+    onDeclareUpdate(async () => {
       console.log("🏆 Real-time declare update received");
-      fetchRevealedHands();
+      await fetchRoundHistory();
+      await fetchRevealedHands();
+    });
+
+    onCardDiscarded((payload) => {
+      setMyRound((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          discard_top: payload?.discard_top || prev.discard_top,
+        };
+      });
+      setInfo((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          active_user_id: payload?.next_active_user_id || prev.active_user_id,
+        };
+      });
+      refresh().catch(() => {});
     });
 
     onVoiceStatus((data) => {
@@ -582,6 +580,7 @@ export default function Table() {
       socket.off("round.state");
       socket.off("table.state");
       socket.off("round.declare");
+      socket.off("card.discarded");
       socket.off("declare_made");
       socket.off("voice.muted");
       socket.off("voice.unmuted");
@@ -708,6 +707,12 @@ export default function Table() {
         }
         const newHasDrawn = roundData.hand.length === 14;
         setHasDrawn(newHasDrawn);
+        if (roundData.finished_at) {
+          const thisRound = Number(roundData.round_number);
+          if (!Number.isNaN(thisRound) && !roundResultsByNumber[thisRound]) {
+            void fetchRevealedHands(thisRound);
+          }
+        }
       }
       fetchRoundHistory();
       setLoading(false);
@@ -729,9 +734,12 @@ export default function Table() {
     try {
       const response = await apiclient.get_round_history({ table_id: tableId });
       const data = await response.json();
-      setRoundHistory(data.rounds || []);
+      const rounds = data.rounds || [];
+      setRoundHistory(rounds);
+      return rounds;
     } catch (error) {
       console.error("Failed to fetch round history:", error);
+      return [];
     }
   };
 
@@ -774,6 +782,13 @@ export default function Table() {
       setSelectedCardIndex(null);
       setLastDrawnCard(null);
     }
+  }, [isMyTurn]);
+
+  useEffect(() => {
+    if (isMyTurn && !prevIsMyTurnRef.current) {
+      toast.success("It's your turn", { duration: 2500 });
+    }
+    prevIsMyTurnRef.current = !!isMyTurn;
   }, [isMyTurn]);
 
   const onCopy = () => {
@@ -926,12 +941,14 @@ export default function Table() {
     }
   };
 
-  const fetchRevealedHands = async () => {
+  const fetchRevealedHands = async (roundNumber = null) => {
     console.log("📊 Fetching revealed hands...");
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const resp = await apiclient.get_revealed_hands({ table_id: tableId });
+        const query = { table_id: tableId };
+        if (roundNumber != null) query.round_number = roundNumber;
+        const resp = await apiclient.get_revealed_hands(query);
         if (!resp.ok) {
           const errorText = await resp.text();
           lastError = { status: resp.status, message: errorText };
@@ -946,7 +963,9 @@ export default function Table() {
         console.log("✅ Revealed hands fetched:", data);
         setRevealedHands(data);
         setShowScoreboardModal(true);
-        setShowScoreboardPanel(true);
+        if (data?.round_number != null) {
+          setRoundResultsByNumber((prev) => ({ ...prev, [data.round_number]: data }));
+        }
         return data;
       } catch (error) {
         console.error(`❌ Error fetching revealed hands (attempt ${attempt}/3):`, error);
@@ -962,6 +981,32 @@ export default function Table() {
     toast.error(`Failed to load scoreboard: ${errorMsg}`);
     console.error("🚨 Final scoreboard error:", lastError);
     return null;
+  };
+
+  const openRoundResults = async () => {
+    const rounds = await fetchRoundHistory();
+    const latestRound = rounds.length ? rounds[rounds.length - 1].round_number : null;
+    if (latestRound != null) {
+      const cached = roundResultsByNumber[latestRound];
+      if (cached) {
+        setRevealedHands(cached);
+        setShowScoreboardModal(true);
+        return;
+      }
+      await fetchRevealedHands(latestRound);
+      return;
+    }
+    await fetchRevealedHands();
+  };
+
+  const onSelectRoundResult = async (roundNumber) => {
+    if (roundNumber == null) return;
+    const cached = roundResultsByNumber[roundNumber];
+    if (cached) {
+      setRevealedHands(cached);
+      return;
+    }
+    await fetchRevealedHands(roundNumber);
   };
 
 
@@ -1426,7 +1471,7 @@ export default function Table() {
                           <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
 
                           {/* Center Piles (Deck & Discard) */}
-                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-5 sm:gap-12 z-10">
+                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start gap-5 sm:gap-8 z-10">
                             {/* Deck/Stock */}
                             <div
                               onClick={onDrawStock}
@@ -1460,30 +1505,34 @@ export default function Table() {
                                 Discard Pile
                               </div>
                             </div>
-                          </div>
 
-                          {/* Wild Joker Display near deck/discard */}
-                          {(() => {
-                            const mode = normalizeWildMode(info?.wild_joker_mode);
-                            if (mode === "no_joker") return null;
-                            const shouldShowCard = shouldShowWildCard(mode, revealedWildJoker);
-                            return (
-                              <div className="absolute top-[36%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-black/45 backdrop-blur border border-yellow-500/35 p-2 rounded-lg flex flex-col items-center">
-                                <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">
-                                  {shouldShowCard ? "Wild Joker" : "Wild Joker (Hidden)"}
-                                </span>
-                                {shouldShowCard ? (
-                                  <div className="w-12 h-16 sm:w-14 sm:h-20 rounded border border-yellow-500/50 bg-slate-900/80 flex items-center justify-center text-yellow-300 font-extrabold text-xl sm:text-2xl">
-                                    {revealedWildJoker}
+                            {/* Wildcard panel (always aligned with deck/discard size) */}
+                            {(() => {
+                              const mode = normalizeWildMode(info?.wild_joker_mode);
+                              const showRealWildcard = shouldShowWildCard(mode, revealedWildJoker);
+                              const label = mode === "no_joker"
+                                ? "No Wildcard"
+                                : showRealWildcard
+                                  ? "Wild Joker"
+                                  : "Wild Joker (Hidden)";
+                              return (
+                                <div className="relative">
+                                  <div className="w-24 h-36 rounded-lg border border-yellow-500/45 bg-black/45 flex items-center justify-center shadow-2xl">
+                                    {mode === "no_joker" ? (
+                                      <span className="text-yellow-100 text-sm font-semibold">No Wild</span>
+                                    ) : showRealWildcard ? (
+                                      <span className="text-yellow-300 font-extrabold text-3xl">{revealedWildJoker || "?"}</span>
+                                    ) : (
+                                      <span className="text-slate-200 font-bold text-3xl">?</span>
+                                    )}
                                   </div>
-                                ) : (
-                                  <div className="w-12 h-16 sm:w-14 sm:h-20 rounded border border-yellow-500/30 bg-slate-900/70 flex items-center justify-center text-slate-300 text-lg">
-                                    ?
+                                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                                    {label}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })()}
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </CasinoTable3D>
                       </div>
 
@@ -1719,17 +1768,19 @@ export default function Table() {
                     loserDeadwoodMode={info?.loser_deadwood_mode}
                     aceValue={info?.ace_value}
                     faceCardMode={info?.face_card_mode}
+                    roundHistory={roundHistory}
+                    onSelectRound={onSelectRoundResult}
                     onNextRound={() => {
                       setShowScoreboardModal(false);
                       return onNextRound();
                     }}
                   />
 
-                  {revealedHands && !showScoreboardModal && (
+                  {roundHistory.length > 0 && !showScoreboardModal && (
                     <div className="fixed bottom-5 right-5 z-[70] flex flex-col gap-2">
                       <button
                         type="button"
-                        onClick={() => setShowScoreboardModal(true)}
+                        onClick={openRoundResults}
                         className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg"
                       >
                         Open Round Results
@@ -1744,118 +1795,6 @@ export default function Table() {
                           {starting ? "Starting..." : "Start Next Round"}
                         </button>
                       )}
-                    </div>
-                  )}
-
-                  {/* Side Panel for Scoreboard - Legacy */}
-                  {showScoreboardPanel && revealedHands && (
-                    <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 border-l-2 border-yellow-500 shadow-2xl z-50 overflow-y-auto animate-slide-in-right">
-                      <div className="p-6">
-                        <div className="flex justify-between items-center mb-6">
-                          <h2 className="text-2xl font-bold text-yellow-400">Round Results</h2>
-                          <button onClick={() => setShowScoreboardPanel(false)} className="text-gray-400 hover:text-white transition-colors">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-
-                        {/* Round Scores */}
-                        <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-yellow-600">
-                          <h3 className="text-lg font-semibold text-yellow-400 mb-3">Scores</h3>
-                          {Object.entries(revealedHands.scores || {}).map(([uid, score]) => {
-                            const normalizedScore = normalizeScoreValue(score);
-                            const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                            return (
-                              <div key={uid} className="flex justify-between py-2 border-b border-gray-700 last:border-0">
-                                <span className={uid === user?.id ? "text-yellow-400 font-semibold" : "text-gray-300"}>{playerName}</span>
-                                <span className={`font-bold ${normalizedScore === 0 ? "text-green-400" : "text-red-400"}`}>{normalizedScore} pts</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* All Players' Hands */}
-                        <div className="space-y-6">
-                          {Object.entries(revealedHands.organized_melds || {}).map(([uid, melds]) => {
-                            const playerName = revealedHands.player_names?.[uid] || "Unknown";
-                            const playerScore = normalizeScoreValue(revealedHands.scores?.[uid]);
-                            const isWinner = playerScore === 0;
-
-                            return (
-                              <div key={uid} className="p-4 bg-gray-800 rounded-lg border-2" style={{ borderColor: isWinner ? "#10b981" : "#6b7280" }}>
-                                <div className="flex justify-between items-center mb-3">
-                                  <h4 className={`font-bold text-lg ${isWinner ? "text-green-400" : uid === user?.id ? "text-yellow-400" : "text-gray-300"}`}>
-                                    {playerName}
-                                    {isWinner && " 🏆"}
-                                  </h4>
-                                  <span className={`font-bold ${playerScore === 0 ? "text-green-400" : "text-red-400"}`}>{playerScore} pts</span>
-                                </div>
-
-                                {melds && melds.length > 0 ? (
-                                  <div className="space-y-3">
-                                    {melds.map((meld, idx) => {
-                                      const meldType = meld.type || "unknown";
-                                      let bgColor = "bg-gray-700";
-                                      let borderColor = "border-gray-600";
-                                      let label = "Cards";
-
-                                      if (meldType === "pure") {
-                                        bgColor = "bg-blue-900/40";
-                                        borderColor = "border-blue-500";
-                                        label = "Pure Sequence";
-                                      } else if (meldType === "impure") {
-                                        bgColor = "bg-purple-900/40";
-                                        borderColor = "border-purple-500";
-                                        label = "Impure Sequence";
-                                      } else if (meldType === "set") {
-                                        bgColor = "bg-orange-900/40";
-                                        borderColor = "border-orange-500";
-                                        label = "Set";
-                                      }
-
-                                      return (
-                                        <div key={idx} className={`p-3 rounded border ${bgColor} ${borderColor}`}>
-                                          <div className="text-xs text-gray-400 mb-2">{label}</div>
-                                          <div className="flex flex-wrap gap-2">
-                                            {(meld.cards || []).map((card, cardIdx) => (
-                                              <div key={cardIdx} className="text-sm font-mono bg-white text-gray-900 px-2 py-1 rounded">
-                                                {card.name || card.code || "??"}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <div className="text-gray-500 text-sm">No melds</div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {revealedHands.can_start_next && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await apiclient.start_next_round();
-                                setShowScoreboardPanel(false);
-                                setRevealedHands(null);
-                                await refresh();
-                                toast.success("New round started!");
-                              } catch (error) {
-                                console.error("Error starting next round:", error);
-                                toast.error("Failed to start next round");
-                              }
-                            }}
-                            className="w-full mt-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"
-                          >
-                            Start Next Round
-                          </button>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1918,49 +1857,6 @@ export default function Table() {
                               )}
                             </div>
 
-                            {/* Round History & Points Table */}
-                            {roundHistory.length > 0 && (
-                              <div className="border-t border-border pt-3">
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Round History</h4>
-                                <div className="overflow-x-auto">
-                                  <table className="w-full text-xs">
-                                    <thead>
-                                      <tr className="border-b border-border">
-                                        <th className="text-left py-2 px-2 font-semibold text-foreground">Player</th>
-                                        {roundHistory.map((round, idx) => (
-                                          <th key={idx} className="text-center py-2 px-1 font-semibold text-foreground">R{round.round_number}</th>
-                                        ))}
-                                        <th className="text-right py-2 px-2 font-semibold text-yellow-600">Total</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {info.players.map((player) => {
-                                        let runningTotal = 0;
-                                        return (
-                                          <tr key={player.user_id} className="border-b border-border/50">
-                                            <td className="py-2 px-2 text-foreground"><div className="flex items-center gap-1">{player.display_name || "Player"}</div></td>
-                                            {roundHistory.map((round, idx) => {
-                                              const isWinner = round.winner_user_id === player.user_id;
-                                              const roundScore = round.scores[player.user_id] || 0;
-                                              runningTotal += roundScore;
-                                              return (
-                                                <td key={idx} className="text-center py-2 px-1">
-                                                  <div className="flex flex-col items-center">
-                                                    <span className={isWinner ? "text-green-600 dark:text-green-500 font-semibold" : "text-muted-foreground"}>{roundScore}</span>
-                                                    {isWinner && <Trophy className="w-3 h-3 text-yellow-500" />}
-                                                  </div>
-                                                </td>
-                                              );
-                                            })}
-                                            <td className="text-right py-2 px-2 font-bold text-yellow-600">{runningTotal}</td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
                           </>
                         )}
                       </div>
