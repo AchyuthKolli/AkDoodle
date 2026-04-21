@@ -49,6 +49,7 @@ import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
 import { RummyProvider, useRummy } from "../games/rummy/RummyContext.jsx";
 import { validateHand } from "../games/rummy/utils/validator.js";
+import { canRevealInMode, normalizeWildMode, shouldShowWildCard } from "../games/rummy/utils/wildJokerMode.js";
 
 
 // utilities
@@ -164,8 +165,7 @@ const MeldSlotBox = ({
     }
   };
 
-  const mode = String(gameMode || "").toLowerCase();
-  const isClosedJoker = mode === "closed_joker";
+  const isClosedJoker = canRevealInMode(gameMode);
 
   return (
     <>
@@ -1462,23 +1462,25 @@ export default function Table() {
                             </div>
                           </div>
 
-                          {/* Wild Joker Display near center piles */}
+                          {/* Wild Joker Display near deck/discard */}
                           {(() => {
-                            const mode = String(info?.wild_joker_mode || "").toLowerCase();
-                            const isOpen = mode === "open_joker";
-                            const isClosed = mode === "closed_joker";
-                            if (!isOpen && !isClosed) return null;
-                            const shouldShowCard = isOpen || (isClosed && !!revealedWildJoker);
-                            const card = shouldShowCard
-                              ? { rank: revealedWildJoker, suit: null, joker: false }
-                              : { rank: "JOKER", suit: null, joker: true, faceDown: true };
-                            const label = shouldShowCard ? "Wild Joker" : "Wild Joker (Hidden)";
+                            const mode = normalizeWildMode(info?.wild_joker_mode);
+                            if (mode === "no_joker") return null;
+                            const shouldShowCard = shouldShowWildCard(mode, revealedWildJoker);
                             return (
-                              <div className="absolute top-3 left-1/2 -translate-x-1/2 sm:top-4 sm:left-4 sm:translate-x-0 bg-black/40 backdrop-blur border border-yellow-500/30 p-2 rounded-lg flex flex-col items-center z-20">
-                                <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">{label}</span>
-                                <div className="scale-75 sm:scale-90 origin-top">
-                                  <PlayingCard card={card} draggable={false} />
-                                </div>
+                              <div className="absolute top-[36%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 bg-black/45 backdrop-blur border border-yellow-500/35 p-2 rounded-lg flex flex-col items-center">
+                                <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">
+                                  {shouldShowCard ? "Wild Joker" : "Wild Joker (Hidden)"}
+                                </span>
+                                {shouldShowCard ? (
+                                  <div className="w-12 h-16 sm:w-14 sm:h-20 rounded border border-yellow-500/50 bg-slate-900/80 flex items-center justify-center text-yellow-300 font-extrabold text-xl sm:text-2xl">
+                                    {revealedWildJoker}
+                                  </div>
+                                ) : (
+                                  <div className="w-12 h-16 sm:w-14 sm:h-20 rounded border border-yellow-500/30 bg-slate-900/70 flex items-center justify-center text-slate-300 text-lg">
+                                    ?
+                                  </div>
+                                )}
                               </div>
                             );
                           })()}

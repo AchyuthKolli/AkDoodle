@@ -10,6 +10,8 @@ console.log("Loading game.js. requireAuth type:", typeof requireAuth);
 console.log("game.js router created:", !!router);
 const { v4: uuidv4 } = require("uuid");
 const scoring = require("./scoring");
+const wildMode = require("./wildJokerMode");
+const loserMode = require("./loserScoringMode");
 const INVALID_DECLARE_PENALTY = 20;
 
 /* ---------------------------
@@ -31,30 +33,6 @@ function nspEmit(req, tableId, event, payload) {
   } catch (e) {
     console.warn("nspEmit", event, e && e.message);
   }
-}
-
-function parseJsonArray(v) {
-  if (!v) return [];
-  if (Array.isArray(v)) return v;
-  if (typeof v === "string") {
-    try {
-      const x = JSON.parse(v);
-      return Array.isArray(x) ? x : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
-
-/** Open joker: wild acts as joker from the start. Closed: only after someone locks a pure sequence. */
-function wildJokerEffectivelyRevealed(gameMode, wildJokerRank, playersWithFirstSequence) {
-  if (!wildJokerRank) return false;
-  const mode = String(gameMode || "open_joker").toLowerCase();
-  if (mode === "no_joker") return false;
-  if (mode === "open_joker" || mode.startsWith("open")) return true;
-  const seq = parseJsonArray(playersWithFirstSequence);
-  return seq.length > 0;
 }
 
 function classifyDeclaredGroups(groups = [], wildJokerRank = null, wildRevealed = true) {
@@ -391,10 +369,7 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 router.post("/tables", requireAuth, async (req, res) => {
   try {
     const { max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode, face_card_mode } = req.body;
-    const loserMode =
-      String(loser_deadwood_mode || "auto_optimal").toLowerCase() === "submit_or_full"
-        ? "submit_or_full"
-        : "auto_optimal";
+    const loserModeNormalized = loserMode.normalizeLoserMode(loser_deadwood_mode);
     const faceCardMode = String(face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
 
     const table_id = uuidv4();
@@ -410,7 +385,7 @@ router.post("/tables", requireAuth, async (req, res) => {
       INSERT INTO rummy_tables (id, code, host_user_id, max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode, face_card_mode)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
-      [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value, loserMode, faceCardMode]
+      [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value, loserModeNormalized, faceCardMode]
     );
 
     // Fetch host name
@@ -727,10 +702,11 @@ router.get("/round/me", requireAuth, async (req, res) => {
       code: c.joker && c.rank === "JOKER" ? "JOKER" : `${c.rank}${c.suit || ""}`,
     }));
 
-    const wild_joker_revealed = wildJokerEffectivelyRevealed(
+    const wild_joker_revealed = wildMode.isWildJokerRevealedForPlayer(
       rnd.game_mode,
       rnd.wild_joker_rank,
-      rnd.players_with_first_sequence
+      rnd.players_with_first_sequence,
+      req.user.sub
     );
 
     return res.json({
@@ -762,7 +738,7 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
 
     const tbl = await db.fetchrow(`SELECT wild_joker_mode FROM rummy_tables WHERE id=$1`, [table_id]);
     if (!tbl) return res.status(404).json({ error: "Table not found" });
-    if (String(tbl.wild_joker_mode || "").toLowerCase() !== "closed_joker") {
+    if (!wildMode.isRevealActionAllowed(tbl.wild_joker_mode)) {
       return res.status(400).json({ success: false, message: "Lock & Reveal is available only in closed wildcard mode" });
     }
 
@@ -775,11 +751,7 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
     if (!rnd) return res.status(404).json({ error: "No active round" });
 
     // normalize players_with_first_sequence
-    let players_with_first_sequence = rnd.players_with_first_sequence;
-    if (!players_with_first_sequence) players_with_first_sequence = [];
-    if (typeof players_with_first_sequence === "string") {
-      try { players_with_first_sequence = JSON.parse(players_with_first_sequence); } catch { players_with_first_sequence = []; }
-    }
+    const players_with_first_sequence = wildMode.parseSequenceList(rnd.players_with_first_sequence);
 
     // if player already revealed
     if (players_with_first_sequence.includes(req.user.sub)) {
@@ -1194,10 +1166,7 @@ router.post("/declare", requireAuth, async (req, res) => {
     // ensure requester is active player (optional)
     const table = await db.fetchrow(`SELECT status, loser_deadwood_mode FROM rummy_tables WHERE id=$1`, [table_id]);
     if (!table || table.status !== "playing") return res.status(400).json({ error: "Game not in playing state" });
-    const loserDeadwoodMode =
-      String(table.loser_deadwood_mode || "auto_optimal").toLowerCase() === "submit_or_full"
-        ? "submit_or_full"
-        : "auto_optimal";
+    const loserDeadwoodMode = loserMode.normalizeLoserMode(table.loser_deadwood_mode);
 
     let meld_snapshots_raw = rnd.meld_snapshots;
     if (typeof meld_snapshots_raw === "string") {
@@ -1235,7 +1204,7 @@ router.post("/declare", requireAuth, async (req, res) => {
     const wild_joker_rank = rnd.wild_joker_rank || null;
     const ace_value = rnd.ace_value || 10;
     const face_card_mode = String(rnd.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
-    const wild_joker_revealed = wildJokerEffectivelyRevealed(
+    const wild_joker_revealed = wildMode.isWildJokerRevealedGlobally(
       rnd.game_mode,
       wild_joker_rank,
       rnd.players_with_first_sequence
@@ -1459,7 +1428,7 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
       : (rnd.winner_user_id ? "valid" : "invalid");
 
     const wildJokerRank = rnd.wild_joker_rank || null;
-    const wild_joker_revealed = wildJokerEffectivelyRevealed(
+    const wild_joker_revealed = wildMode.isWildJokerRevealedGlobally(
       rnd.game_mode,
       wildJokerRank,
       rnd.players_with_first_sequence

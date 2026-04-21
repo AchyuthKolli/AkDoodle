@@ -10,6 +10,7 @@ import { Trophy, Crown, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 
 import PlayingCard from "./PlayingCard";
 import { LoserScoringRulesHelp } from "./LoserScoringRulesHelp.jsx";
+import { normalizeLoserScoringMode } from "../utils/loserScoringMode.js";
 
 import { toast } from "sonner";
 
@@ -111,7 +112,7 @@ export const ScoreboardModal = ({
 
   const winnerName =
     sortedPlayers.find((p) => p.isWinner)?.display_name || "Winner";
-  const modeLabel = String(loserDeadwoodMode || "auto_optimal").toLowerCase() === "submit_or_full"
+  const modeLabel = normalizeLoserScoringMode(loserDeadwoodMode) === "submit_or_full"
     ? "Strict (submit_or_full)"
     : "Auto + meld board (auto_optimal)";
   const aceLabel = aceValue === 1 ? "A=1" : "A=10";

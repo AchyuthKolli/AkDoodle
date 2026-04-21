@@ -1,8 +1,9 @@
 import React from "react";
+import { isStrictLoserScoringMode, normalizeLoserScoringMode } from "../utils/loserScoringMode.js";
 
 /** Short label for the table setting. */
 export function LoserScoringModeLabel({ mode }) {
-  const m = String(mode || "auto_optimal").toLowerCase();
+  const m = normalizeLoserScoringMode(mode);
   if (m === "submit_or_full") return "Strict — submit or full hand";
   return "Auto + meld board";
 }
@@ -12,8 +13,8 @@ export function LoserScoringModeLabel({ mode }) {
  * `currentMode` optional: highlights which mode this table uses.
  */
 export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
-  const m = String(currentMode || "").toLowerCase();
-  const isStrict = m === "submit_or_full";
+  const m = normalizeLoserScoringMode(currentMode);
+  const isStrict = isStrictLoserScoringMode(m);
   const hasAceSetting = aceValue === 1 || aceValue === 10;
   const faceMode = String(faceCardMode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
 
