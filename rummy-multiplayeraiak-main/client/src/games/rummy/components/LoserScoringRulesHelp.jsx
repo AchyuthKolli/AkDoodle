@@ -60,6 +60,12 @@ export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
           </li>
           <li>During the round your meld board is synced to the server periodically so this layout can be used.</li>
         </ol>
+        <div className="mt-2 rounded-md border border-emerald-700/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-100/95">
+          <strong className="text-emerald-200">Beginner example:</strong> if you have invalid meld cards{" "}
+          <span className="text-slate-100">K + 3</span> in one slot, they are counted directly. But cards in{" "}
+          <span className="text-slate-100">Hand + Deadwood</span> are auto-checked for possible melds first. If
+          auto can group some cards, those points reduce; remaining cards only are counted.
+        </div>
       </section>
 
       <section>
@@ -76,6 +82,10 @@ export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
             <strong className="text-slate-300">all 13 cards</strong> (full hand).
           </li>
         </ol>
+        <div className="mt-2 rounded-md border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100/95">
+          <strong className="text-sky-200">Beginner example:</strong> invalid meld cards + hand cards + deadwood
+          cards are all counted directly. No auto-scan reduction is applied in Strict mode.
+        </div>
       </section>
 
       <section>
