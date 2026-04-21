@@ -1298,6 +1298,17 @@ export default function Table() {
       return;
     }
 
+    const meldSizes = [meld1Count, meld2Count, meld3Count, meld4Count].sort((a, b) => a - b);
+    const hasValidShape =
+      meldSizes[0] === 3 &&
+      meldSizes[1] === 3 &&
+      meldSizes[2] === 3 &&
+      meldSizes[3] === 4;
+    if (!hasValidShape) {
+      toast.error("Declare format must be exactly 4 melds with sizes 3,3,3,4 (order can vary).");
+      return;
+    }
+
     if (!tableId) return;
     if (!isMyTurn) {
       toast.error("It's not your turn!");
