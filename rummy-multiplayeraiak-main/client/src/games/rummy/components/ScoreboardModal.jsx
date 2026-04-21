@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Trophy, Crown, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 
 import PlayingCard from "./PlayingCard";
-import { LoserScoringRulesHelp } from "./LoserScoringRulesHelp.jsx";
-import { normalizeLoserScoringMode } from "../utils/loserScoringMode.js";
+import { AdminTableRulesPanel } from "./AdminTableRulesPanel.jsx";
 
 import { toast } from "sonner";
 
@@ -64,12 +63,11 @@ export const ScoreboardModal = ({
   loserDeadwoodMode,
   aceValue,
   faceCardMode,
-  roundHistory = [],
-  onSelectRound,
+  wildJokerMode,
+  disqualifyScore,
 }) => {
   const [startingNextRound, setStartingNextRound] = useState(false);
   const [expanded, setExpanded] = useState({});
-  const [showLoserRulesInfo, setShowLoserRulesInfo] = useState(false);
 
   if (!data) return null;
 
@@ -114,13 +112,6 @@ export const ScoreboardModal = ({
 
   const winnerName =
     sortedPlayers.find((p) => p.isWinner)?.display_name || "Winner";
-  const modeLabel = normalizeLoserScoringMode(loserDeadwoodMode) === "submit_or_full"
-    ? "Strict (submit_or_full)"
-    : "Auto + meld board (auto_optimal)";
-  const aceLabel = aceValue === 1 ? "A=1" : "A=10";
-  const faceLabel = String(faceCardMode || "ten").toLowerCase() === "rank"
-    ? "J=11, Q=12, K=13"
-    : "J=10, Q=10, K=10";
 
   const handleStartNextRound = async () => {
     setStartingNextRound(true);
@@ -141,61 +132,18 @@ export const ScoreboardModal = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-amber-600/40 shadow-xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-2xl text-amber-400">
-            <Trophy className="w-8 h-8 text-yellow-400" />
-            Round {data.round_number} Results
+          <DialogTitle className="flex flex-col gap-1 text-left">
+            <span className="flex items-center gap-3 text-2xl text-amber-400">
+              <Trophy className="w-8 h-8 text-yellow-400" />
+              Round {data.round_number} scoreboard
+            </span>
+            <span className="text-xs font-normal text-slate-400 pl-11">
+              This round only — melds, hands, and points for round {data.round_number}. Use the All round results button on the table for the full R1/R2/… table.
+            </span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-          {!!roundHistory.length && (
-            <div className="rounded-lg border border-slate-700 bg-slate-950/40 p-3">
-              <p className="text-xs font-semibold text-slate-300 mb-2">All Rounds History</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left py-2 px-2 font-semibold text-slate-200">Player</th>
-                      {roundHistory.map((round) => (
-                        <th key={round.round_number} className="text-center py-2 px-1">
-                          <button
-                            type="button"
-                            onClick={() => onSelectRound?.(round.round_number)}
-                            className={`px-1.5 py-0.5 rounded ${Number(round.round_number) === Number(data.round_number) ? "bg-amber-700/70 text-amber-100" : "text-slate-300 hover:bg-slate-700/60"}`}
-                            title={`Open round ${round.round_number}`}
-                          >
-                            R{round.round_number}
-                          </button>
-                        </th>
-                      ))}
-                      <th className="text-right py-2 px-2 font-semibold text-yellow-500">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(players || []).map((player) => {
-                      let runningTotal = 0;
-                      return (
-                        <tr key={player.user_id} className="border-b border-slate-800/80">
-                          <td className="py-2 px-2 text-slate-200">{player.display_name || "Player"}</td>
-                          {roundHistory.map((round) => {
-                            const roundScore = Number(round?.scores?.[player.user_id] || 0);
-                            runningTotal += roundScore;
-                            return (
-                              <td key={`${player.user_id}-${round.round_number}`} className="text-center py-2 px-1 text-slate-300">
-                                {roundScore}
-                              </td>
-                            );
-                          })}
-                          <td className="text-right py-2 px-2 font-semibold text-yellow-500">{runningTotal}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           <div className="bg-gradient-to-r from-yellow-900/40 to-amber-900/40 border border-yellow-600/40 rounded-lg p-4 text-center shadow-md">
             <div className="flex items-center justify-center gap-2 text-xl font-bold text-yellow-300 drop-shadow">
               <Crown className="w-6 h-6" />
@@ -214,35 +162,14 @@ export const ScoreboardModal = ({
             </div>
           </div>
 
-          <div className="rounded-lg border border-slate-600/50 bg-slate-800/50 text-left">
-            <div className="px-3 py-2.5 flex items-center gap-2 text-sm font-medium text-slate-200">
-              <span>How loser points work this round</span>
-              <button
-                type="button"
-                onClick={() => setShowLoserRulesInfo((v) => !v)}
-                className="text-base leading-none hover:scale-110 transition-transform"
-                aria-label="Show loser scoring explanation"
-                title="Show full explanation"
-              >
-                ℹ️
-              </button>
-            </div>
-            {showLoserRulesInfo && (
-              <div className="px-3 pb-4 pt-1 border-t border-slate-700/60">
-                <LoserScoringRulesHelp currentMode={loserDeadwoodMode} aceValue={aceValue} faceCardMode={faceCardMode} />
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-amber-700/45 bg-amber-950/20 p-3">
-            <p className="text-xs font-semibold text-amber-300 mb-2">Admin Selected For This Round</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
-              <p><span className="text-slate-400">Loser Mode:</span> {modeLabel}</p>
-              <p><span className="text-slate-400">Ace Value:</span> {aceLabel}</p>
-              <p><span className="text-slate-400">Face Cards:</span> {faceLabel}</p>
-              <p><span className="text-slate-400">Declare Count:</span> 4 melds (3+3+3+4), 1 pure required</p>
-            </div>
-          </div>
+          <AdminTableRulesPanel
+            loserDeadwoodMode={loserDeadwoodMode}
+            aceValue={aceValue}
+            faceCardMode={faceCardMode}
+            wildJokerMode={wildJokerMode}
+            disqualifyScore={disqualifyScore}
+            footnote='Same table rules apply to every round while you play. Open "All round results" anytime to see running totals.'
+          />
 
           <div className="space-y-4">
             {sortedPlayers.map((p, idx) => {

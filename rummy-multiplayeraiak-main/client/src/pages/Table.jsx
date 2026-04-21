@@ -45,6 +45,7 @@ import { GameRules } from "../games/rummy/components/GameRules.jsx";
 import SpectateControls from "../games/rummy/components/SpectateControls.jsx";
 import { WildJokerRevealModal } from "../games/rummy/components/WildJokerRevealModal.jsx";
 import { ScoreboardModal } from "../games/rummy/components/ScoreboardModal.jsx";
+import { AllRoundsResultsModal } from "../games/rummy/components/AllRoundsResultsModal.jsx";
 import VoicePanel from "../games/rummy/components/VoicePanel.jsx";
 import HistoryTable from "../games/rummy/components/HistoryTable.jsx";
 import ChatSidebar from "../games/rummy/components/ChatSidebar.jsx";
@@ -411,6 +412,7 @@ export default function Table() {
   const [spectateRequested, setSpectateRequested] = useState(false);
   const [spectateRequests, setSpectateRequests] = useState([]);
   const [showScoreboardModal, setShowScoreboardModal] = useState(false);
+  const [showAllRoundsModal, setShowAllRoundsModal] = useState(false);
   const [revealedHands, setRevealedHands] = useState(null);
   const [roundResultsByNumber, setRoundResultsByNumber] = useState({});
 
@@ -1027,14 +1029,22 @@ export default function Table() {
     await fetchRevealedHands();
   };
 
-  const onSelectRoundResult = async (roundNumber) => {
+  /** Open per-round scoreboard (cards / melds) for a given round number. */
+  const openRoundScoreboardForRound = async (roundNumber, { closeAllRoundsModal = false } = {}) => {
     if (roundNumber == null) return;
+    if (closeAllRoundsModal) setShowAllRoundsModal(false);
     const cached = roundResultsByNumber[roundNumber];
     if (cached) {
       setRevealedHands(cached);
+      setShowScoreboardModal(true);
       return;
     }
     await fetchRevealedHands(roundNumber);
+  };
+
+  const openAllRoundsResults = async () => {
+    await fetchRoundHistory();
+    setShowAllRoundsModal(true);
   };
 
 
@@ -1812,12 +1822,25 @@ export default function Table() {
                     loserDeadwoodMode={info?.loser_deadwood_mode}
                     aceValue={info?.ace_value}
                     faceCardMode={info?.face_card_mode}
-                    roundHistory={roundHistory}
-                    onSelectRound={onSelectRoundResult}
+                    wildJokerMode={info?.wild_joker_mode}
+                    disqualifyScore={info?.disqualify_score}
                     onNextRound={() => {
                       setShowScoreboardModal(false);
                       return onNextRound();
                     }}
+                  />
+
+                  <AllRoundsResultsModal
+                    isOpen={showAllRoundsModal}
+                    onClose={() => setShowAllRoundsModal(false)}
+                    roundHistory={roundHistory}
+                    players={info?.players || []}
+                    disqualifyScore={info?.disqualify_score}
+                    loserDeadwoodMode={info?.loser_deadwood_mode}
+                    aceValue={info?.ace_value}
+                    faceCardMode={info?.face_card_mode}
+                    wildJokerMode={info?.wild_joker_mode}
+                    onViewRoundDetail={(n) => openRoundScoreboardForRound(n, { closeAllRoundsModal: true })}
                   />
 
                   {roundHistory.length > 0 && !showScoreboardModal && (
@@ -1827,7 +1850,14 @@ export default function Table() {
                         onClick={openRoundResults}
                         className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg"
                       >
-                        Open Round Results
+                        Round scoreboard
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openAllRoundsResults}
+                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold shadow-lg border border-cyan-500/40"
+                      >
+                        All round results
                       </button>
                       {user?.id === info?.host_user_id && (
                         <button
