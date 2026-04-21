@@ -31,17 +31,22 @@ function isJokerCard(card, wildRank = null, revealed = false) {
 /* ----------------------------------
    Card Points
 ----------------------------------- */
-function cardPoints(card, aceValue = 10) {
+function cardPoints(card, aceValue = 10, faceCardMode = "ten") {
   if (!card) return 0;
   if (_getAttr(card, "rank") === "JOKER") return 0;
 
   const rank = _getAttr(card, "rank");
   if (rank === "A") return aceValue;  // 1 or 10
+  if (faceCardMode === "rank") {
+    if (rank === "J") return 11;
+    if (rank === "Q") return 12;
+    if (rank === "K") return 13;
+  }
   return RANK_POINTS[rank] || 0;
 }
 
-function naiveHandPoints(hand = [], aceValue = 10) {
-  const total = hand.reduce((s, c) => s + cardPoints(c, aceValue), 0);
+function naiveHandPoints(hand = [], aceValue = 10, faceCardMode = "ten") {
+  const total = hand.reduce((s, c) => s + cardPoints(c, aceValue, faceCardMode), 0);
   return Math.min(total, 80);
 }
 
@@ -159,10 +164,10 @@ function validateHand(melds = [], leftover = [], wildRank = null, revealed = fal
 /* ----------------------------------
    Deadwood
 ----------------------------------- */
-function calculateDeadwoodPoints(cards = [], wildRank = null, revealed = false, aceValue = 10) {
+function calculateDeadwoodPoints(cards = [], wildRank = null, revealed = false, aceValue = 10, faceCardMode = "ten") {
   const total = cards.reduce((sum, c) => {
     if (isJokerCard(c, wildRank, revealed)) return sum;
-    return sum + cardPoints(c, aceValue);
+    return sum + cardPoints(c, aceValue, faceCardMode);
   }, 0);
   return Math.min(total, 80);
 }
@@ -174,10 +179,10 @@ function calculateDeadwoodPoints(cards = [], wildRank = null, revealed = false, 
  * on their device are not sent to the server — only mathematically valid melds
  * reduce their score; everything else pays points.
  */
-function calculateUngroupedDeadwoodPoints(hand = [], wildRank = null, revealed = false, aceValue = 10) {
+function calculateUngroupedDeadwoodPoints(hand = [], wildRank = null, revealed = false, aceValue = 10, faceCardMode = "ten") {
   const organized = organizeHandByMelds(hand, wildRank, revealed);
   const ungrouped = organized.ungrouped || [];
-  return calculateDeadwoodPoints(ungrouped, wildRank, revealed, aceValue);
+  return calculateDeadwoodPoints(ungrouped, wildRank, revealed, aceValue, faceCardMode);
 }
 
 function _cardMatchesHandCard(h, c) {
@@ -245,23 +250,23 @@ function analyzeHandVsSnapshot(hand, snap) {
  * - auto_optimal: invalid / short meld slots pay; valid slots free; unplaced cards use greedy valid melds then pay remainder.
  * - submit_or_full: same for slots; unplaced pays full card values (no greedy melds). Missing/invalid snapshot → full hand pays.
  */
-function calculateLoserDeadwoodPoints(hand = [], loserMode, snapshot, wildRank = null, revealed = false, aceValue = 10) {
+function calculateLoserDeadwoodPoints(hand = [], loserMode, snapshot, wildRank = null, revealed = false, aceValue = 10, faceCardMode = "ten") {
   const mode = loserMode === "submit_or_full" ? "submit_or_full" : "auto_optimal";
   const snap = snapshot && typeof snapshot === "object" ? snapshot : null;
 
   if (!snap || !snapshotHasAnyPlacedCards(snap)) {
     if (mode === "submit_or_full") {
-      return calculateDeadwoodPoints(hand, wildRank, revealed, aceValue);
+      return calculateDeadwoodPoints(hand, wildRank, revealed, aceValue, faceCardMode);
     }
-    return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue);
+    return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue, faceCardMode);
   }
 
   const analysis = analyzeHandVsSnapshot(hand, snap);
   if (!analysis.ok) {
     if (mode === "submit_or_full") {
-      return calculateDeadwoodPoints(hand, wildRank, revealed, aceValue);
+      return calculateDeadwoodPoints(hand, wildRank, revealed, aceValue, faceCardMode);
     }
-    return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue);
+    return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue, faceCardMode);
   }
 
   const { unplaced, slotGroups } = analysis;
@@ -269,14 +274,14 @@ function calculateLoserDeadwoodPoints(hand = [], loserMode, snapshot, wildRank =
   let pts = 0;
   for (const g of slotGroups) {
     if (isValidMeldGroup(g, wildRank, revealed)) continue;
-    pts += calculateDeadwoodPoints(g, wildRank, revealed, aceValue);
+    pts += calculateDeadwoodPoints(g, wildRank, revealed, aceValue, faceCardMode);
   }
   // Cards in snapshot "leftover" / deadwood slot: not meld slots — score with unplaced (were removed from hand in analyze).
   if (mode === "submit_or_full") {
-    pts += calculateDeadwoodPoints(unplaced, wildRank, revealed, aceValue);
-    pts += calculateDeadwoodPoints(leftoverPlaced, wildRank, revealed, aceValue);
+    pts += calculateDeadwoodPoints(unplaced, wildRank, revealed, aceValue, faceCardMode);
+    pts += calculateDeadwoodPoints(leftoverPlaced, wildRank, revealed, aceValue, faceCardMode);
   } else {
-    pts += calculateUngroupedDeadwoodPoints([...unplaced, ...leftoverPlaced], wildRank, revealed, aceValue);
+    pts += calculateUngroupedDeadwoodPoints([...unplaced, ...leftoverPlaced], wildRank, revealed, aceValue, faceCardMode);
   }
   return Math.min(pts, 80);
 }

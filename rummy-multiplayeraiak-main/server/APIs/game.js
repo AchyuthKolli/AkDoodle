@@ -390,11 +390,12 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 
 router.post("/tables", requireAuth, async (req, res) => {
   try {
-    const { max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode } = req.body;
+    const { max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode, face_card_mode } = req.body;
     const loserMode =
       String(loser_deadwood_mode || "auto_optimal").toLowerCase() === "submit_or_full"
         ? "submit_or_full"
         : "auto_optimal";
+    const faceCardMode = String(face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
 
     const table_id = uuidv4();
     // Generate 6-char alphanumeric code
@@ -406,10 +407,10 @@ router.post("/tables", requireAuth, async (req, res) => {
 
     await db.fetchrow(
       `
-      INSERT INTO rummy_tables (id, code, host_user_id, max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO rummy_tables (id, code, host_user_id, max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode, face_card_mode)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     `,
-      [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value, loserMode]
+      [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value, loserMode, faceCardMode]
     );
 
     // Fetch host name
@@ -595,8 +596,8 @@ router.post("/start-game", requireAuth, async (req, res) => {
     await db.execute(
       `
       INSERT INTO rummy_rounds 
-      (id, table_id, number, wild_joker_rank, stock, discard, hands, active_user_id, game_mode, ace_value)
-      VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8,$9)
+      (id, table_id, number, wild_joker_rank, stock, discard, hands, active_user_id, game_mode, ace_value, face_card_mode)
+      VALUES ($1,$2,1,$3,$4,$5,$6,$7,$8,$9,$10)
     `,
       [
         round_id,
@@ -608,6 +609,7 @@ router.post("/start-game", requireAuth, async (req, res) => {
         players[0].user_id,
         tbl.wild_joker_mode,
         tbl.ace_value,
+        tbl.face_card_mode || "ten",
       ]
     );
 
@@ -1122,10 +1124,15 @@ router.post("/discard", requireAuth, async (req, res) => {
 // Helper: minimal deadwood scoring (simple, safe fallback)
 // You can replace with your full scoring module later.
 //
-function cardValueForScoring(card, aceValue = 10) {
+function cardValueForScoring(card, aceValue = 10, faceCardMode = "ten") {
   if (!card) return 0;
   if (card.joker || card.rank === "JOKER") return 15;
   const r = card.rank;
+  if (faceCardMode === "rank") {
+    if (r === "J") return 11;
+    if (r === "Q") return 12;
+    if (r === "K") return 13;
+  }
   if (["J", "Q", "K"].includes(r)) return 10;
   if (r === "A") return aceValue === 1 ? 1 : 10;
   const n = Number(r);
@@ -1140,7 +1147,7 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     // Basic table & round fetch + membership check
     const rnd = await db.fetchrow(
-      `SELECT id, number, hands, discard, wild_joker_rank, players_with_first_sequence, ace_value, game_mode, meld_snapshots
+      `SELECT id, number, hands, discard, wild_joker_rank, players_with_first_sequence, ace_value, face_card_mode, game_mode, meld_snapshots
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
@@ -1189,6 +1196,7 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     const wild_joker_rank = rnd.wild_joker_rank || null;
     const ace_value = rnd.ace_value || 10;
+    const face_card_mode = String(rnd.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
     const wild_joker_revealed = wildJokerEffectivelyRevealed(
       rnd.game_mode,
       wild_joker_rank,
@@ -1254,14 +1262,15 @@ router.post("/declare", requireAuth, async (req, res) => {
                 snapUid,
                 wild_joker_rank,
                 wild_joker_revealed,
-                ace_value
+                ace_value,
+                face_card_mode
               );
             } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
-              pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value);
+              pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value, face_card_mode);
             } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
-              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value);
+              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value, face_card_mode);
             } else {
-              pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value), 0);
+              pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value, face_card_mode), 0);
             }
             scores[uid] = Math.min(pts, 80);
           }
@@ -1526,7 +1535,7 @@ router.post("/round/next", requireAuth, async (req, res) => {
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
     const tbl = await db.fetchrow(
-      `SELECT id, host_user_id, status, disqualify_score, wild_joker_mode, ace_value
+      `SELECT id, host_user_id, status, disqualify_score, wild_joker_mode, ace_value, face_card_mode
        FROM rummy_tables WHERE id=$1`,
       [table_id]
     );
@@ -1615,8 +1624,8 @@ router.post("/round/next", requireAuth, async (req, res) => {
     }
 
     await db.execute(
-      `INSERT INTO rummy_rounds (id, table_id, number, wild_joker_rank, stock, discard, hands, active_user_id, game_mode, ace_value)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      `INSERT INTO rummy_rounds (id, table_id, number, wild_joker_rank, stock, discard, hands, active_user_id, game_mode, ace_value, face_card_mode)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
       [
         require('uuid').v4(),
         table_id,
@@ -1627,7 +1636,8 @@ router.post("/round/next", requireAuth, async (req, res) => {
         JSON.stringify(hands),
         startPlayer,
         tbl.wild_joker_mode || "open_joker",
-        tbl.ace_value || 10
+        tbl.ace_value || 10,
+        tbl.face_card_mode || "ten",
       ]
     );
 

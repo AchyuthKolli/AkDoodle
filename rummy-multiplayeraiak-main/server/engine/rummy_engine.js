@@ -46,7 +46,7 @@ function deepClone(obj) {
  *
  * tableMeta: {
  *   table_id?, host_user_id?, wild_joker_mode? ('no_joker'|'open_joker'|'closed_joker'),
- *   ace_value?, disqualify_score?, max_players?
+ *   ace_value?, face_card_mode?, disqualify_score?, max_players?
  * }
  *
  * players: [{ user_id, display_name, seat? }]
@@ -58,6 +58,7 @@ class RummyEngine {
       host_user_id: tableMeta.host_user_id || null,
       wild_joker_mode: tableMeta.wild_joker_mode || "open_joker",
       ace_value: tableMeta.ace_value || 10,
+      face_card_mode: String(tableMeta.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten",
       disqualify_score: tableMeta.disqualify_score || 200,
       max_players: tableMeta.max_players || 4,
       status: "waiting",
@@ -576,12 +577,18 @@ class RummyEngine {
         let deadwood = 0;
         if (typeof calculateDeadwoodFn === "function") {
           try {
-            deadwood = calculateDeadwoodFn(leftover, this.wild_joker_rank, this.players_with_first_sequence.includes(opp.user_id), this.table.ace_value);
+            deadwood = calculateDeadwoodFn(
+              leftover,
+              this.wild_joker_rank,
+              this.players_with_first_sequence.includes(opp.user_id),
+              this.table.ace_value,
+              this.table.face_card_mode
+            );
           } catch (e) {
-            deadwood = leftover.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value), 0);
+            deadwood = leftover.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value, this.table.face_card_mode), 0);
           }
         } else {
-          deadwood = leftover.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value), 0);
+          deadwood = leftover.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value, this.table.face_card_mode), 0);
         }
         scores[opp.user_id] = Math.min(deadwood, 80);
 
@@ -597,12 +604,18 @@ class RummyEngine {
       let declarerPts = 0;
       if (typeof calculateDeadwoodFn === "function") {
         try {
-          declarerPts = calculateDeadwoodFn(p.hand.slice(), this.wild_joker_rank, this.players_with_first_sequence.includes(userId), this.table.ace_value);
+          declarerPts = calculateDeadwoodFn(
+            p.hand.slice(),
+            this.wild_joker_rank,
+            this.players_with_first_sequence.includes(userId),
+            this.table.ace_value,
+            this.table.face_card_mode
+          );
         } catch (e) {
-          declarerPts = p.hand.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value), 0);
+          declarerPts = p.hand.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value, this.table.face_card_mode), 0);
         }
       } else {
-        declarerPts = p.hand.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value), 0);
+        declarerPts = p.hand.reduce((s, c) => s + this._cardPoints(c, this.table.ace_value, this.table.face_card_mode), 0);
       }
       declarerPts = Math.min(declarerPts, 80);
 
@@ -662,10 +675,15 @@ class RummyEngine {
   // -----------------------
   // Internal helpers
   // -----------------------
-  _cardPoints(card, aceValue = 10) {
+  _cardPoints(card, aceValue = 10, faceCardMode = "ten") {
     if (!card) return 0;
     if (card.joker || card.rank === "JOKER") return 0;
     const r = card.rank;
+    if (faceCardMode === "rank") {
+      if (r === "J") return 11;
+      if (r === "Q") return 12;
+      if (r === "K") return 13;
+    }
     if (["J", "Q", "K", "10"].includes(r)) return 10;
     if (r === "A") return aceValue === 1 ? 1 : 10;
     const n = Number(r);
@@ -697,6 +715,7 @@ class RummyEngine {
       active_user_id: this.getActiveUserId(),
       game_mode: this.table.wild_joker_mode,
       ace_value: this.table.ace_value,
+      face_card_mode: this.table.face_card_mode,
       players_with_first_sequence: deepClone(this.players_with_first_sequence),
     };
   }

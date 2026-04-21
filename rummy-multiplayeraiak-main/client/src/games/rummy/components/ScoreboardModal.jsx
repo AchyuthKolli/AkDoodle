@@ -61,6 +61,8 @@ export const ScoreboardModal = ({
   hostUserId,
   onNextRound,
   loserDeadwoodMode,
+  aceValue,
+  faceCardMode,
 }) => {
   const [startingNextRound, setStartingNextRound] = useState(false);
   const [expanded, setExpanded] = useState({});
@@ -169,7 +171,7 @@ export const ScoreboardModal = ({
             </div>
             {showLoserRulesInfo && (
               <div className="px-3 pb-4 pt-1 border-t border-slate-700/60">
-                <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+                <LoserScoringRulesHelp currentMode={loserDeadwoodMode} aceValue={aceValue} faceCardMode={faceCardMode} />
               </div>
             )}
           </div>

@@ -62,6 +62,7 @@ export default function CreateTable() {
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [disqualifyScore, setDisqualifyScore] = useState(200);
   const [aceValue, setAceValue] = useState(10);
+  const [faceCardMode, setFaceCardMode] = useState("ten");
   /** auto_optimal: wrong meld slots pay; unplaced uses greedy valid melds. submit_or_full: no greedy melds on unplaced; no snapshot = full hand pays. */
   const [loserDeadwoodMode, setLoserDeadwoodMode] = useState("auto_optimal");
   const [creating, setCreating] = useState(false);
@@ -105,6 +106,7 @@ export default function CreateTable() {
         disqualify_score: disqualifyScore,
         wild_joker_mode: variant.wildJokerMode,
         ace_value: aceValue,
+        face_card_mode: faceCardMode,
         loser_deadwood_mode: loserDeadwoodMode,
       };
 
@@ -221,6 +223,12 @@ export default function CreateTable() {
                 <span className="text-slate-400">Ace Value:</span>
                 <span className="text-white font-medium">
                   {aceValue} pt
+                </span>
+              </p>
+              <p className="flex justify-between text-sm">
+                <span className="text-slate-400">Face Cards:</span>
+                <span className="text-white font-medium">
+                  {faceCardMode === "rank" ? "J=11, Q=12, K=13" : "J=10, Q=10, K=10"}
                 </span>
               </p>
             </div>
@@ -370,6 +378,34 @@ export default function CreateTable() {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                Face Card Point Mode
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setFaceCardMode("ten")}
+                  className={`p-4 rounded-lg border-2 transition-all ${faceCardMode === "ten"
+                    ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
+                    : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
+                    }`}
+                >
+                  <div className="text-sm font-bold">Standard</div>
+                  <div className="text-xs mt-1 opacity-80">J/Q/K = 10</div>
+                </button>
+                <button
+                  onClick={() => setFaceCardMode("rank")}
+                  className={`p-4 rounded-lg border-2 transition-all ${faceCardMode === "rank"
+                    ? `border-transparent bg-gradient-to-r ${variant.color} text-white`
+                    : "border-slate-600 bg-slate-900/50 text-slate-300 hover:border-slate-500"
+                    }`}
+                >
+                  <div className="text-sm font-bold">Local Variant</div>
+                  <div className="text-xs mt-1 opacity-80">J=11, Q=12, K=13</div>
+                </button>
+              </div>
+            </div>
+
             {/* Loser scoring when someone wins with a valid declare */}
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -427,7 +463,7 @@ export default function CreateTable() {
                     Full explanation: how loser points are counted
                   </div>
                   <div className="px-3 pb-3 pt-2 border-t border-slate-700/50">
-                    <LoserScoringRulesHelp currentMode={loserDeadwoodMode} />
+                    <LoserScoringRulesHelp currentMode={loserDeadwoodMode} aceValue={aceValue} faceCardMode={faceCardMode} />
                   </div>
                 </div>
               )}

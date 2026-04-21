@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS rummy_tables (
   -- submit_or_full = same slot rules; unplaced cards pay full face value (no auto-melds). No snapshot = full hand pays.
   loser_deadwood_mode VARCHAR(32) DEFAULT 'auto_optimal',
   ace_value INT DEFAULT 10,
+  face_card_mode VARCHAR(16) DEFAULT 'ten', -- ten = J/Q/K => 10, rank = J/Q/K => 11/12/13
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS rummy_rounds (
   active_user_id VARCHAR(255),
   game_mode VARCHAR(20),
   ace_value INT,
+  face_card_mode VARCHAR(16) DEFAULT 'ten',
   winner_user_id VARCHAR(255),
   scores JSONB,  -- Map user_id -> score for this round
   declarations JSONB, -- Map user_id -> declaration details
@@ -87,8 +89,14 @@ ADD COLUMN IF NOT EXISTS admin_approved BOOLEAN DEFAULT false;
 ALTER TABLE rummy_tables
 ADD COLUMN IF NOT EXISTS loser_deadwood_mode VARCHAR(32) DEFAULT 'auto_optimal';
 
+ALTER TABLE rummy_tables
+ADD COLUMN IF NOT EXISTS face_card_mode VARCHAR(16) DEFAULT 'ten';
+
 ALTER TABLE rummy_rounds
 ADD COLUMN IF NOT EXISTS meld_snapshots JSONB DEFAULT '{}'::jsonb;
+
+ALTER TABLE rummy_rounds
+ADD COLUMN IF NOT EXISTS face_card_mode VARCHAR(16) DEFAULT 'ten';
 
 -- 6. Chat Messages
 CREATE TABLE IF NOT EXISTS chat_messages (

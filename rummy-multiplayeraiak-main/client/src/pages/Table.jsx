@@ -1737,6 +1737,8 @@ export default function Table() {
                     tableId={tableId || ""}
                     hostUserId={info?.host_user_id || ""}
                     loserDeadwoodMode={info?.loser_deadwood_mode}
+                    aceValue={info?.ace_value}
+                    faceCardMode={info?.face_card_mode}
                     onNextRound={() => {
                       setShowScoreboardModal(false);
                       return onNextRound();

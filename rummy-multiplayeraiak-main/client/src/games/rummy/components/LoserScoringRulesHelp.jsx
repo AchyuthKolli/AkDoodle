@@ -11,9 +11,11 @@ export function LoserScoringModeLabel({ mode }) {
  * Full rules copy for Create Table and Round Results scoreboard.
  * `currentMode` optional: highlights which mode this table uses.
  */
-export function LoserScoringRulesHelp({ currentMode }) {
+export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
   const m = String(currentMode || "").toLowerCase();
   const isStrict = m === "submit_or_full";
+  const hasAceSetting = aceValue === 1 || aceValue === 10;
+  const faceMode = String(faceCardMode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
 
   return (
     <div className="space-y-4 text-left text-sm leading-relaxed text-slate-300">
@@ -31,6 +33,17 @@ export function LoserScoringRulesHelp({ currentMode }) {
           <strong className="text-amber-200">
             {isStrict ? "Strict (submit_or_full)" : "Auto + meld board (auto_optimal)"}
           </strong>
+        </p>
+      ) : null}
+
+      {(hasAceSetting || faceCardMode) ? (
+        <p className="text-xs text-slate-300 border border-slate-600/60 rounded-md px-3 py-2 bg-slate-900/45">
+          Point map used by both Auto and Strict:{" "}
+          <strong className="text-slate-100">A={hasAceSetting ? aceValue : 10}</strong>,{" "}
+          <strong className="text-slate-100">
+            {faceMode === "rank" ? "J=11, Q=12, K=13" : "J=10, Q=10, K=10"}
+          </strong>.
+          Only grouping logic differs between Auto and Strict; card values stay the same for the table.
         </p>
       ) : null}
 

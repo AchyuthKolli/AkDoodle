@@ -141,6 +141,7 @@ module.exports = function (io) {
           host_user_id: (socket.user && socket.user.user_id) || null,
           wild_joker_mode: opts.game_mode || "open_joker",
           ace_value: opts.ace_value || 10,
+          face_card_mode: String(opts.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten",
           disqualify_score: opts.disqualify_score || 200,
           max_players: opts.max_players || 4,
         },
