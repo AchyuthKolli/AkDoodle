@@ -97,6 +97,18 @@ export const onCardDiscarded = (callback) => {
   });
 };
 
+export const onPlayerDisqualified = (callback) => {
+  socket.on("player.disqualified", (data) => {
+    callback(data);
+  });
+};
+
+export const onTableFinished = (callback) => {
+  socket.on("table.finished", (data) => {
+    callback(data);
+  });
+};
+
 export const onSpectateUpdate = (callback) => {
   // Server emits: "spectate.requested" { user_id }
   // Server emits: "spectate.granted" { user_id, granted }

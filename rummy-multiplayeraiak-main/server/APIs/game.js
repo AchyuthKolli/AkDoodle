@@ -72,6 +72,66 @@ function normalizeKeyedJson(obj) {
   return out;
 }
 
+/**
+ * After total_points change: anyone at/above disqualify_score is disqualified and moved to spectator.
+ * If fewer than two active competitors remain (not spectator, not disqualified), table status becomes finished
+ * (remaining single player is match winner in a 2-player game).
+ */
+async function applyDisqualificationAndMaybeFinishTable(req, table_id) {
+  const tbl = await db.fetchrow(
+    `SELECT id, disqualify_score, status FROM rummy_tables WHERE id=$1`,
+    [table_id]
+  );
+  if (!tbl) {
+    return { disqualified_user_ids: [], table_finished: false, champion_user_id: null };
+  }
+  if (tbl.status === "finished") {
+    return { disqualified_user_ids: [], table_finished: true, champion_user_id: null };
+  }
+
+  const limitParsed = parseInt(tbl.disqualify_score, 10);
+  const limit = Number.isFinite(limitParsed) && limitParsed > 0 ? limitParsed : 200;
+
+  const rows = await db.fetch(
+    `SELECT user_id, total_points, disqualified FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`,
+    [table_id]
+  );
+
+  const newlyDisqualified = [];
+  for (const p of rows) {
+    if (p.disqualified) continue;
+    const total = parseInt(p.total_points || 0, 10);
+    if (total >= limit) {
+      const uid = normId(p.user_id);
+      await db.execute(
+        `UPDATE rummy_table_players SET disqualified = true, is_spectator = true, eliminated_at = COALESCE(eliminated_at, now()) WHERE table_id=$1 AND user_id=$2`,
+        [table_id, uid]
+      );
+      newlyDisqualified.push(uid);
+      nspEmit(req, table_id, "player.disqualified", { user_id: uid, total_points: total, limit });
+    }
+  }
+
+  const competitors = await db.fetch(
+    `SELECT user_id FROM rummy_table_players WHERE table_id=$1 AND disqualified = false AND is_spectator = false ORDER BY seat ASC`,
+    [table_id]
+  );
+  const competitorIds = competitors.map((r) => normId(r.user_id));
+
+  if (competitorIds.length < 2) {
+    await db.execute(`UPDATE rummy_tables SET status = 'finished', updated_at = now() WHERE id = $1`, [table_id]);
+    const champion = competitorIds.length === 1 ? competitorIds[0] : null;
+    nspEmit(req, table_id, "table.finished", { champion_user_id: champion, reason: "disqualification_or_elimination" });
+    return {
+      disqualified_user_ids: newlyDisqualified,
+      table_finished: true,
+      champion_user_id: champion,
+    };
+  }
+
+  return { disqualified_user_ids: newlyDisqualified, table_finished: false, champion_user_id: null };
+}
+
 /** Cards still in hand after removing declared groups (14th card / leftovers). */
 function extractLeftoverFromHand(hand, groups) {
   const handCopy = (hand || []).slice();
@@ -336,7 +396,7 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 
     // Get players with profile images
     const players = await db.fetch(
-      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, rp.avatar_url as profile_image_url 
+      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, p.total_points, p.disqualified, rp.avatar_url as profile_image_url 
        FROM rummy_table_players p
        LEFT JOIN rummy_profiles rp ON p.user_id = rp.id
        WHERE p.table_id=$1 
@@ -350,9 +410,16 @@ router.get("/tables/info", requireAuth, async (req, res) => {
       [table_id]
     );
 
+    let champion_user_id = null;
+    if (tbl.status === "finished") {
+      const survivors = (players || []).filter((p) => !p.disqualified && !p.is_spectator);
+      if (survivors.length === 1) champion_user_id = normId(survivors[0].user_id);
+    }
+
     return res.json({
       ...tbl,
       players,
+      champion_user_id,
       active_user_id: rnd ? rnd.active_user_id : null,
       wild_joker_rank: rnd ? rnd.wild_joker_rank : null
     });
@@ -1354,13 +1421,15 @@ router.post("/declare", requireAuth, async (req, res) => {
     for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
 
     await db.execute(
-      `UPDATE rummy_rounds SET winner_user_id=$1, scores=$2::jsonb, declarations = COALESCE(declarations, '{}'::jsonb) || $3::jsonb, finished_at=now(), updated_at=now()
+      `UPDATE rummy_rounds SET winner_user_id=$1, scores=$2::jsonb, declarations = COALESCE(declarations, '{}'::jsonb) || $3::jsonb, finished_at=now(), updated_at=now(), points_accumulated = true
        WHERE id=$4`,
       [isValidDeclaration ? sub : null, JSON.stringify(scoresForDb), JSON.stringify({ [sub]: declarationPayload }), rnd.id]
     );
 
     // Also update table status to round_complete
     await db.execute(`UPDATE rummy_tables SET status='playing' WHERE id=$1`, [table_id]); // keep playing flag; front-end expects finished_at to mark end
+
+    const dqResult = await applyDisqualificationAndMaybeFinishTable(req, table_id);
 
     const responseData = {
       table_id,
@@ -1370,6 +1439,9 @@ router.post("/declare", requireAuth, async (req, res) => {
       status: isValidDeclaration ? "valid" : "invalid",
       message: isValidDeclaration ? "Valid declaration" : `Invalid declaration. ${INVALID_DECLARE_PENALTY} penalty points applied.`,
       scores: scoresForDb,
+      disqualified_user_ids: dqResult.disqualified_user_ids,
+      table_finished: dqResult.table_finished,
+      champion_user_id: dqResult.champion_user_id,
     };
 
     res.json(responseData);
@@ -1378,7 +1450,13 @@ router.post("/declare", requireAuth, async (req, res) => {
     nspEmit(req, table_id, "game_update", { table_id });
     nspEmit(req, table_id, "round.declare", {
       declared_by: sub,
-      result: { valid: isValidDeclaration, scores: scoresForDb }
+      result: {
+        valid: isValidDeclaration,
+        scores: scoresForDb,
+        table_finished: dqResult.table_finished,
+        champion_user_id: dqResult.champion_user_id,
+        disqualified_user_ids: dqResult.disqualified_user_ids,
+      }
     });
     return;
   } catch (e) {
@@ -1560,28 +1638,22 @@ router.post("/round/next", requireAuth, async (req, res) => {
     const last = await db.fetchrow(`SELECT id, number, finished_at FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`, [table_id]);
     if (!last || !last.finished_at) return res.status(400).json({ error: "Last round not finished yet" });
 
-    // Disqualify players over threshold and build active list
-    const players = await db.fetch(
-      `SELECT user_id, seat, total_points, disqualified
-       FROM rummy_table_players
-       WHERE table_id=$1
-       ORDER BY seat ASC`,
-      [table_id]
-    );
-    const activePlayers = [];
-    for (const p of players) {
-      if (p.disqualified) continue;
-      const total = parseInt(p.total_points || 0, 10);
-      if (total >= (tbl.disqualify_score || 200)) {
-        await db.execute(`UPDATE rummy_table_players SET disqualified = true, eliminated_at = now() WHERE table_id=$1 AND user_id=$2`, [table_id, p.user_id]);
-      } else {
-        activePlayers.push(p.user_id);
-      }
+    const dqAtStart = await applyDisqualificationAndMaybeFinishTable(req, table_id);
+    if (dqAtStart.table_finished) {
+      return res.status(400).json({
+        error: "Match ended — not enough active players for another round.",
+        champion_user_id: dqAtStart.champion_user_id,
+      });
     }
 
+    const activeRows = await db.fetch(
+      `SELECT user_id FROM rummy_table_players WHERE table_id=$1 AND disqualified = false AND is_spectator = false ORDER BY seat ASC`,
+      [table_id]
+    );
+    const activePlayers = activeRows.map((r) => r.user_id);
+
     if (activePlayers.length < 2) {
-      // finish table
-      await db.execute(`UPDATE rummy_tables SET status='finished' WHERE id=$1`, [table_id]);
+      await db.execute(`UPDATE rummy_tables SET status='finished', updated_at=now() WHERE id=$1`, [table_id]);
       return res.status(400).json({ error: "Not enough players for next round; table finished" });
     }
 
@@ -1735,7 +1807,14 @@ router.post("/game/drop", requireAuth, async (req, res) => {
     // mark player spectator & apply penalty
     await db.execute(`UPDATE rummy_table_players SET is_spectator=true, total_points = COALESCE(total_points,0) + 20, eliminated_at=now() WHERE table_id=$1 AND user_id=$2`, [table_id, req.user.sub]);
 
-    const responseData = { success: true, penalty_points: 20 };
+    const dqDrop = await applyDisqualificationAndMaybeFinishTable(req, table_id);
+    const responseData = {
+      success: true,
+      penalty_points: 20,
+      table_finished: dqDrop.table_finished,
+      champion_user_id: dqDrop.champion_user_id,
+      disqualified_user_ids: dqDrop.disqualified_user_ids,
+    };
     res.json(responseData);
 
     // 🚀 BROADCAST
@@ -1823,7 +1902,16 @@ router.post("/game/kick-player", requireAuth, async (req, res) => {
       [table_id, target]
     );
 
-    res.json({ success: true, kicked_user_id: target, penalty_points: 20, active_user_id: nextActive });
+    const dqKick = await applyDisqualificationAndMaybeFinishTable(req, table_id);
+    res.json({
+      success: true,
+      kicked_user_id: target,
+      penalty_points: 20,
+      active_user_id: nextActive,
+      table_finished: dqKick.table_finished,
+      champion_user_id: dqKick.champion_user_id,
+      disqualified_user_ids: dqKick.disqualified_user_ids,
+    });
 
     nspEmit(req, table_id, "game_update", { table_id });
     nspEmit(req, table_id, "player.kicked", { user_id: target, penalty: 20, by_host: normId(req.user.sub) });

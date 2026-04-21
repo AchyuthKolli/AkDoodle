@@ -10,6 +10,8 @@ import {
   onVoiceStatus,
   onDeclareUpdate,
   onCardDiscarded,
+  onPlayerDisqualified,
+  onTableFinished,
   onSpectateUpdate,
 } from "../socket";
 
@@ -560,6 +562,30 @@ export default function Table() {
       refresh().catch(() => {});
     });
 
+    onPlayerDisqualified((payload) => {
+      const uid = payload?.user_id;
+      const lim = payload?.limit ?? "?";
+      const pts = payload?.total_points ?? "?";
+      if (uid && user?.id && uid === user.id) {
+        toast.error(`You reached the table limit (${pts} ≥ ${lim} pts) and are disqualified. You can spectate or leave the table.`, { duration: 6000 });
+      } else {
+        toast.info(`A player was disqualified (reached ${lim} pts).`, { duration: 4000 });
+      }
+      refresh().catch(() => {});
+    });
+
+    onTableFinished((payload) => {
+      const champ = payload?.champion_user_id;
+      if (champ && user?.id && champ === user.id) {
+        toast.success("Match over — you are the winner!", { duration: 6000 });
+      } else if (champ) {
+        toast.success("Match over — a player has won the table.", { duration: 5000 });
+      } else {
+        toast.info("Match over.", { duration: 4000 });
+      }
+      refresh().catch(() => {});
+    });
+
     onVoiceStatus((data) => {
       console.log("🎤 Voice update:", data);
       if (data.userId === user.id) setVoiceMuted(data.muted);
@@ -581,6 +607,8 @@ export default function Table() {
       socket.off("table.state");
       socket.off("round.declare");
       socket.off("card.discarded");
+      socket.off("player.disqualified");
+      socket.off("table.finished");
       socket.off("declare_made");
       socket.off("voice.muted");
       socket.off("voice.unmuted");
@@ -1432,6 +1460,22 @@ export default function Table() {
               </button>
             </div>
           </div>
+
+          {!loading && info?.status === "finished" && (
+            <div className="mb-4 rounded-lg border border-amber-600/50 bg-amber-950/50 px-4 py-3 text-amber-100 text-sm">
+              <span className="font-semibold">This table has ended</span>
+              {info.champion_user_id ? (
+                <span className="ml-2">
+                  — Winner:{" "}
+                  {info.players?.find((p) => p.user_id === info.champion_user_id)?.display_name ||
+                    info.champion_user_id?.slice(0, 8) ||
+                    "Player"}
+                </span>
+              ) : (
+                <span className="ml-2 text-amber-200/90">— No single winner recorded (all disqualified or left).</span>
+              )}
+            </div>
+          )}
 
           {/* layout - left main, right sidebar */}
           {loading ? (
