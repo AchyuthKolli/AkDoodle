@@ -216,88 +216,8 @@ const MeldSlotBox = ({
                 const cardData = e.dataTransfer.getData("card");
                 if (cardData) handleSlotDrop(i, cardData);
               }}
-              onTouchEnd={(e) => {
-                // Mobile drop support
-                const cardData = e.target.getAttribute("data-card-json") || e.currentTarget.getAttribute("data-card-json");
-                // Wait... the drag source (HandStrip) puts data on e.target.dataset.card?
-                // Actually the HandStrip sets `e.target.dataset.card`.
-                // BUT `onTouchEnd` fires on the target element (the slot) IF we finger-up there?
-                // No, standard touch events don't work like drag-and-drop.
-                // We need `onDrop` equivalent. HandStrip uses `document.elementFromPoint` in `handleTouchMove` to find drop target.
-                // It calls `handleTouchEnd` which checks `dropTargetIndex`.
-                // HandStrip is handling the drop on HAND side reorder.
-                // For transferring to MeldSlotBox, we need the MeldSlotBox to be detectable by `document.elementFromPoint`.
-                // HandStrip's `handleTouchEnd` logic only reorders hand. It doesn't seem to support dropping onto external targets?
-                // Wait, let's look at HandStrip `handleTouchEnd` again.
-                // It checks `dropTargetIndex` inside the Hand.
-                // To support Hand -> Meld, we need a different mechanism or HandStrip update.
-                // HOWEVER, if we follow the pattern in MeldBoard.jsx (the unused one), it used `onTouchEnd` on the slot.
-                // But touch events bubble. If we drag a Ghost element...
-                // HandStrip implementation:
-                // `handleTouchMove` -> `document.elementFromPoint`.
-                // If the user drags finger over MeldSlotBox, we need MeldSlotBox to handle it?
-                // Actually HandStrip `handleTouchMove` seems scoped to "wrapper" (the hand cards).
-                // Let's rely on adding `data-drop-zone="meld"` attributes maybe?
-                //
-                // Standard workaround:
-                // We add `onTouchUp` or similar?
-                // Actually, let's look at the MeldBoard.jsx attempt:
-                // onTouchEnd={(e) => { const json = e.target.dataset.card; ... }}
-                // That implies the card ITSELF (the drag source) has the data.
-                // But `onTouchEnd` fires on the element where touch ended? NO, it fires on the element where touch STARTED (unless captured).
-                // So adding onTouchEnd to MeldSlotBox won't help if the touch started on HandCard.
-                //
-                // We need to fix this properly.
-                // But for now, let's assume `HandStrip` needs to be able to drop 'externally'.
-                // If I just add `onDrop` it works for Mouse.
-                // For Touch, the HandStrip `handleTouchMove` needs modification to detect external drop zones.
-                // OR we accept that `MeldBoard.jsx` (which User sent as reference images implies existed?) had logic.
-                //
-                // Let's implement `data-meld-index={i}` on the slot.
-                // AND since I can't easily change HandStrip global touch logic without breaking reorder:
-                // I will add `onDragOver` / `onDrop` for Mouse (already there).
-                // I will try to support Touch by adding `data-drop-zone` attributes that HandStrip COULD use if we update it.
-                //
-                // Wait, if I am forced to fix it in THIS file:
-                // I'll leave the Mouse `onDrop` as is.
-                // I will add `data-meld-slot={i}` to facilitate potential detection.
-                // AND I will add `onTouchEnd` just in case the User is using a library that fires it, or if they drag the card perfectly?
-                // Actually, standard HTML5 Drag and Drop API *sometimes* has polyfills for touch.
-                // If no polyfill, we need custom code.
-                // The user request says "Cards not draggable...".
-                // I will add the `onTouchEnd` handler similar to `MeldBoard.jsx` just in case.
-                // It might interact with a global handler or the card's touch end.
-                //
-                // Re-reading MeldBoard.jsx (lines 172-178):
-                // onTouchEnd={(e) => { const json = e.target.dataset.card; if(json) onDropCard(...) }}
-                // This looks like it expects the *card being dragged* (which started the touch) to trigger this?
-                // No, that would trigger on the card.
-                // If the user taps the slot? Click-to-move was also requested.
-                // "restore drag-and-drop (or click-to-move)"
-                // I will implements CLICK TO MOVE. This is much more reliable for accessibility and mobile.
-                // Mechanism: User selects card in Hand (already `selectedCard`). User clicks Slot. Card moves.
-                //
-                // Code below implements:
-                // 1. Mouse Drop (existing)
-                // 2. Click (handleSlotClick is for removing. I need to handle ADDING too).
-                //
-              }}
               onClick={() => {
-                // If slot is empty and we have a selected card, move it here!
-                if (!card && selectedCard && myRound && !isLocked) {
-                  // We need to construct the card JSON to reuse handleSlotDrop or just call logic
-                  // The `selectedCard` is state object.
-                  // We need to be careful about format.
-                  const cardJson = JSON.stringify(selectedCard);
-                  handleSlotDrop(i, cardJson);
-                  // Optionally clear selection?
-                  // The handleSlotDrop doesn't clear selection. Table.jsx handling of discard does.
-                  // We might want to notify Table to clear selection?
-                  // But `setSlots` is local.
-                  // The user might want to move multiple cards.
-                } else {
-                  handleSlotClick(i);
-                }
+                handleSlotClick(i);
               }}
               className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
             >
@@ -407,13 +327,7 @@ const LeftoverSlotBox = ({
                 if (cardData) handleSlotDrop(i, cardData);
               }}
               onClick={() => {
-                // Click to move logic
-                if (!card && selectedCard && myRound && !isLocked) {
-                  const cardJson = JSON.stringify(selectedCard);
-                  handleSlotDrop(i, cardJson);
-                } else {
-                  handleSlotClick(i);
-                }
+                handleSlotClick(i);
               }}
               className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
             >
@@ -700,7 +614,7 @@ export default function Table() {
     if (!myRound) return [];
 
     // Normalize key helper
-    const getKey = (c) => `${String(c.rank)}-${String(c.suit || "null")}`;
+    const getKey = (c) => `${String(c.rank)}-${String(c.suit || "null")}-${c?.joker ? "1" : "0"}`;
 
     const placedCounts = new Map();
     placedCards.forEach((card) => {
@@ -1236,12 +1150,6 @@ export default function Table() {
     setSelectedCardIndex(idx);
   };
 
-  const onReorderHand = (reorderedHand) => {
-    if (myRound) {
-      setMyRound({ ...myRound, hand: reorderedHand });
-    }
-  };
-
   const onSelectCard = (card) => {
     // Legacy support if needed, but prefer onCardSelect
     if (!hasDrawn) return;
@@ -1637,7 +1545,6 @@ export default function Table() {
                             onCardClick={onCardSelect}
                             selectedIndex={selectedCardIndex}
                             highlightIndex={-1}
-                            onReorder={onReorderHand}
                             draggedIndexExternal={draggedCardIndex}
                             setDraggedIndexExternal={setDraggedCardIndex}
                             onExternalDrop={(cardIndex, zoneId) => {

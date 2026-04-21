@@ -445,8 +445,14 @@ router.post("/tables/join", requireAuth, async (req, res) => {
       table_id,
     ]);
     if (!tbl) return res.status(404).json({ error: "Table not found" });
-    if (tbl.status !== "waiting")
-      return res.status(400).json({ error: "Round already started" });
+
+    const existing = await db.fetchrow(
+      `SELECT seat, is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+      [table_id, req.user.sub]
+    );
+    if (existing) {
+      return res.json({ table_id, seat: existing.seat, is_spectator: !!existing.is_spectator });
+    }
 
     const seated = await db.fetch(
       `SELECT seat FROM rummy_table_players WHERE table_id=$1 ORDER BY seat`,
@@ -456,8 +462,11 @@ router.post("/tables/join", requireAuth, async (req, res) => {
     const used = seated.map((r) => r.seat);
     let seat = 1;
     while (used.includes(seat)) seat++;
-    if (seat > tbl.max_players)
+    const joiningAsSpectator = tbl.status === "playing";
+    if (!joiningAsSpectator && seat > tbl.max_players)
       return res.status(400).json({ error: "Table is full" });
+    if (tbl.status === "finished")
+      return res.status(400).json({ error: "Table already finished" });
 
     // Get user name
     const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
@@ -465,14 +474,14 @@ router.post("/tables/join", requireAuth, async (req, res) => {
 
     await db.execute(
       `
-      INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO rummy_table_players (table_id, user_id, seat, display_name, is_spectator)
+      VALUES ($1, $2, $3, $4, $5)
       ON CONFLICT DO NOTHING
     `,
-      [table_id, req.user.sub, seat, name]
+      [table_id, req.user.sub, seat, name, joiningAsSpectator]
     );
 
-    res.json({ table_id, seat });
+    res.json({ table_id, seat, is_spectator: joiningAsSpectator });
   } catch (e) {
     res.status(500).json({ error: "Join table error" });
   }
@@ -491,8 +500,14 @@ router.post("/tables/join-by-code", requireAuth, async (req, res) => {
       [code.toUpperCase()]
     );
     if (!tbl) return res.status(404).json({ error: "Invalid code" });
-    if (tbl.status !== "waiting")
-      return res.status(400).json({ error: "Game already started" });
+
+    const existing = await db.fetchrow(
+      `SELECT seat, is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+      [tbl.id, req.user.sub]
+    );
+    if (existing) {
+      return res.json({ table_id: tbl.id, seat: existing.seat, is_spectator: !!existing.is_spectator });
+    }
 
     const seated = await db.fetch(
       `SELECT seat FROM rummy_table_players WHERE table_id=$1 ORDER BY seat`,
@@ -502,21 +517,24 @@ router.post("/tables/join-by-code", requireAuth, async (req, res) => {
 
     let seat = 1;
     while (used.includes(seat)) seat++;
-    if (seat > tbl.max_players)
+    const joiningAsSpectator = tbl.status === "playing";
+    if (!joiningAsSpectator && seat > tbl.max_players)
       return res.status(400).json({ error: "Table full" });
+    if (tbl.status === "finished")
+      return res.status(400).json({ error: "Table already finished" });
 
     // Get user name
     const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
     const name = profile?.display_name || "Player";
 
     await db.execute(
-      `INSERT INTO rummy_table_players (table_id, user_id, seat, display_name)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO rummy_table_players (table_id, user_id, seat, display_name, is_spectator)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT DO NOTHING`,
-      [tbl.id, req.user.sub, seat, name]
+      [tbl.id, req.user.sub, seat, name, joiningAsSpectator]
     );
 
-    res.json({ table_id: tbl.id, seat });
+    res.json({ table_id: tbl.id, seat, is_spectator: joiningAsSpectator });
   } catch (e) {
     res.status(500).json({ error: "Join-by-code error" });
   }
@@ -563,7 +581,8 @@ router.post("/start-game", requireAuth, async (req, res) => {
     const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
     const suits = ["H", "D", "S", "C"];
 
-    for (let d = 0; d < 2; d++) {
+    const deckCount = players.length <= 2 ? 1 : players.length <= 4 ? 2 : 3;
+    for (let d = 0; d < deckCount; d++) {
       for (const r of ranks)
         for (const s of suits)
           deck.push({ rank: r, suit: s, joker: false });
@@ -624,6 +643,7 @@ router.post("/start-game", requireAuth, async (req, res) => {
       number: 1,
       active_user_id: players[0].user_id,
       stock_count: stock.length,
+      deck_count: deckCount,
       discard_top: serializeCard(discard[0]),
     });
 

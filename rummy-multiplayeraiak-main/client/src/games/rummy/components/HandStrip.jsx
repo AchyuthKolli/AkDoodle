@@ -53,6 +53,11 @@ export const HandStrip = ({
       return;
     }
 
+    if (!onReorder) {
+      endDrag();
+      return;
+    }
+
     const newHand = [...hand];
     const [card] = newHand.splice(draggedIndex, 1);
     newHand.splice(dropIndex, 0, card);
@@ -127,7 +132,7 @@ export const HandStrip = ({
       }
     }
     // Check internal reorder
-    else if (start != null && dropTargetIndex != null && dropTargetIndex !== start.index) {
+    else if (onReorder && start != null && dropTargetIndex != null && dropTargetIndex !== start.index) {
       const newHand = [...hand];
       const [c] = newHand.splice(start.index, 1);
       newHand.splice(dropTargetIndex, 0, c);
@@ -146,7 +151,7 @@ export const HandStrip = ({
           <div
             key={`${card.rank}-${card.suit}-${idx}`}
             data-card-index={idx}
-            draggable={!!onReorder}
+            draggable={!!(onReorder || onExternalDrop)}
             onDragStart={(e) => handleDragStart(e, idx)}
             onDragOver={(e) => handleDragOver(e, idx)}
             onDrop={(e) => handleDrop(e, idx)}
