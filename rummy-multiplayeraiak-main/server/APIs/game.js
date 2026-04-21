@@ -754,6 +754,12 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
     const { table_id, meld } = req.body;
     if (!table_id || !Array.isArray(meld)) return res.status(400).json({ error: "Invalid request" });
 
+    const tbl = await db.fetchrow(`SELECT wild_joker_mode FROM rummy_tables WHERE id=$1`, [table_id]);
+    if (!tbl) return res.status(404).json({ error: "Table not found" });
+    if (String(tbl.wild_joker_mode || "").toLowerCase() !== "closed_joker") {
+      return res.status(400).json({ success: false, message: "Lock & Reveal is available only in closed wildcard mode" });
+    }
+
     // Fetch latest round
     const rnd = await db.fetchrow(
       `SELECT id, wild_joker_rank, players_with_first_sequence
@@ -774,10 +780,16 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
       return res.json({ success: false, message: "You already revealed the wild joker", wild_joker_revealed: false });
     }
 
-    // Validate meld: we rely on your existing server-side validation utilities in Libraries for full validation.
-    // Minimal validation here: must be exactly 3 cards, same suit, consecutive ranks ignoring wildcard (more robust logic can be plugged).
-    if (!Array.isArray(meld) || meld.length !== 3) {
-      return res.status(400).json({ success: false, message: "Fill all 3 slots to lock a sequence" });
+    // Pure sequence can be 3 or 4 cards for lock/reveal.
+    if (!Array.isArray(meld) || (meld.length !== 3 && meld.length !== 4)) {
+      return res.status(400).json({ success: false, message: "Use a pure sequence of 3 or 4 cards to lock" });
+    }
+
+    if (scoring && typeof scoring.isPureSequence === "function") {
+      const pure = !!scoring.isPureSequence(meld, rnd.wild_joker_rank || null, false);
+      if (!pure) {
+        return res.status(400).json({ success: false, message: "Selected cards are not a pure sequence" });
+      }
     }
 
     // NOTE: In the original FastAPI implementation you had is_sequence/is_pure_sequence helpers.
@@ -794,7 +806,7 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
     // Respond with the stored wild joker rank (may be null in no-joker mode)
     res.json({
       success: true,
-      message: "Pure sequence locked. Wild joker revealed (if set).",
+      message: "Pure sequence locked. Wild joker revealed.",
       wild_joker_revealed: true,
       wild_joker_rank: rnd.wild_joker_rank || null,
     });

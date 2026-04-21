@@ -137,8 +137,8 @@ const MeldSlotBox = ({
 
   const handleLockSequence = async () => {
     const cards = slots.filter((s) => s !== null);
-    if (cards.length !== 3) {
-      toast.error("Fill all 3 slots to lock a sequence");
+    if (cards.length < 3 || cards.length > 4) {
+      toast.error("Use a pure sequence of 3 or 4 cards to reveal wildcard");
       return;
     }
     setLocking(true);
@@ -166,8 +166,8 @@ const MeldSlotBox = ({
     }
   };
 
-  const isNoJoker = (gameMode || "").toLowerCase().includes("no") && (gameMode || "").toLowerCase().includes("joker");
-  // Also check if mode is explicitly "classic" if that implies no joker? Assuming "No Joker" string from user report.
+  const mode = String(gameMode || "").toLowerCase();
+  const isClosedJoker = mode === "closed_joker";
 
   return (
     <>
@@ -178,11 +178,11 @@ const MeldSlotBox = ({
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] text-purple-400">{title} ({capacity} cards)</p>
           <div className="flex items-center gap-1">
-            {!isLocked && !isNoJoker && (
+            {isClosedJoker && (
               <button
                 onClick={handleLockSequence}
                 disabled={locking}
-                title={slots.filter(s => s !== null).length < 3 ? "Add 3+ cards first" : "Lock & Reveal Wildcard (Requires Pure Sequence)"}
+                title={slots.filter(s => s !== null).length < 3 ? "Add 3 or 4 pure cards first" : "Reveal wildcard (pure sequence required)"}
                 className="text-[10px] px-2 py-0.5 bg-green-700 text-green-100 rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {locking ? "..." : "🔒 Lock & Reveal"}
@@ -1150,6 +1150,64 @@ export default function Table() {
     setSelectedCardIndex(idx);
   };
 
+  const dropHandCardToZone = (zoneIndex, card) => {
+    if (!card) return false;
+    if (zoneIndex === 0) {
+      if (meldLocks.meld1) return false;
+      const i = meld1.findIndex((x) => x === null);
+      if (i === -1) return false;
+      const next = [...meld1];
+      next[i] = card;
+      setMeld1(next);
+      return true;
+    }
+    if (zoneIndex === 1) {
+      if (meldLocks.meld2) return false;
+      const i = meld2.findIndex((x) => x === null);
+      if (i === -1) return false;
+      const next = [...meld2];
+      next[i] = card;
+      setMeld2(next);
+      return true;
+    }
+    if (zoneIndex === 2) {
+      if (meldLocks.meld3) return false;
+      const i = meld3.findIndex((x) => x === null);
+      if (i === -1) return false;
+      const next = [...meld3];
+      next[i] = card;
+      setMeld3(next);
+      return true;
+    }
+    if (zoneIndex === 3) {
+      if (meldLocks.meld4) return false;
+      const i = meld4.findIndex((x) => x === null);
+      if (i === -1) return false;
+      const next = [...meld4];
+      next[i] = card;
+      setMeld4(next);
+      return true;
+    }
+    if (zoneIndex === 4) {
+      if (meldLocks.leftover) return false;
+      const i = leftover.findIndex((x) => x === null);
+      if (i === -1) return false;
+      const next = [...leftover];
+      next[i] = card;
+      setLeftover(next);
+      return true;
+    }
+    return false;
+  };
+
+  useEffect(() => {
+    if (selectedCardIndex == null) return;
+    if (selectedCardIndex >= availableHand.length) {
+      setSelectedCardIndex(null);
+      setSelectedCard(null);
+    }
+  }, [availableHand.length, selectedCardIndex]);
+
   const onSelectCard = (card) => {
     // Legacy support if needed, but prefer onCardSelect
     if (!hasDrawn) return;
@@ -1550,13 +1608,15 @@ export default function Table() {
                             onExternalDrop={(cardIndex, zoneId) => {
                               if (!availableHand || !availableHand[cardIndex]) return;
                               const card = availableHand[cardIndex];
-                              const cardJson = JSON.stringify(card);
-
                               if (zoneId.startsWith("meld-")) {
                                 const meldIdx = parseInt(zoneId.split("-")[1]);
-                                if (!isNaN(meldIdx)) handleSlotDrop(meldIdx, cardJson);
+                                if (!isNaN(meldIdx)) {
+                                  const ok = dropHandCardToZone(meldIdx, card);
+                                  if (!ok) toast.error("Drop failed: slot full or locked");
+                                }
                               } else if (zoneId === "deadwood") {
-                                handleSlotDrop(4, cardJson);
+                                const ok = dropHandCardToZone(4, card);
+                                if (!ok) toast.error("Drop failed: deadwood slot full or locked");
                               }
                             }}
                           />
