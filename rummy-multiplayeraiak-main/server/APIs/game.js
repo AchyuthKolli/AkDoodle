@@ -153,6 +153,7 @@ function buildOrganizedScoreboardForUser({
   isSpectator,
   wildJokerRank,
   wildJokerRevealed = true,
+  snapshot,
 }) {
   const uid = normId(userId);
   const declarer = declarerUserId ? normId(declarerUserId) : null;
@@ -218,6 +219,9 @@ function buildOrganizedScoreboardForUser({
     };
   }
 
+  const snapLayout = buildFromSnapshotLayout(hand || [], snapshot, wildJokerRank, wildJokerRevealed);
+  if (snapLayout) return snapLayout;
+
   const auto = scoring.organizeHandByMelds(hand || [], wildJokerRank, wildJokerRevealed);
   const { meld1, meld2, meld3, meld4, remainder, slot_kind } = splitAutoMeldsIntoSlots(auto);
   return {
@@ -260,6 +264,66 @@ function sanitizeMeldSlotForSnapshot(arr) {
   return arr
     .filter((c) => c && typeof c === "object" && c.rank)
     .map((c) => ({ rank: String(c.rank), suit: c.suit || null, joker: !!c.joker }));
+}
+
+function cardsEqualForSnapshot(a, b) {
+  return (
+    a &&
+    b &&
+    a.rank === b.rank &&
+    (a.suit || null) === (b.suit || null) &&
+    (!!a.joker) === (!!b.joker)
+  );
+}
+
+function removeSnapshotCardsFromHand(hand, cards) {
+  const src = Array.isArray(hand) ? hand.slice() : [];
+  for (const c of cards || []) {
+    const idx = src.findIndex((h) => cardsEqualForSnapshot(h, c));
+    if (idx === -1) return { ok: false, remaining: Array.isArray(hand) ? hand.slice() : [] };
+    src.splice(idx, 1);
+  }
+  return { ok: true, remaining: src };
+}
+
+function buildFromSnapshotLayout(hand, snap, wildJokerRank, wildJokerRevealed) {
+  const baseHand = Array.isArray(hand) ? hand : [];
+  if (!snap || typeof snap !== "object") return null;
+
+  const slots = ["meld1", "meld2", "meld3", "meld4"].map((k) => sanitizeMeldSlotForSnapshot(snap[k]));
+  const leftover = sanitizeMeldSlotForSnapshot(snap.leftover);
+  const anyPlaced = slots.some((s) => s.length > 0) || leftover.length > 0;
+  if (!anyPlaced) return null;
+
+  let remaining = baseHand.slice();
+  for (const g of slots) {
+    const out = removeSnapshotCardsFromHand(remaining, g);
+    if (!out.ok) return null;
+    remaining = out.remaining;
+  }
+  const outLeft = removeSnapshotCardsFromHand(remaining, leftover);
+  if (!outLeft.ok) return null;
+  remaining = outLeft.remaining;
+
+  const slot_kind = slots.map((g) =>
+    g.length ? classifySingleGroup(g, wildJokerRank, wildJokerRevealed) : null
+  );
+  const classified = classifyDeclaredGroups(
+    slots.filter((g) => g.length > 0),
+    wildJokerRank,
+    wildJokerRevealed
+  );
+  return {
+    ...classified,
+    meld1: slots[0],
+    meld2: slots[1],
+    meld3: slots[2],
+    meld4: slots[3],
+    deadwood: leftover,
+    hand_remainder: remaining,
+    ungrouped: remaining,
+    slot_kind,
+  };
 }
 
 function nextActiveAfterKick(activeUserId, seatOrder, kickedUserId) {
@@ -1245,6 +1309,7 @@ router.post("/declare", requireAuth, async (req, res) => {
         isSpectator: !!spectatorMap[uid],
         wildJokerRank: wild_joker_rank,
         wildJokerRevealed: wild_joker_revealed,
+        snapshot: meld_snapshots[uid] || null,
       });
     }
     for (const uid of Object.keys(hands)) {
@@ -1258,6 +1323,7 @@ router.post("/declare", requireAuth, async (req, res) => {
         isSpectator: !!spectatorMap[n],
         wildJokerRank: wild_joker_rank,
         wildJokerRevealed: wild_joker_revealed,
+        snapshot: meld_snapshots[n] || null,
       });
     }
 
@@ -1312,7 +1378,7 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
     const rnd = await db.fetchrow(
-      `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id, wild_joker_rank, game_mode, players_with_first_sequence
+      `SELECT id, number, finished_at, hands, scores, declarations, winner_user_id, wild_joker_rank, game_mode, players_with_first_sequence, meld_snapshots
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
@@ -1333,6 +1399,8 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     scores = normalizeKeyedJson(scores);
     let declarations = typeof rnd.declarations === "string" ? JSON.parse(rnd.declarations) : (rnd.declarations || {});
     declarations = normalizeKeyedJson(declarations);
+    let meldSnapshots = typeof rnd.meld_snapshots === "string" ? JSON.parse(rnd.meld_snapshots) : (rnd.meld_snapshots || {});
+    meldSnapshots = normalizeKeyedJson(meldSnapshots);
 
     const declared_by = pickDeclarerUserId(declarations, rnd.winner_user_id);
     const declarationRecordRaw = declared_by ? declarations[declared_by] : null;
@@ -1367,6 +1435,7 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
         isSpectator: spectatorByUser[uid],
         wildJokerRank,
         wildJokerRevealed: wild_joker_revealed,
+        snapshot: meldSnapshots[uid] || null,
       });
     }
     for (const uid of Object.keys(hands)) {
@@ -1380,6 +1449,7 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
         isSpectator: !!spectatorByUser[n],
         wildJokerRank,
         wildJokerRevealed: wild_joker_revealed,
+        snapshot: meldSnapshots[n] || null,
       });
     }
 

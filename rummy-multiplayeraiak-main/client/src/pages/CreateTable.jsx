@@ -373,7 +373,7 @@ export default function CreateTable() {
             {/* Loser scoring when someone wins with a valid declare */}
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Loser card count (others lose the round)
+                Loser card count (others lose the round) <span className="text-amber-300">®</span>
               </label>
               <div className="space-y-2">
                 <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-600 bg-slate-900/40 cursor-pointer hover:border-slate-500">
