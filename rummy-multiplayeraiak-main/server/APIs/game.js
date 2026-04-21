@@ -689,7 +689,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
 
     // Get latest round
     const rnd = await db.fetchrow(
-      `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at
+      `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
@@ -727,13 +727,19 @@ router.get("/round/me", requireAuth, async (req, res) => {
       code: c.joker && c.rank === "JOKER" ? "JOKER" : `${c.rank}${c.suit || ""}`,
     }));
 
+    const wild_joker_revealed = wildJokerEffectivelyRevealed(
+      rnd.game_mode,
+      rnd.wild_joker_rank,
+      rnd.players_with_first_sequence
+    );
+
     return res.json({
       table_id,
       round_number: rnd.number,
       hand: handView,
       stock_count: stock.length,
       discard_top,
-      wild_joker_revealed: !!rnd.wild_joker_revealed, // legacy field may be absent
+      wild_joker_revealed,
       wild_joker_rank: rnd.wild_joker_rank || null,
       finished_at: rnd.finished_at ? new Date(rnd.finished_at).toISOString() : null,
       active_user_id: rnd.active_user_id || null,

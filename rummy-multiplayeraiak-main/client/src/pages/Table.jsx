@@ -98,10 +98,9 @@ const MeldSlotBox = ({
   gameMode,
   capacity = 3,
   boxIndex, // New prop
+  onWildReveal,
 }) => {
   const [locking, setLocking] = useState(false);
-  const [showRevealModal, setShowRevealModal] = useState(false);
-  const [revealedRank, setRevealedRank] = useState(null);
 
   const handleSlotDrop = (slotIndex, cardData) => {
     if (!myRound || isLocked) {
@@ -151,8 +150,7 @@ const MeldSlotBox = ({
         toast.success(data.message);
         if (onToggleLock) onToggleLock();
         if (data.wild_joker_revealed && data.wild_joker_rank) {
-          setRevealedRank(data.wild_joker_rank);
-          setShowRevealModal(true);
+          onWildReveal?.(data.wild_joker_rank);
           setTimeout(() => onRefresh(), 500);
         }
       } else {
@@ -233,9 +231,6 @@ const MeldSlotBox = ({
         </div>
       </div>
 
-      {revealedRank && (
-        <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
-      )}
     </>
   );
 };
@@ -253,8 +248,6 @@ const LeftoverSlotBox = ({
   capacity = 3,
 }) => {
   const [locking, setLocking] = useState(false);
-  const [showRevealModal, setShowRevealModal] = useState(false);
-  const [revealedRank, setRevealedRank] = useState(null);
 
   const handleSlotDrop = (slotIndex, cardData) => {
     if (!myRound || isLocked) return;
@@ -343,11 +336,6 @@ const LeftoverSlotBox = ({
         </div>
       </div>
 
-
-      {revealedRank && (
-        <WildJokerRevealModal isOpen={showRevealModal} onClose={() => setShowRevealModal(false)} wildJokerRank={revealedRank} />
-      )
-      }
     </>
   );
 };
@@ -702,11 +690,6 @@ export default function Table() {
 
       setInfo(data);
 
-      // Keep wild joker visible after reveal
-      if (data.wild_joker_rank) {
-        setRevealedWildJoker(data.wild_joker_rank);
-      }
-
       if (data.status === "playing") {
         const r = { table_id: tableId };
         const rr = await apiclient.get_round_me(r);
@@ -718,6 +701,11 @@ export default function Table() {
         }
         const roundData = await rr.json();
         setMyRound(roundData);
+        if (roundData.wild_joker_revealed && roundData.wild_joker_rank) {
+          setRevealedWildJoker(roundData.wild_joker_rank);
+        } else {
+          setRevealedWildJoker(null);
+        }
         const newHasDrawn = roundData.hand.length === 14;
         setHasDrawn(newHasDrawn);
       }
@@ -1372,19 +1360,6 @@ export default function Table() {
       <div className="relative">
         <GameRules defaultOpen={false} />
 
-        {/* Mobile Portrait Warning Overlay */}
-        <div className="lg:hidden fixed inset-0 z-[60] bg-black/95 flex flex-col items-center justify-center p-8 text-center pointer-events-auto landscape:hidden">
-          <div className="mb-6 animate-bounce">
-            <svg className="w-16 h-16 text-yellow-500 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Please Rotate Your Device</h2>
-          <p className="text-slate-400">
-            For the best Rummy experience, please flip your phone to landscape mode.
-          </p>
-        </div>
-
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
@@ -1431,7 +1406,7 @@ export default function Table() {
                     <div className="flex flex-col h-full relative">
                       {/* Top: Table Area (Opponents + Center Piles) */}
                       {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="table-3d-container relative flex-1 min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
+                      <div className="table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
                         <CasinoTable3D tableColor={tableColor}>
                           {/* Color Toggle */}
                           <div className="absolute top-4 right-4 z-50 flex gap-2">
@@ -1451,7 +1426,7 @@ export default function Table() {
                           <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
 
                           {/* Center Piles (Deck & Discard) */}
-                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-12 z-10">
+                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-5 sm:gap-12 z-10">
                             {/* Deck/Stock */}
                             <div
                               onClick={onDrawStock}
@@ -1487,13 +1462,26 @@ export default function Table() {
                             </div>
                           </div>
 
-                          {/* Wild Joker Display on Table */}
-                          {revealedWildJoker && (
-                            <div className="absolute top-4 left-4 bg-black/40 backdrop-blur border border-yellow-500/30 p-2 rounded-lg flex flex-col items-center">
-                              <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">Wild Joker</span>
-                              <div className="text-xl font-bold text-white">{revealedWildJoker}</div>
-                            </div>
-                          )}
+                          {/* Wild Joker Display near center piles */}
+                          {(() => {
+                            const mode = String(info?.wild_joker_mode || "").toLowerCase();
+                            const isOpen = mode === "open_joker";
+                            const isClosed = mode === "closed_joker";
+                            if (!isOpen && !isClosed) return null;
+                            const shouldShowCard = isOpen || (isClosed && !!revealedWildJoker);
+                            const card = shouldShowCard
+                              ? { rank: revealedWildJoker, suit: null, joker: false }
+                              : { rank: "JOKER", suit: null, joker: true, faceDown: true };
+                            const label = shouldShowCard ? "Wild Joker" : "Wild Joker (Hidden)";
+                            return (
+                              <div className="absolute top-3 left-1/2 -translate-x-1/2 sm:top-4 sm:left-4 sm:translate-x-0 bg-black/40 backdrop-blur border border-yellow-500/30 p-2 rounded-lg flex flex-col items-center z-20">
+                                <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider mb-1">{label}</span>
+                                <div className="scale-75 sm:scale-90 origin-top">
+                                  <PlayingCard card={card} draggable={false} />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </CasinoTable3D>
                       </div>
 
@@ -1513,6 +1501,10 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             capacity={3}
                             boxIndex={0}
+                            onWildReveal={(rank) => {
+                              setRevealedWildJoker(rank);
+                              setShowWildJokerReveal(true);
+                            }}
                           />
                           <MeldSlotBox
                             title="Meld 2"
@@ -1526,6 +1518,10 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             capacity={3}
                             boxIndex={1}
+                            onWildReveal={(rank) => {
+                              setRevealedWildJoker(rank);
+                              setShowWildJokerReveal(true);
+                            }}
                           />
                           <MeldSlotBox
                             title="Meld 3"
@@ -1539,6 +1535,10 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             capacity={3}
                             boxIndex={2}
+                            onWildReveal={(rank) => {
+                              setRevealedWildJoker(rank);
+                              setShowWildJokerReveal(true);
+                            }}
                           />
                           <MeldSlotBox
                             title="Meld 4"
@@ -1551,6 +1551,11 @@ export default function Table() {
                             onRefresh={refresh}
                             capacity={4}
                             boxIndex={3}
+                            gameMode={info.wild_joker_mode}
+                            onWildReveal={(rank) => {
+                              setRevealedWildJoker(rank);
+                              setShowWildJokerReveal(true);
+                            }}
                           />
                           <LeftoverSlotBox
                             slots={leftover}
@@ -1690,6 +1695,12 @@ export default function Table() {
                   {user && info && tableId && (
                     <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
                   )}
+
+                  <WildJokerRevealModal
+                    isOpen={showWildJokerReveal}
+                    onClose={() => setShowWildJokerReveal(false)}
+                    wildJokerRank={revealedWildJoker || ""}
+                  />
 
 
                   {/* --- existing UI continues unchanged --- */}
