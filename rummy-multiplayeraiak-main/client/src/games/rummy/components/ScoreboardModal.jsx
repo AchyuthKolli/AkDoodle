@@ -111,6 +111,13 @@ export const ScoreboardModal = ({
 
   const winnerName =
     sortedPlayers.find((p) => p.isWinner)?.display_name || "Winner";
+  const modeLabel = String(loserDeadwoodMode || "auto_optimal").toLowerCase() === "submit_or_full"
+    ? "Strict (submit_or_full)"
+    : "Auto + meld board (auto_optimal)";
+  const aceLabel = aceValue === 1 ? "A=1" : "A=10";
+  const faceLabel = String(faceCardMode || "ten").toLowerCase() === "rank"
+    ? "J=11, Q=12, K=13"
+    : "J=10, Q=10, K=10";
 
   const handleStartNextRound = async () => {
     setStartingNextRound(true);
@@ -174,6 +181,16 @@ export const ScoreboardModal = ({
                 <LoserScoringRulesHelp currentMode={loserDeadwoodMode} aceValue={aceValue} faceCardMode={faceCardMode} />
               </div>
             )}
+          </div>
+
+          <div className="rounded-lg border border-amber-700/45 bg-amber-950/20 p-3">
+            <p className="text-xs font-semibold text-amber-300 mb-2">Admin Selected For This Round</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-300">
+              <p><span className="text-slate-400">Loser Mode:</span> {modeLabel}</p>
+              <p><span className="text-slate-400">Ace Value:</span> {aceLabel}</p>
+              <p><span className="text-slate-400">Face Cards:</span> {faceLabel}</p>
+              <p><span className="text-slate-400">Declare Count:</span> 4 melds (3+3+3+4), 1 pure required</p>
+            </div>
           </div>
 
           <div className="space-y-4">

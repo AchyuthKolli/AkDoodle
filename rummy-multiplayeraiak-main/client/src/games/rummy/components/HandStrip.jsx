@@ -71,6 +71,28 @@ export const HandStrip = ({
     setDropTargetIndex(null);
   };
 
+  React.useEffect(() => {
+    const hardStop = () => endDrag();
+    window.addEventListener("mouseup", hardStop);
+    window.addEventListener("touchend", hardStop);
+    window.addEventListener("touchcancel", hardStop);
+    window.addEventListener("blur", hardStop);
+    document.addEventListener("visibilitychange", hardStop);
+    return () => {
+      window.removeEventListener("mouseup", hardStop);
+      window.removeEventListener("touchend", hardStop);
+      window.removeEventListener("touchcancel", hardStop);
+      window.removeEventListener("blur", hardStop);
+      document.removeEventListener("visibilitychange", hardStop);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (draggedIndex != null && draggedIndex >= hand.length) {
+      endDrag();
+    }
+  }, [draggedIndex, hand.length]);
+
   // -------------------------
   // MOBILE DRAG (FAST + FIXED)
   // -------------------------
