@@ -1852,18 +1852,18 @@ export default function Table() {
                   />
 
                   {roundHistory.length > 0 && !showScoreboardModal && (
-                    <div className="rummy-post-round-actions fixed z-[70] flex flex-col gap-2 max-md:left-3 max-md:right-3 max-md:bottom-28 md:bottom-5 md:right-5">
+                    <div className="rummy-post-round-actions fixed z-[70] md:bottom-5 md:right-5 max-md:left-3 max-md:right-3 max-md:bottom-[186px] flex md:flex-col max-md:flex-row max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:whitespace-nowrap max-md:pb-1">
                       <button
                         type="button"
                         onClick={openRoundResults}
-                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg max-md:w-full"
+                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg max-md:flex-none max-md:px-3 max-md:text-xs"
                       >
                         Round scoreboard
                       </button>
                       <button
                         type="button"
                         onClick={openAllRoundsResults}
-                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold shadow-lg border border-cyan-500/40 max-md:w-full"
+                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold shadow-lg border border-cyan-500/40 max-md:flex-none max-md:px-3 max-md:text-xs"
                       >
                         All round results
                       </button>
@@ -1872,7 +1872,7 @@ export default function Table() {
                           type="button"
                           disabled={starting}
                           onClick={onNextRound}
-                          className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg max-md:w-full"
+                          className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg max-md:flex-none max-md:px-3 max-md:text-xs"
                         >
                           {starting ? "Starting..." : "Start Next Round"}
                         </button>
