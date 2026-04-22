@@ -471,6 +471,10 @@ export default function Table() {
   const [chatOpenSignal, setChatOpenSignal] = useState(0);
   const [voiceOpenSignal, setVoiceOpenSignal] = useState(0);
   const [rulesOpenSignal, setRulesOpenSignal] = useState(0);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatPanelOpen, setChatPanelOpen] = useState(false);
+  const [voicePanelOpen, setVoicePanelOpen] = useState(false);
+  const [inCallActive, setInCallActive] = useState(false);
 
   // Meld lock state
   const [meldLocks, setMeldLocks] = useState({
@@ -1480,7 +1484,7 @@ export default function Table() {
 
   /* ------------------------------- Render ------------------------------- */
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+    <div className="rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
         <GameRules
           defaultOpen={false}
@@ -1488,27 +1492,47 @@ export default function Table() {
           openSignal={rulesOpenSignal}
         />
 
-        <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[75] flex flex-col gap-2">
+        <div className="fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
           <button
             type="button"
-            onClick={() => setVoiceOpenSignal((v) => v + 1)}
-            className="w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-lg flex items-center justify-center"
+            onClick={() => {
+              setVoicePanelOpen(true);
+              setVoiceOpenSignal((v) => v + 1);
+            }}
+            className={`w-11 h-11 rounded-xl border shadow-xl flex items-center justify-center transition-all ${inCallActive || voicePanelOpen
+              ? "bg-emerald-700/90 hover:bg-emerald-600 text-emerald-100 border-emerald-500 ring-2 ring-emerald-400/40"
+              : "bg-slate-800/90 hover:bg-slate-700 text-slate-100 border-slate-700"
+              }`}
             title="Open call panel"
           >
             <Phone className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={() => setChatOpenSignal((v) => v + 1)}
-            className="w-10 h-10 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-100 border border-blue-700/60 shadow-lg flex items-center justify-center"
+            onClick={() => {
+              setChatPanelOpen(true);
+              setChatOpenSignal((v) => v + 1);
+            }}
+            className={`relative w-11 h-11 rounded-xl border shadow-xl flex items-center justify-center transition-all ${chatPanelOpen
+              ? "bg-blue-700/95 hover:bg-blue-600 text-blue-100 border-blue-500 ring-2 ring-blue-400/40"
+              : "bg-blue-800/90 hover:bg-blue-700 text-blue-100 border-blue-700/60"
+              }`}
             title="Open chat panel"
           >
             <MessageCircle className="w-4 h-4" />
+            {chatUnreadCount > 0 && !chatPanelOpen && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {chatUnreadCount > 9 ? "9+" : chatUnreadCount}
+              </span>
+            )}
           </button>
           <button
             type="button"
             onClick={() => setQuickPanelOpen((v) => !v)}
-            className="w-10 h-10 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-emerald-100 border border-emerald-700/60 shadow-lg flex items-center justify-center"
+            className={`w-11 h-11 rounded-xl border shadow-xl flex items-center justify-center transition-all ${quickPanelOpen
+              ? "bg-amber-700/95 hover:bg-amber-600 text-amber-100 border-amber-500 ring-2 ring-amber-400/40"
+              : "bg-emerald-800/90 hover:bg-emerald-700 text-emerald-100 border-emerald-700/60"
+              }`}
             title="Open quick actions"
           >
             <PanelRightOpen className="w-4 h-4" />
@@ -1644,13 +1668,13 @@ export default function Table() {
           ) : (
             <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
               <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px] pb-36 md:pb-0">
-                <div className="bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
+                <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
                       {/* Top: Table Area (Opponents + Center Piles) */}
                       {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
+                      <div className="rummy-top-zone table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
                         <CasinoTable3D tableColor={tableColor}>
                           {/* Color Toggle */}
                           <div className="absolute top-4 right-4 z-50 flex gap-2">
@@ -1738,7 +1762,7 @@ export default function Table() {
                       {/* Bottom: Player Area (Melds + Hand) */}
                       <div className="player-area-section space-y-4">
                         {/* Melds Row */}
-                        <div className="melds-container flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
+                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
                           <MeldSlotBox
                             title="Meld 1"
                             slots={meld1}
@@ -1955,6 +1979,8 @@ export default function Table() {
                       players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))}
                       hideToggleButton={true}
                       openSignal={chatOpenSignal}
+                      onUnreadChange={setChatUnreadCount}
+                      onClose={() => setChatPanelOpen(false)}
                     />
                   )}
 
@@ -1966,6 +1992,8 @@ export default function Table() {
                       players={info.players}
                       hideToggleButton={true}
                       openSignal={voiceOpenSignal}
+                      onClose={() => setVoicePanelOpen(false)}
+                      onCallStateChange={setInCallActive}
                     />
                   )}
 

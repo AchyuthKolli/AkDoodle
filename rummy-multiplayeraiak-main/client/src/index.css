@@ -67,6 +67,24 @@ body {
 
 /* Rummy mobile/tablet playability overrides (UI only) */
 @media (max-width: 1024px) {
+  .rummy-play-shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .rummy-play-main {
+    height: calc(100dvh - 96px);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: minmax(240px, 40vh) minmax(138px, 1fr) auto;
+    gap: 8px;
+  }
+
+  .rummy-top-zone {
+    margin-bottom: 0 !important;
+    min-height: 0 !important;
+  }
+
   .table-3d-container {
     transform: none !important;
     margin-top: 0 !important;
@@ -97,6 +115,19 @@ body {
     gap: 12px !important;
     padding-top: 10px !important;
     padding-bottom: 8px !important;
+  }
+
+  .rummy-meld-band {
+    max-height: 200px;
+    overflow-y: hidden !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    scroll-snap-type: x proximity;
+  }
+
+  .rummy-meld-band > * {
+    scroll-snap-align: start;
   }
 }
 
@@ -135,6 +166,7 @@ body {
     min-height: 176px !important;
     padding-top: 10px !important;
     padding-bottom: 16px !important;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
   }
 
   .hand-strip-container .overflow-x-auto .flex {
@@ -144,6 +176,7 @@ body {
   .hand-strip-container button {
     min-height: 42px;
     font-size: 0.95rem;
+    border-radius: 10px;
   }
 }
 

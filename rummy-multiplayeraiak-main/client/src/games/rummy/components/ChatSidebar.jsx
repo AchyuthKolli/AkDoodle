@@ -14,6 +14,7 @@ export default function ChatSidebar({
   hideToggleButton = false,
   openSignal = 0,
   onClose,
+  onUnreadChange,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -31,6 +32,10 @@ export default function ChatSidebar({
       setUnreadCount(0);
     }
   }, [openSignal]);
+
+  useEffect(() => {
+    onUnreadChange?.(unreadCount);
+  }, [unreadCount, onUnreadChange]);
 
   // Auto scroll when messages arrive
   useEffect(() => {

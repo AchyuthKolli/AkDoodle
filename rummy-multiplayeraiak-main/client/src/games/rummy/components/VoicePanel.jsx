@@ -33,6 +33,7 @@ export default function VoicePanel({
   hideToggleButton = false,
   openSignal = 0,
   onClose,
+  onCallStateChange,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { joinCall, leaveCall, toggleMute, isMuted, inCall, participants, connectedUsers } = useVoice(tableId, currentUserId);
@@ -105,6 +106,10 @@ export default function VoicePanel({
   useEffect(() => {
     if (openSignal > 0) setIsOpen(true);
   }, [openSignal]);
+
+  useEffect(() => {
+    onCallStateChange?.(!!inCall);
+  }, [inCall, onCallStateChange]);
 
 
 
