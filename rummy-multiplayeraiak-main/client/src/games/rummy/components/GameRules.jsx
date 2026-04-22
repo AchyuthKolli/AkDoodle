@@ -8,7 +8,7 @@ export const GameRules = ({ defaultOpen = false }) => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-44 right-4 max-md:top-auto max-md:bottom-42 max-md:right-3 z-40 bg-green-800 hover:bg-green-700 text-green-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm"
+        className="rummy-rules-toggle fixed top-44 right-4 max-md:top-auto max-md:bottom-42 max-md:right-3 z-40 bg-green-800 hover:bg-green-700 text-green-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm"
       >
         <ChevronRight className="w-4 h-4" />
         Game Rules

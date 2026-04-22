@@ -171,7 +171,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
             setIsOpen(true);
             setUnreadCount(0);
           }}
-          className="fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:right-3 z-40 bg-blue-800 hover:bg-blue-700 text-blue-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all"
+          className="rummy-chat-toggle fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:right-3 z-40 bg-blue-800 hover:bg-blue-700 text-blue-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all"
         >
           <ChevronRight className="w-4 h-4" />
           Chat

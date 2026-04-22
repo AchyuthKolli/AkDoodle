@@ -1532,7 +1532,7 @@ export default function Table() {
                               className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
                             >
                               <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
-                              <CardBack className="center-pile-card w-24 h-36 shadow-2xl relative z-10" />
+                              <CardBack className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 shadow-2xl relative z-10" />
                               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
                                 Deck ({myRound?.stock_count || 0})
                               </div>
@@ -1548,7 +1548,7 @@ export default function Table() {
                                 <PlayingCard
                                   card={parseCardCode(myRound.discard_top) || { rank: "?", suit: "?" }}
                                   onClick={() => { }}
-                                  className="center-pile-card w-24 h-36 shadow-2xl relative z-10"
+                                  className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 shadow-2xl relative z-10"
                                 />
                               ) : (
                                 <div className="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
@@ -1571,7 +1571,7 @@ export default function Table() {
                                   : "Wild Joker (Hidden)";
                               return (
                                 <div className="relative">
-                                  <div className="center-pile-card w-24 h-36 rounded-lg border border-yellow-500/45 bg-black/45 flex items-center justify-center shadow-2xl">
+                                  <div className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 rounded-lg border border-yellow-500/45 bg-black/45 flex items-center justify-center shadow-2xl">
                                     {mode === "no_joker" ? (
                                       <span className="text-yellow-100 text-sm font-semibold">No Wild</span>
                                     ) : showRealWildcard ? (
@@ -1844,7 +1844,7 @@ export default function Table() {
                   />
 
                   {roundHistory.length > 0 && !showScoreboardModal && (
-                    <div className="fixed z-[70] flex flex-col gap-2 max-md:left-3 max-md:right-3 max-md:bottom-28 md:bottom-5 md:right-5">
+                    <div className="rummy-post-round-actions fixed z-[70] flex flex-col gap-2 max-md:left-3 max-md:right-3 max-md:bottom-28 md:bottom-5 md:right-5">
                       <button
                         type="button"
                         onClick={openRoundResults}
@@ -1938,7 +1938,7 @@ export default function Table() {
                   </div>
                 )}
                 {!tableInfoVisible && (
-                  <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:left-3 max-md:right-auto z-20 bg-card border border-border rounded-lg shadow-lg px-3 py-2 hover:bg-accent/50 transition-colors">
+                  <button onClick={() => setTableInfoVisible(true)} className="rummy-show-table-info fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:left-3 max-md:right-auto z-20 bg-card border border-border rounded-lg shadow-lg px-3 py-2 hover:bg-accent/50 transition-colors">
                     Show Table Info
                   </button>
                 )}
@@ -1960,17 +1960,17 @@ export default function Table() {
             z-index: 50;
             background: rgba(0,0,0,0.85);
             backdrop-filter: blur(10px);
-            padding-bottom: 20px; /* Safe area */
+            padding-bottom: 26px; /* Safe area + larger cards */
             border-top: 1px solid rgba(255,255,255,0.1);
           }
           .table-3d-container {
-             transform: scale(0.9);
+             transform: scale(1);
              transform-origin: top center;
              margin-top: 0;
           }
            /* Adjust discard pile visibility */
           .discard-pile-area {
-             transform: scale(0.9);
+             transform: scale(1);
           }
            /* Make melds scrollable horizontally without wrapping weirdly */
           .melds-container {

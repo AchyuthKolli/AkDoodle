@@ -70,27 +70,39 @@ body {
   .table-3d-container {
     transform: none !important;
     margin-top: 0 !important;
-    min-height: 360px !important;
+    min-height: 420px !important;
   }
 
   .table-3d-container [data-table-color] > div > div {
     transform: rotateX(10deg) rotateZ(0deg) !important;
-    max-height: 440px !important;
+    max-height: 500px !important;
   }
 
   .center-piles-row {
-    gap: 10px !important;
+    gap: 16px !important;
+    top: 58% !important;
   }
 
   .center-pile-card {
-    width: 86px !important;
-    height: 124px !important;
+    width: 104px !important;
+    height: 148px !important;
+  }
+
+  .mobile-hand-card {
+    width: 96px !important;
+    min-width: 96px !important;
+  }
+
+  .hand-strip-container .overflow-x-auto .flex {
+    gap: 12px !important;
+    padding-top: 10px !important;
+    padding-bottom: 8px !important;
   }
 }
 
 @media (max-width: 768px) {
   .table-3d-container {
-    min-height: 320px !important;
+    min-height: 370px !important;
   }
 
   .table-3d-container [data-table-color] > div {
@@ -100,17 +112,78 @@ body {
 
   .table-3d-container [data-table-color] > div > div {
     max-width: 100% !important;
-    max-height: 360px !important;
+    max-height: 430px !important;
     transform: rotateX(6deg) rotateZ(0deg) !important;
   }
 
   .center-piles-row {
-    gap: 8px !important;
-    top: 54% !important;
+    gap: 12px !important;
+    top: 59% !important;
   }
 
   .center-pile-card {
-    width: 74px !important;
-    height: 106px !important;
+    width: 96px !important;
+    height: 138px !important;
+  }
+
+  .mobile-hand-card {
+    width: 90px !important;
+    min-width: 90px !important;
+  }
+
+  .hand-strip-container {
+    min-height: 176px !important;
+    padding-top: 10px !important;
+    padding-bottom: 16px !important;
+  }
+
+  .hand-strip-container .overflow-x-auto .flex {
+    gap: 10px !important;
+  }
+
+  .hand-strip-container button {
+    min-height: 42px;
+    font-size: 0.95rem;
+  }
+}
+
+/* Extra-small phones: keep cards large, avoid overlay collisions */
+@media (max-width: 420px) {
+  .table-3d-container {
+    min-height: 360px !important;
+  }
+
+  .center-piles-row {
+    gap: 10px !important;
+    top: 60% !important;
+  }
+
+  .center-pile-card {
+    width: 90px !important;
+    height: 130px !important;
+  }
+
+  .mobile-hand-card {
+    width: 84px !important;
+    min-width: 84px !important;
+  }
+
+  .hand-strip-container {
+    min-height: 168px !important;
+    padding-bottom: 18px !important;
+  }
+
+  .rummy-post-round-actions,
+  .rummy-show-table-info,
+  .rummy-chat-toggle {
+    bottom: 180px !important;
+  }
+
+  .rummy-rules-toggle {
+    bottom: 230px !important;
+  }
+
+  .rummy-voice-toggle {
+    bottom: 136px !important;
   }
 }

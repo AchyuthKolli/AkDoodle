@@ -110,7 +110,7 @@ export default function VoicePanel({
         {audioElements}
         <button
           onClick={() => setIsOpen(true)}
-          className={`fixed top-32 right-4 max-md:top-auto max-md:bottom-16 max-md:right-3 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
+          className={`rummy-voice-toggle fixed top-32 right-4 max-md:top-auto max-md:bottom-16 max-md:right-3 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
             ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
             : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
             }`}

@@ -35,7 +35,7 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
             }}
           >
             <div className={`
-              flex flex-col items-center gap-2 p-3 rounded-xl transition-all backdrop-blur-sm
+              flex flex-col items-center gap-2 p-3 max-md:p-1.5 rounded-xl transition-all backdrop-blur-sm
               ${isActive
                 ? "bg-amber-500/40 border-3 border-amber-400 ring-4 ring-amber-400/50 shadow-xl shadow-amber-400/50"
                 : "bg-green-900/60 border-2 border-green-700/80"
@@ -46,7 +46,7 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
               }
             `}>
               <div className={`
-                w-14 h-14 rounded-full flex items-center justify-center border-2 overflow-hidden
+                w-14 h-14 max-md:w-9 max-md:h-9 rounded-full flex items-center justify-center border-2 overflow-hidden
                 ${isActive
                   ? "bg-amber-500 border-amber-300"
                   : "bg-green-700 border-green-600"
@@ -63,10 +63,10 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
                 )}
               </div>
               <div className="text-center">
-                <div className="text-sm font-bold text-white truncate max-w-[80px] drop-shadow">
+                <div className="text-sm max-md:text-[10px] font-bold text-white truncate max-w-[80px] max-md:max-w-[56px] drop-shadow">
                   {isCurrent ? "You" : player.display_name?.slice(0, 10) || `Player ${player.seat}`}
                 </div>
-                <div className="text-xs text-green-200 font-medium">Seat {player.seat}</div>
+                <div className="text-xs max-md:text-[9px] text-green-200 font-medium">Seat {player.seat}</div>
               </div>
               {isActive && (
                 <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full animate-pulse border-2 border-white" />

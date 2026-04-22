@@ -28,7 +28,8 @@ export default function PlayingCard({
   onClick,
   selected = false,
   draggable = true,
-  faceDown = false
+  faceDown = false,
+  className = "",
 }) {
   if (!card) return null;
   warmCardImageCache();
@@ -44,7 +45,7 @@ export default function PlayingCard({
         draggable={false}
         loading="eager"
         decoding="async"
-        className="w-[70px] sm:w-[88px] aspect-[2/3] rounded-lg shadow-md"
+        className={`w-[70px] sm:w-[88px] aspect-[2/3] rounded-lg shadow-md ${className}`}
       />
     );
   }
@@ -73,6 +74,7 @@ export default function PlayingCard({
         }}
         className={`w-[70px] sm:w-[88px] aspect-[2/3] rounded-lg shadow-xl border
           ${selected ? "ring-2 ring-amber-400 scale-105" : ""}
+          ${className}
         `}
       />
     );
@@ -119,6 +121,7 @@ export default function PlayingCard({
         select-none
         transition-all duration-75
         ${selected ? "ring-2 ring-amber-400 scale-105" : ""}
+        ${className}
       `}
     />
   );

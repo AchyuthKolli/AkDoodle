@@ -191,6 +191,7 @@ export const HandStrip = ({
               card={card}
               selected={selectedIndex === idx}
               draggable={false} // Disable inner drag so wrapper div handles it
+              className="mobile-hand-card"
               onClick={onCardClick ? () => onCardClick(card, idx) : undefined}
             />
 
