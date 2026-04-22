@@ -212,7 +212,7 @@ const MeldSlotBox = ({
               onClick={() => {
                 handleSlotClick(i);
               }}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
+              className="meld-slot-card w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
             >
               {card ? (
                 <div className="w-full h-full p-1">
@@ -317,7 +317,7 @@ const LeftoverSlotBox = ({
               onClick={() => {
                 handleSlotClick(i);
               }}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
+              className="meld-slot-card w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
             >
               {card ? (
                 <div className="w-full h-full p-1">
