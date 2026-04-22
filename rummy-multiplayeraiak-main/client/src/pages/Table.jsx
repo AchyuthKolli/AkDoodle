@@ -212,7 +212,7 @@ const MeldSlotBox = ({
               onClick={() => {
                 handleSlotClick(i);
               }}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
+              className="meld-slot-card w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
             >
               {card ? (
                 <div className="w-full h-full p-1">
@@ -317,7 +317,7 @@ const LeftoverSlotBox = ({
               onClick={() => {
                 handleSlotClick(i);
               }}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
+              className="meld-slot-card w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
             >
               {card ? (
                 <div className="w-full h-full p-1">
@@ -1602,7 +1602,7 @@ export default function Table() {
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto px-2 sm:px-4">
+        <div className="rummy-stage-shell w-full px-2 sm:px-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
             <div className="flex items-center gap-2">
@@ -1668,7 +1668,7 @@ export default function Table() {
           ) : (
             <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
               <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px] pb-36 md:pb-0">
-                <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
+                <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1 lg:bg-transparent lg:border-0 lg:rounded-none lg:p-0">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
@@ -2075,7 +2075,7 @@ export default function Table() {
 
 
                 {/* Desktop Sidebar - Table Info with Round History */}
-                {tableInfoVisible && (
+                {tableInfoVisible && info?.status !== "playing" && (
                   <div className={`hidden lg:block self-start bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
                     <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
                       <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>

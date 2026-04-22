@@ -67,23 +67,29 @@ body {
 
 /* Desktop single-screen gameplay layout (UI only) */
 @media (min-width: 1025px) {
+  .rummy-stage-shell {
+    max-width: none !important;
+    padding-left: 12px !important;
+    padding-right: 64px !important;
+  }
+
   .rummy-play-shell {
     height: 100dvh;
     overflow: hidden;
   }
 
   .rummy-play-main {
-    height: calc(100dvh - 152px);
+    height: calc(100dvh - 118px);
     overflow: hidden;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
-    gap: 10px;
+    gap: 8px;
   }
 
   .desktop-play-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 350px;
-    gap: 12px;
+    grid-template-columns: minmax(0, 65fr) minmax(360px, 35fr);
+    gap: 10px;
     min-height: 0;
     overflow: hidden;
   }
@@ -97,6 +103,7 @@ body {
     min-height: 0 !important;
     height: 100%;
     margin-bottom: 0 !important;
+    border-radius: 10px !important;
   }
 
   .desktop-meld-area {
@@ -118,12 +125,26 @@ body {
     overflow-x: hidden !important;
     padding-bottom: 0 !important;
     padding-right: 2px;
+    gap: 6px !important;
     min-height: 0;
+  }
+
+  .desktop-meld-area .meld-slot-card {
+    width: 62px !important;
+    height: 92px !important;
+  }
+
+  .desktop-meld-area [data-drop-zone] {
+    padding: 6px !important;
+  }
+
+  .desktop-meld-area [data-drop-zone] p {
+    font-size: 10px !important;
   }
 
   .desktop-meld-actions {
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 6px;
   }
 
   .desktop-next-round-btn {
@@ -136,14 +157,31 @@ body {
   }
 
   .hand-strip-container {
-    min-height: 168px;
-    max-height: 224px;
+    min-height: 138px;
+    max-height: 184px;
     overflow: hidden;
     margin-top: 0 !important;
+    padding: 8px 10px !important;
   }
 
   .hand-strip-container .overflow-x-auto {
+    overflow-x: hidden !important;
     overflow-y: hidden !important;
+  }
+
+  .hand-strip-container .overflow-x-auto .flex {
+    display: grid !important;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    gap: 4px !important;
+    padding-top: 2px !important;
+    padding-bottom: 0 !important;
+  }
+
+  .hand-strip-container .mobile-hand-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 64px !important;
+    margin: 0 auto;
   }
 }
 
