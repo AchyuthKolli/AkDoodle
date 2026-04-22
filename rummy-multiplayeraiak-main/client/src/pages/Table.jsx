@@ -1999,9 +1999,9 @@ export default function Table() {
                 </div>
 
 
-                {/* Sidebar - Table Info with Round History */}
+                {/* Desktop Sidebar - Table Info with Round History */}
                 {tableInfoVisible && (
-                  <div className={`bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
+                  <div className={`hidden lg:block bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
                     <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
                       <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>
                       <div className="flex items-center gap-1">
@@ -2060,6 +2060,76 @@ export default function Table() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Mobile/Tablet Popup - Table Info */}
+                {tableInfoVisible && (
+                  <div className="lg:hidden fixed inset-0 z-[73]">
+                    <button
+                      type="button"
+                      aria-label="Close table info overlay"
+                      onClick={() => setTableInfoVisible(false)}
+                      className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
+                    />
+                    <div className="absolute left-3 right-3 top-16 bottom-36 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden flex flex-col">
+                      <div className="flex items-center justify-between p-3 bg-slate-800/80 border-b border-slate-700">
+                        <h3 className="text-sm font-semibold text-slate-100">Table Info</h3>
+                        <button onClick={() => setTableInfoVisible(false)} className="p-1 hover:bg-slate-700 rounded" title="Close">
+                          <X className="w-4 h-4 text-slate-200" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center border-b border-slate-700">
+                        <button
+                          onClick={() => setActiveTab("info")}
+                          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === "info" ? "text-yellow-400" : "text-slate-400 hover:text-slate-300"}`}
+                        >
+                          Table Info
+                          {activeTab === "info" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-400" />}
+                        </button>
+                        <button
+                          onClick={() => setActiveTab("history")}
+                          className={`flex-1 py-3 text-sm font-medium transition-colors relative ${activeTab === "history" ? "text-yellow-400" : "text-slate-400 hover:text-slate-300"}`}
+                        >
+                          History
+                          {activeTab === "history" && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-yellow-400" />}
+                        </button>
+                      </div>
+
+                      <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                        {loading && <p className="text-muted-foreground">Loading…</p>}
+                        {!loading && info && activeTab === "info" && (
+                          <>
+                            <div>
+                              <p className="text-sm text-muted-foreground">Room Code</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <code className="text-lg font-mono text-foreground bg-background px-3 py-1 rounded border border-border">{info.code}</code>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(info.code);
+                                    toast.success("Code copied!");
+                                  }}
+                                  className="p-1.5 hover:bg-muted rounded"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
+                              <div className="space-y-1.5">
+                                <RummyPlayersList info={info} activeUserId={info.active_user_id} onKickPlayer={handleKickPlayer} />
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {!loading && info && activeTab === "history" && (
+                          <HistoryTable tableId={tableId} />
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
