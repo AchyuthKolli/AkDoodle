@@ -223,7 +223,7 @@ body {
 
   /* Reserve room for fixed hand strip so meld boxes never collide */
   .player-area-section {
-    padding-bottom: 196px !important;
+    padding-bottom: 170px !important;
   }
 
   .melds-container {

@@ -118,6 +118,23 @@ export const HandStrip = ({
   // -------------------------
   const touchStartRef = React.useRef(null);
   const externalDropRef = React.useRef(null); // track external target
+  const autoScrollRafRef = React.useRef(null);
+
+  const stopAutoScroll = React.useCallback(() => {
+    if (autoScrollRafRef.current != null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  }, []);
+
+  const startAutoScroll = React.useCallback((direction) => {
+    stopAutoScroll();
+    const step = () => {
+      window.scrollBy({ top: direction * 10, left: 0, behavior: "auto" });
+      autoScrollRafRef.current = requestAnimationFrame(step);
+    };
+    autoScrollRafRef.current = requestAnimationFrame(step);
+  }, [stopAutoScroll]);
 
   const handleTouchStart = (e, index) => {
     const t = e.touches[0];
@@ -133,11 +150,15 @@ export const HandStrip = ({
   const handleTouchMove = (e) => {
     if (!touchStartRef.current) return;
 
-    // Allow small scroll? Or prevent default to drag? 
-    // Usually strict drag needs preventDefault.
     e.preventDefault();
 
     const t = e.touches[0];
+    const topEdge = 120;
+    const bottomEdge = window.innerHeight - 140;
+    if (t.clientY < topEdge) startAutoScroll(-1);
+    else if (t.clientY > bottomEdge) startAutoScroll(1);
+    else stopAutoScroll();
+
     const el = document.elementFromPoint(t.clientX, t.clientY);
 
     if (!el) return;
@@ -164,6 +185,7 @@ export const HandStrip = ({
   };
 
   const handleTouchEnd = () => {
+    stopAutoScroll();
     const start = touchStartRef.current;
 
     // Check external drop first
@@ -185,6 +207,10 @@ export const HandStrip = ({
     externalDropRef.current = null;
     endDrag();
   };
+
+  React.useEffect(() => {
+    return () => stopAutoScroll();
+  }, [stopAutoScroll]);
 
   return (
     <div className="w-full overflow-x-auto">
