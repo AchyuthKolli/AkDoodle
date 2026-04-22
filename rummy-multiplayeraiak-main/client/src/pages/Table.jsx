@@ -1759,6 +1759,36 @@ export default function Table() {
                               </div>
                             </CasinoTable3D>
                           </div>
+                          <div className={`desktop-hand-area hidden lg:block hand-strip-container p-3 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
+                            <div className="flex justify-between items-center mb-2">
+                              <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
+                                Your Hand
+                                {isMyTurn && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
+                              </h3>
+                            </div>
+                            <HandStrip
+                              hand={availableHand}
+                              onCardClick={onCardSelect}
+                              selectedIndex={selectedCardIndex}
+                              highlightIndex={-1}
+                              draggedIndexExternal={draggedCardIndex}
+                              setDraggedIndexExternal={setDraggedCardIndex}
+                              onExternalDrop={(cardIndex, zoneId) => {
+                                if (!availableHand || !availableHand[cardIndex]) return;
+                                const card = availableHand[cardIndex];
+                                if (zoneId.startsWith("meld-")) {
+                                  const meldIdx = parseInt(zoneId.split("-")[1]);
+                                  if (!isNaN(meldIdx)) {
+                                    const ok = dropHandCardToZone(meldIdx, card);
+                                    if (!ok) toast.error("Drop failed: slot full or locked");
+                                  }
+                                } else if (zoneId === "deadwood") {
+                                  const ok = dropHandCardToZone(4, card);
+                                  if (!ok) toast.error("Drop failed: deadwood slot full or locked");
+                                }
+                              }}
+                            />
+                          </div>
                         </div>
 
                         <div className="desktop-meld-area">
@@ -1870,12 +1900,20 @@ export default function Table() {
                                 {starting ? "Starting..." : "Start Next Round"}
                               </Button>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="desktop-next-round-btn text-slate-200 hover:text-white hover:bg-slate-700/60"
+                              onClick={onClearMelds}
+                            >
+                              Reset Melds
+                            </Button>
                           </div>
                         </div>
                       </div>
 
                       {/* Bottom: Player Area (Hand only) */}
-                      <div className="player-area-section space-y-4">
+                      <div className="player-area-section space-y-4 lg:hidden">
                         {/* Hand Strip Panel */}
                         <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="flex justify-between items-center mb-3">
