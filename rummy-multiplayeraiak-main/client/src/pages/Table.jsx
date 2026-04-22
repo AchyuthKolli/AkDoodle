@@ -470,7 +470,7 @@ export default function Table() {
   const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const [chatOpenSignal, setChatOpenSignal] = useState(0);
   const [voiceOpenSignal, setVoiceOpenSignal] = useState(0);
-  const [rulesOpenSignal, setRulesOpenSignal] = useState(0);
+  const [rulesPanelVisible, setRulesPanelVisible] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
@@ -1486,11 +1486,13 @@ export default function Table() {
   return (
     <div className="rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
-        <GameRules
-          defaultOpen={false}
-          hideToggleButton={true}
-          openSignal={rulesOpenSignal}
-        />
+        {rulesPanelVisible && (
+          <GameRules
+            defaultOpen={true}
+            hideToggleButton={true}
+            onClose={() => setRulesPanelVisible(false)}
+          />
+        )}
 
         <div className="fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
           <button
@@ -1544,7 +1546,7 @@ export default function Table() {
             <button type="button" onClick={() => { setTableInfoVisible((v) => !v); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">1. Table info (toggle)</button>
             <button type="button" onClick={() => { openRoundResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">2. Previous round scoreboard</button>
             <button type="button" onClick={() => { openAllRoundsResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">3. All round scoreboard</button>
-            <button type="button" onClick={() => { setRulesOpenSignal((v) => v + 1); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">4. Game rules</button>
+            <button type="button" onClick={() => { setRulesPanelVisible((v) => !v); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">4. Game rules (toggle)</button>
 
             {isDisqualified && (
               <button
@@ -1667,7 +1669,7 @@ export default function Table() {
             </div>
           ) : (
             <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
-              <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px] pb-36 md:pb-0">
+              <div className="grid gap-4 grid-cols-1 pb-36 md:pb-0">
                 <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
@@ -2040,76 +2042,16 @@ export default function Table() {
                   />
 
                 </div>
-
-
-                {/* Desktop Sidebar - Table Info with Round History */}
+                {/* Desktop/Mobile Popup - Table Info */}
                 {tableInfoVisible && (
-                  <div className={`hidden lg:block self-start bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
-                    <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
-                      <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => setTableInfoMinimized(!tableInfoMinimized)} className="p-1 hover:bg-muted rounded" title={tableInfoMinimized ? "Expand" : "Minimize"}>
-                          {tableInfoMinimized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                        </button>
-                        <button onClick={() => setTableInfoVisible(false)} className="p-1 hover:bg-muted rounded" title="Close">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {!tableInfoMinimized && (
-                      <div className="p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-                        {loading && <p className="text-muted-foreground">Loading…</p>}
-                        {!loading && info && (
-                          <>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Room Code</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <code className="text-lg font-mono text-foreground bg-background px-3 py-1 rounded border border-border">{info.code}</code>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(info.code);
-                                    toast.success("Code copied!");
-                                  }}
-                                  className="p-1.5 hover:bg-muted rounded"
-                                >
-                                  <Copy className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </div>
-
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-2">Players ({info.players.length})</p>
-                              <div className="space-y-1.5">
-                                {/* REPLACED manual loop with reactive component for Avatars */}
-                                <RummyPlayersList info={info} activeUserId={info.active_user_id} onKickPlayer={handleKickPlayer} />
-                              </div>
-                            </div>
-
-                            <div className="border-t border-border pt-3">
-                              <p className="text-sm text-muted-foreground">Status: <span className="text-foreground font-medium">{info?.status ?? "-"}</span></p>
-                              {info && info.status === "waiting" && user && user.id !== info.host_user_id && (
-                                <p className="text-sm text-muted-foreground text-center py-2">Waiting for host to start...</p>
-                              )}
-                            </div>
-
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Mobile/Tablet Popup - Table Info */}
-                {tableInfoVisible && (
-                  <div className="lg:hidden fixed inset-0 z-[73]">
+                  <div className="fixed inset-0 z-[73]">
                     <button
                       type="button"
                       aria-label="Close table info overlay"
                       onClick={() => setTableInfoVisible(false)}
                       className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
                     />
-                    <div className="absolute left-3 right-3 top-16 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden flex flex-col max-h-[72vh]">
+                    <div className="absolute left-3 right-3 top-16 lg:left-auto lg:right-6 lg:top-20 lg:w-[380px] rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden flex flex-col max-h-[72vh]">
                       <div className="flex items-center justify-between p-3 bg-slate-800/80 border-b border-slate-700">
                         <h3 className="text-sm font-semibold text-slate-100">Table Info</h3>
                         <button onClick={() => setTableInfoVisible(false)} className="p-1 hover:bg-slate-700 rounded" title="Close">
