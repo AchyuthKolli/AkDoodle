@@ -1041,6 +1041,10 @@ export default function Table() {
   const openRoundResults = async () => {
     const rounds = await fetchRoundHistory();
     const latestRound = rounds.length ? rounds[rounds.length - 1].round_number : null;
+    if (!rounds.length) {
+      toast.info("This is round 1. No previous rounds completed yet.");
+      return;
+    }
     if (latestRound != null) {
       const cached = roundResultsByNumber[latestRound];
       if (cached) {
@@ -1577,6 +1581,16 @@ export default function Table() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
             <div className="flex items-center gap-2">
+              {canStart && (
+                <button
+                  onClick={onStart}
+                  disabled={!canStart || starting}
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg font-medium shadow-lg transition-colors disabled:opacity-50"
+                >
+                  <Play className="w-5 h-5" />
+                  {starting ? "Starting…" : "Start Game"}
+                </button>
+              )}
               {info?.status === "playing" && !isDisqualified && !info.players.find(p => p.user_id === user.id)?.is_spectator && (
                 <button
                   onClick={onDropGame}
@@ -2001,7 +2015,7 @@ export default function Table() {
 
                 {/* Desktop Sidebar - Table Info with Round History */}
                 {tableInfoVisible && (
-                  <div className={`hidden lg:block bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
+                  <div className={`hidden lg:block self-start bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
                     <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
                       <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>
                       <div className="flex items-center gap-1">
@@ -2045,12 +2059,6 @@ export default function Table() {
 
                             <div className="border-t border-border pt-3">
                               <p className="text-sm text-muted-foreground">Status: <span className="text-foreground font-medium">{info?.status ?? "-"}</span></p>
-                              {user && info.host_user_id === user.id && (
-                                <button onClick={onStart} disabled={!canStart || starting} className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50 mt-2">
-                                  <Play className="w-5 h-5" />
-                                  {starting ? "Starting…" : "Start Game"}
-                                </button>
-                              )}
                               {info && info.status === "waiting" && user && user.id !== info.host_user_id && (
                                 <p className="text-sm text-muted-foreground text-center py-2">Waiting for host to start...</p>
                               )}
@@ -2072,7 +2080,7 @@ export default function Table() {
                       onClick={() => setTableInfoVisible(false)}
                       className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
                     />
-                    <div className="absolute left-3 right-3 top-16 bottom-36 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden flex flex-col">
+                    <div className="absolute left-3 right-3 top-16 rounded-xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden flex flex-col max-h-[72vh]">
                       <div className="flex items-center justify-between p-3 bg-slate-800/80 border-b border-slate-700">
                         <h3 className="text-sm font-semibold text-slate-100">Table Info</h3>
                         <button onClick={() => setTableInfoVisible(false)} className="p-1 hover:bg-slate-700 rounded" title="Close">
