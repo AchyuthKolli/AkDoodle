@@ -1683,6 +1683,25 @@ export default function Table() {
                           />
                         </div>
 
+                        {roundHistory.length > 0 && !showScoreboardModal && (
+                          <div className="rummy-inline-round-actions flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
+                            <button
+                              type="button"
+                              onClick={openRoundResults}
+                              className="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-semibold shadow-lg flex-none"
+                            >
+                              Round scoreboard
+                            </button>
+                            <button
+                              type="button"
+                              onClick={openAllRoundsResults}
+                              className="px-3 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs sm:text-sm font-semibold shadow-lg border border-cyan-500/40 flex-none"
+                            >
+                              All round results
+                            </button>
+                          </div>
+                        )}
+
                         {/* Hand Strip Panel */}
                         <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="flex justify-between items-center mb-3">
@@ -1713,6 +1732,16 @@ export default function Table() {
                               >
                                 Declare
                               </Button>
+                              {roundHistory.length > 0 && user?.id === info?.host_user_id && !showScoreboardModal && (
+                                <Button
+                                  size="sm"
+                                  disabled={starting}
+                                  onClick={onNextRound}
+                                  className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium shadow-md transition-all active:scale-95"
+                                >
+                                  {starting ? "Starting..." : "Start Next Round"}
+                                </Button>
+                              )}
                             </div>
                           </div>
 
@@ -1851,34 +1880,6 @@ export default function Table() {
                     onViewRoundDetail={(n) => openRoundScoreboardForRound(n, { closeAllRoundsModal: true })}
                   />
 
-                  {roundHistory.length > 0 && !showScoreboardModal && (
-                    <div className="rummy-post-round-actions fixed z-[70] md:bottom-5 md:right-5 max-md:left-3 max-md:right-3 max-md:bottom-[186px] flex md:flex-col max-md:flex-row max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:whitespace-nowrap max-md:pb-1">
-                      <button
-                        type="button"
-                        onClick={openRoundResults}
-                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg max-md:flex-none max-md:px-3 max-md:text-xs"
-                      >
-                        Round scoreboard
-                      </button>
-                      <button
-                        type="button"
-                        onClick={openAllRoundsResults}
-                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold shadow-lg border border-cyan-500/40 max-md:flex-none max-md:px-3 max-md:text-xs"
-                      >
-                        All round results
-                      </button>
-                      {user?.id === info?.host_user_id && (
-                        <button
-                          type="button"
-                          disabled={starting}
-                          onClick={onNextRound}
-                          className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg max-md:flex-none max-md:px-3 max-md:text-xs"
-                        >
-                          {starting ? "Starting..." : "Start Next Round"}
-                        </button>
-                      )}
-                    </div>
-                  )}
                 </div>
 
 
