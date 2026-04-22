@@ -82,8 +82,8 @@ body {
 
   .desktop-play-layout {
     display: grid;
-    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
-    gap: 8px;
+    grid-template-columns: minmax(0, 75fr) minmax(0, 25fr);
+    gap: 6px;
     min-height: 0;
     flex: 1 1 auto;
     overflow: hidden;
@@ -97,31 +97,21 @@ body {
     gap: 6px;
   }
 
+  /* Left-align board; keep original 3D table proportions (no stretch-to-fill). */
   .desktop-board-area .rummy-top-zone {
-    min-height: 0 !important;
-    height: 100%;
+    min-height: 280px !important;
+    height: auto !important;
+    max-height: min(58dvh, 560px);
     margin-bottom: 0 !important;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    overflow: hidden;
   }
 
-  .desktop-board-area .table-3d-container {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .desktop-board-area .table-3d-container [data-table-color] > div {
-    width: 100% !important;
-    height: 100% !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
-
-  .desktop-board-area .table-3d-container [data-table-color] > div > div {
-    width: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    height: 100% !important;
-    aspect-ratio: 16 / 10 !important;
-    transform: rotateX(12deg) rotateZ(0deg) !important;
+  /* Left-align felt inside CasinoTable3D (do not restyle overlay layers). */
+  .desktop-board-area .rummy-top-zone [data-table-color] > div.relative.flex.items-center.justify-center {
+    justify-content: flex-start !important;
   }
 
   .desktop-meld-area {
@@ -129,7 +119,7 @@ body {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     overflow: hidden;
   }
 
@@ -139,19 +129,31 @@ body {
     flex-wrap: nowrap !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
-    overflow: hidden !important;
-    padding-bottom: 0 !important;
-    gap: 4px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 2px !important;
+    gap: 3px !important;
     min-height: 0;
+    flex: 1 1 auto;
   }
 
   .desktop-meld-area [data-drop-zone] {
-    padding: 4px !important;
+    padding: 3px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  /* Slot row only — avoid clobbering meld header `justify-between`. */
+  .desktop-meld-area [data-drop-zone] > div.flex.gap-1 {
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
   }
 
   .desktop-meld-area .meld-slot-card {
-    width: 56px !important;
-    height: 82px !important;
+    width: 52px !important;
+    height: 76px !important;
   }
 
   .desktop-meld-actions {
