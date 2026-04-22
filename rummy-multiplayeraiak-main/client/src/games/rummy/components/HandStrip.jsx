@@ -12,6 +12,15 @@ export const HandStrip = ({
   onExternalDrop,
 }) => {
   const [draggedIndexLocal, setDraggedIndexLocal] = useState(null);
+  const cardRenderKeys = React.useMemo(() => {
+    const occurrences = new Map();
+    return (hand || []).map((card) => {
+      const base = `${String(card?.rank)}-${String(card?.suit || "null")}-${card?.joker ? "1" : "0"}`;
+      const seen = occurrences.get(base) || 0;
+      occurrences.set(base, seen + 1);
+      return `${base}-${seen}`;
+    });
+  }, [hand]);
 
   // Use external state if strictly managed, or sync local
   const draggedIndex = draggedIndexExternal !== undefined ? draggedIndexExternal : draggedIndexLocal;
@@ -171,7 +180,7 @@ export const HandStrip = ({
       <div className="flex gap-2 py-4">
         {hand.map((card, idx) => (
           <div
-            key={`${card.rank}-${card.suit}-${idx}`}
+            key={cardRenderKeys[idx] || `${card.rank}-${card.suit}-${idx}`}
             data-card-index={idx}
             draggable={!!(onReorder || onExternalDrop)}
             onDragStart={(e) => handleDragStart(e, idx)}

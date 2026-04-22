@@ -1276,6 +1276,12 @@ router.post("/declare", requireAuth, async (req, res) => {
       wild_joker_rank,
       rnd.players_with_first_sequence
     );
+    const declarer_wild_joker_revealed = wildMode.isWildJokerRevealedForPlayer(
+      rnd.game_mode,
+      wild_joker_rank,
+      rnd.players_with_first_sequence,
+      sub
+    );
 
     // Validate groups if provided
     let isValidDeclaration = false;
@@ -1314,7 +1320,7 @@ router.post("/declare", requireAuth, async (req, res) => {
 
       // Strict server-side validation (authoritative).
       const validation = scoring.validateHand
-        ? scoring.validateHand(groups, [], wild_joker_rank, wild_joker_revealed)
+        ? scoring.validateHand(groups, [], wild_joker_rank, declarer_wild_joker_revealed)
         : { valid: false, reason: "Validator unavailable" };
       isValidDeclaration = !!validation.valid;
 
@@ -1328,6 +1334,12 @@ router.post("/declare", requireAuth, async (req, res) => {
           } else {
             const oppHand = hands[uid] || [];
             let pts = 0;
+            const oppWildRevealed = wildMode.isWildJokerRevealedForPlayer(
+              rnd.game_mode,
+              wild_joker_rank,
+              rnd.players_with_first_sequence,
+              uid
+            );
             if (scoring && typeof scoring.calculateLoserDeadwoodPoints === "function") {
               const snapUid = meld_snapshots[normId(uid)] || null;
               pts = scoring.calculateLoserDeadwoodPoints(
@@ -1335,14 +1347,14 @@ router.post("/declare", requireAuth, async (req, res) => {
                 loserDeadwoodMode,
                 snapUid,
                 wild_joker_rank,
-                wild_joker_revealed,
+                oppWildRevealed,
                 ace_value,
                 face_card_mode
               );
             } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
-              pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value, face_card_mode);
+              pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
             } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
-              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, wild_joker_revealed, ace_value, face_card_mode);
+              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
             } else {
               pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value, face_card_mode), 0);
             }

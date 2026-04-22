@@ -28,6 +28,12 @@ function isJokerCard(card, wildRank = null, revealed = false) {
   return false;
 }
 
+function canActAsOptionalWildJoker(card, wildRank = null, revealed = false) {
+  if (!revealed || !wildRank) return false;
+  if (!card || typeof card !== "object") return false;
+  return _getAttr(card, "rank") === wildRank && _getAttr(card, "rank") !== "JOKER";
+}
+
 /* ----------------------------------
    Card Points
 ----------------------------------- */
@@ -60,36 +66,54 @@ const rankIndex = (rank) => RANK_ORDER.indexOf(String(rank));
 ----------------------------------- */
 function isSequence(cards = [], wildRank = null, revealed = false) {
   if (!Array.isArray(cards) || cards.length < 3) return false;
+  const printedJokers = cards.filter((c) => _getAttr(c, "rank") === "JOKER");
+  const optionalWilds = cards.filter((c) => canActAsOptionalWildJoker(c, wildRank, revealed));
+  const fixedNaturals = cards.filter(
+    (c) => _getAttr(c, "rank") !== "JOKER" && !canActAsOptionalWildJoker(c, wildRank, revealed)
+  );
 
-  const suits = cards
-    .filter(c => !isJokerCard(c, wildRank, revealed))
-    .map(c => _getAttr(c, "suit"));
+  // Try all ways of treating revealed wild-rank cards as either natural cards or jokers.
+  const combos = 1 << optionalWilds.length;
+  for (let mask = 0; mask < combos; mask++) {
+    let jokerCount = printedJokers.length;
+    const nonJokers = fixedNaturals.slice();
 
-  // all non-jokers must match suit
-  if (suits.length > 0 && new Set(suits).size > 1) return false;
+    for (let i = 0; i < optionalWilds.length; i++) {
+      if ((mask & (1 << i)) !== 0) jokerCount += 1;
+      else nonJokers.push(optionalWilds[i]);
+    }
 
-  const jokerCount = cards.filter(c => isJokerCard(c, wildRank, revealed)).length;
-  const nonJokers = cards.filter(c => !isJokerCard(c, wildRank, revealed));
+    if (nonJokers.length < 2) continue;
 
-  if (nonJokers.length < 2) return false;
+    const suits = nonJokers.map((c) => _getAttr(c, "suit"));
+    if (suits.length > 0 && new Set(suits).size > 1) continue;
 
-  const idx = nonJokers
-    .map(c => rankIndex(_getAttr(c, "rank")))
-    .sort((a, b) => a - b);
+    const idx = nonJokers
+      .map((c) => rankIndex(_getAttr(c, "rank")))
+      .sort((a, b) => a - b);
 
-  // Duplicate non-joker ranks cannot form a run (e.g. Q♦, Q♦, Joker is invalid).
-  for (let i = 1; i < idx.length; i++) {
-    if (idx[i] === idx[i - 1]) return false;
+    let invalid = false;
+    for (let i = 0; i < idx.length; i++) {
+      if (idx[i] < 0) {
+        invalid = true;
+        break;
+      }
+      if (i > 0 && idx[i] === idx[i - 1]) {
+        invalid = true;
+        break;
+      }
+    }
+    if (invalid) continue;
+
+    const gapsNeeded = idx.reduce((gaps, v, i) => {
+      if (i === 0) return 0;
+      const gap = v - idx[i - 1] - 1;
+      return gaps + Math.max(gap, 0);
+    }, 0);
+
+    if (gapsNeeded <= jokerCount) return true;
   }
-
-  // gaps between card ranks
-  const gapsNeeded = idx.reduce((gaps, v, i) => {
-    if (i === 0) return 0;
-    const gap = v - idx[i - 1] - 1;
-    return gaps + Math.max(gap, 0);
-  }, 0);
-
-  return gapsNeeded <= jokerCount;
+  return false;
 }
 
 /* ----------------------------------
@@ -107,18 +131,33 @@ function isPureSequence(cards = [], wildRank = null, revealed = false) {
 ----------------------------------- */
 function isSet(cards = [], wildRank = null, revealed = false) {
   if (!Array.isArray(cards) || cards.length < 3 || cards.length > 4) return false;
+  const printedJokers = cards.filter((c) => _getAttr(c, "rank") === "JOKER");
+  const optionalWilds = cards.filter((c) => canActAsOptionalWildJoker(c, wildRank, revealed));
+  const fixedNaturals = cards.filter(
+    (c) => _getAttr(c, "rank") !== "JOKER" && !canActAsOptionalWildJoker(c, wildRank, revealed)
+  );
 
-  const nonJokers = cards.filter(c => !isJokerCard(c, wildRank, revealed));
-  if (nonJokers.length < 2) return false;
+  const combos = 1 << optionalWilds.length;
+  for (let mask = 0; mask < combos; mask++) {
+    let jokerCount = printedJokers.length;
+    const nonJokers = fixedNaturals.slice();
+    for (let i = 0; i < optionalWilds.length; i++) {
+      if ((mask & (1 << i)) !== 0) jokerCount += 1;
+      else nonJokers.push(optionalWilds[i]);
+    }
 
-  const ranks = [...new Set(nonJokers.map(c => _getAttr(c, "rank")))];
-  if (ranks.length !== 1) return false;
+    if (jokerCount + nonJokers.length !== cards.length) continue;
+    if (nonJokers.length < 2) continue;
 
-  // suits must be all different
-  const suits = nonJokers.map(c => _getAttr(c, "suit"));
-  if (new Set(suits).size !== suits.length) return false;
+    const ranks = [...new Set(nonJokers.map((c) => _getAttr(c, "rank")))];
+    if (ranks.length !== 1) continue;
 
-  return true;
+    const suits = nonJokers.map((c) => _getAttr(c, "suit"));
+    if (new Set(suits).size !== suits.length) continue;
+
+    return true;
+  }
+  return false;
 }
 
 /* ----------------------------------
