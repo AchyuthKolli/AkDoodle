@@ -1512,7 +1512,7 @@ export default function Table() {
 
         {quickPanelOpen && (
           <div className="fixed right-16 top-1/2 -translate-y-1/2 z-[74] w-64 max-h-[75vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur p-2 shadow-2xl flex flex-col gap-1">
-            <button type="button" onClick={() => { setTableInfoVisible(true); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">1. Table info</button>
+            <button type="button" onClick={() => { setTableInfoVisible((v) => !v); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">1. Table info (toggle)</button>
             <button type="button" onClick={() => { openRoundResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">2. Previous round scoreboard</button>
             <button type="button" onClick={() => { openAllRoundsResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">3. All round scoreboard</button>
             <button type="button" onClick={() => { setRulesOpenSignal((v) => v + 1); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">4. Game rules</button>
@@ -1805,25 +1805,6 @@ export default function Table() {
                           />
                         </div>
 
-                        {roundHistory.length > 0 && !showScoreboardModal && (
-                          <div className="rummy-inline-round-actions flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-1">
-                            <button
-                              type="button"
-                              onClick={openRoundResults}
-                              className="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-semibold shadow-lg flex-none"
-                            >
-                              Round scoreboard
-                            </button>
-                            <button
-                              type="button"
-                              onClick={openAllRoundsResults}
-                              className="px-3 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-xs sm:text-sm font-semibold shadow-lg border border-cyan-500/40 flex-none"
-                            >
-                              All round results
-                            </button>
-                          </div>
-                        )}
-
                         {/* Hand Strip Panel */}
                         <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="flex justify-between items-center mb-3">
@@ -2080,11 +2061,6 @@ export default function Table() {
                       </div>
                     )}
                   </div>
-                )}
-                {!tableInfoVisible && (
-                  <button onClick={() => setTableInfoVisible(true)} className="rummy-show-table-info fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:left-3 max-md:right-auto z-20 bg-card border border-border rounded-lg shadow-lg px-3 py-2 hover:bg-accent/50 transition-colors">
-                    Show Table Info
-                  </button>
                 )}
               </div>
             </RummyProvider>
