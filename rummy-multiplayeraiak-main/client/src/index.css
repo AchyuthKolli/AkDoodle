@@ -83,13 +83,13 @@ body {
     overflow: hidden;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
-    gap: 8px;
+    gap: 6px;
   }
 
   .desktop-play-layout {
     display: grid;
     grid-template-columns: minmax(0, 65fr) minmax(360px, 35fr);
-    gap: 10px;
+    gap: 8px;
     min-height: 0;
     overflow: hidden;
   }
@@ -103,7 +103,12 @@ body {
     min-height: 0 !important;
     height: 100%;
     margin-bottom: 0 !important;
-    border-radius: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .desktop-board-area .table-3d-container {
+    width: 100% !important;
+    height: 100% !important;
   }
 
   .desktop-meld-area {
@@ -111,7 +116,7 @@ body {
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     overflow: hidden;
   }
 
@@ -121,30 +126,29 @@ body {
     flex-wrap: nowrap !important;
     align-items: stretch !important;
     justify-content: flex-start !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: hidden !important;
     padding-bottom: 0 !important;
-    padding-right: 2px;
-    gap: 6px !important;
+    padding-right: 0 !important;
+    gap: 4px !important;
     min-height: 0;
   }
 
   .desktop-meld-area .meld-slot-card {
-    width: 62px !important;
-    height: 92px !important;
+    width: 56px !important;
+    height: 82px !important;
   }
 
   .desktop-meld-area [data-drop-zone] {
-    padding: 6px !important;
+    padding: 4px !important;
   }
 
   .desktop-meld-area [data-drop-zone] p {
-    font-size: 10px !important;
+    font-size: 9px !important;
   }
 
   .desktop-meld-actions {
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 4px;
   }
 
   .desktop-next-round-btn {
@@ -157,11 +161,11 @@ body {
   }
 
   .hand-strip-container {
-    min-height: 138px;
-    max-height: 184px;
+    min-height: 124px;
+    max-height: 156px;
     overflow: hidden;
     margin-top: 0 !important;
-    padding: 8px 10px !important;
+    padding: 6px 8px !important;
   }
 
   .hand-strip-container .overflow-x-auto {
@@ -172,16 +176,22 @@ body {
   .hand-strip-container .overflow-x-auto .flex {
     display: grid !important;
     grid-template-columns: repeat(14, minmax(0, 1fr));
-    gap: 4px !important;
-    padding-top: 2px !important;
+    gap: 3px !important;
+    padding-top: 0 !important;
     padding-bottom: 0 !important;
   }
 
   .hand-strip-container .mobile-hand-card {
     width: 100% !important;
     min-width: 0 !important;
-    max-width: 64px !important;
+    max-width: 58px !important;
     margin: 0 auto;
+  }
+
+  .hand-strip-container button {
+    min-height: 32px;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
   }
 }
 
