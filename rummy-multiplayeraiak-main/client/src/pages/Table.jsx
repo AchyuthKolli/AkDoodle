@@ -804,9 +804,10 @@ export default function Table() {
 
   const canStart = useMemo(() => {
     if (!info || !user) return false;
-    const seated = info.players.length;
+    const seated = (info.players || []).filter((p) => !p.is_spectator).length;
+    const requiredSeats = Number(info.max_players || 2);
     const isHost = user.id === info.host_user_id;
-    return info.status === "waiting" && seated >= 2 && isHost;
+    return info.status === "waiting" && seated >= requiredSeats && isHost;
   }, [info, user]);
 
   const isMyTurn = useMemo(() => {

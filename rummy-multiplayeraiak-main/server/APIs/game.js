@@ -601,11 +601,17 @@ router.post("/start-game", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "Game already started" });
 
     const players = await db.fetch(
-      `SELECT user_id FROM rummy_table_players WHERE table_id=$1 ORDER BY seat`,
+      `SELECT user_id FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false ORDER BY seat`,
       [table_id]
     );
     if (players.length < 2)
       return res.status(400).json({ error: "Need 2 players minimum" });
+    const requiredSeats = Number(tbl.max_players || 2);
+    if (players.length < requiredSeats) {
+      return res.status(400).json({
+        error: `All seats must be filled to start (${players.length}/${requiredSeats} joined).`,
+      });
+    }
 
     // choose wild joker rank
     let wild_joker_rank = null;
