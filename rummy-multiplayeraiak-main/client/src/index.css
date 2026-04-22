@@ -65,6 +65,132 @@ body {
   font-family: sans-serif;
 }
 
+/* Desktop unified layout only (mobile untouched) */
+@media (min-width: 1025px) {
+  .rummy-play-shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .rummy-play-main {
+    height: calc(100dvh - 126px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .desktop-play-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+    gap: 8px;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .desktop-board-area {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .desktop-board-area .rummy-top-zone {
+    min-height: 0 !important;
+    height: 100%;
+    margin-bottom: 0 !important;
+  }
+
+  .desktop-board-area .table-3d-container {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .desktop-board-area .table-3d-container [data-table-color] > div {
+    width: 100% !important;
+    height: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .desktop-board-area .table-3d-container [data-table-color] > div > div {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    height: 100% !important;
+    aspect-ratio: 16 / 10 !important;
+    transform: rotateX(12deg) rotateZ(0deg) !important;
+  }
+
+  .desktop-meld-area {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+  }
+
+  .desktop-meld-area .melds-container {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+    gap: 4px !important;
+    min-height: 0;
+  }
+
+  .desktop-meld-area [data-drop-zone] {
+    padding: 4px !important;
+  }
+
+  .desktop-meld-area .meld-slot-card {
+    width: 56px !important;
+    height: 82px !important;
+  }
+
+  .desktop-meld-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .desktop-next-round-btn {
+    grid-column: 1 / -1;
+  }
+
+  .desktop-hand-area {
+    min-height: 0;
+    margin-top: 0 !important;
+    overflow: hidden;
+  }
+
+  .desktop-hand-area .overflow-x-auto {
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+  }
+
+  .desktop-hand-area .overflow-x-auto .flex {
+    display: grid !important;
+    grid-template-columns: repeat(14, minmax(0, 1fr));
+    gap: 3px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .desktop-hand-area .mobile-hand-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 58px !important;
+    margin: 0 auto;
+  }
+}
+
 /* Rummy mobile/tablet playability overrides (UI only) */
 @media (max-width: 1024px) {
   .rummy-play-shell {
