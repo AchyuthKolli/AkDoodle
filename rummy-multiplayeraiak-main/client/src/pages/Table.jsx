@@ -1525,14 +1525,14 @@ export default function Table() {
                           <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
 
                           {/* Center Piles (Deck & Discard) */}
-                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start gap-5 sm:gap-8 z-10">
+                          <div className="center-piles-row absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start gap-5 sm:gap-8 z-10">
                             {/* Deck/Stock */}
                             <div
                               onClick={onDrawStock}
                               className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
                             >
                               <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
-                              <CardBack className="w-24 h-36 shadow-2xl relative z-10" />
+                              <CardBack className="center-pile-card w-24 h-36 shadow-2xl relative z-10" />
                               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
                                 Deck ({myRound?.stock_count || 0})
                               </div>
@@ -1548,7 +1548,7 @@ export default function Table() {
                                 <PlayingCard
                                   card={parseCardCode(myRound.discard_top) || { rank: "?", suit: "?" }}
                                   onClick={() => { }}
-                                  className="w-24 h-36 shadow-2xl relative z-10"
+                                  className="center-pile-card w-24 h-36 shadow-2xl relative z-10"
                                 />
                               ) : (
                                 <div className="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
@@ -1571,7 +1571,7 @@ export default function Table() {
                                   : "Wild Joker (Hidden)";
                               return (
                                 <div className="relative">
-                                  <div className="w-24 h-36 rounded-lg border border-yellow-500/45 bg-black/45 flex items-center justify-center shadow-2xl">
+                                  <div className="center-pile-card w-24 h-36 rounded-lg border border-yellow-500/45 bg-black/45 flex items-center justify-center shadow-2xl">
                                     {mode === "no_joker" ? (
                                       <span className="text-yellow-100 text-sm font-semibold">No Wild</span>
                                     ) : showRealWildcard ? (
@@ -1964,9 +1964,9 @@ export default function Table() {
             border-top: 1px solid rgba(255,255,255,0.1);
           }
           .table-3d-container {
-             transform: scale(0.65);
+             transform: scale(0.9);
              transform-origin: top center;
-             margin-top: -40px;
+             margin-top: 0;
           }
            /* Adjust discard pile visibility */
           .discard-pile-area {
@@ -1984,5 +1984,6 @@ export default function Table() {
     </div >
   );
 }
+
 
 

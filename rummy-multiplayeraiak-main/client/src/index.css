@@ -64,3 +64,53 @@ body {
   padding: 0;
   font-family: sans-serif;
 }
+
+/* Rummy mobile/tablet playability overrides (UI only) */
+@media (max-width: 1024px) {
+  .table-3d-container {
+    transform: none !important;
+    margin-top: 0 !important;
+    min-height: 360px !important;
+  }
+
+  .table-3d-container [data-table-color] > div > div {
+    transform: rotateX(10deg) rotateZ(0deg) !important;
+    max-height: 440px !important;
+  }
+
+  .center-piles-row {
+    gap: 10px !important;
+  }
+
+  .center-pile-card {
+    width: 86px !important;
+    height: 124px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-3d-container {
+    min-height: 320px !important;
+  }
+
+  .table-3d-container [data-table-color] > div {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .table-3d-container [data-table-color] > div > div {
+    max-width: 100% !important;
+    max-height: 360px !important;
+    transform: rotateX(6deg) rotateZ(0deg) !important;
+  }
+
+  .center-piles-row {
+    gap: 8px !important;
+    top: 54% !important;
+  }
+
+  .center-pile-card {
+    width: 74px !important;
+    height: 106px !important;
+  }
+}
