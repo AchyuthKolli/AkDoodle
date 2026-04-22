@@ -150,6 +150,30 @@ export const HandStrip = ({
     setDraggedIndex(index);
   };
 
+  /** Touch on strip only: gaps allow native horizontal scroll without card touch handlers blocking. */
+  const handleStripTouchStart = (e) => {
+    if (!e.touches?.length) return;
+    const el = e.target;
+    if (!(el instanceof Element)) {
+      touchStartRef.current = null;
+      touchGestureRef.current = "undecided";
+      return;
+    }
+    const hit = el.closest("[data-card-index]");
+    if (!hit) {
+      touchStartRef.current = null;
+      touchGestureRef.current = "undecided";
+      return;
+    }
+    const idx = Number(hit.dataset.cardIndex);
+    if (Number.isNaN(idx) || idx < 0 || idx >= (hand?.length ?? 0)) {
+      touchStartRef.current = null;
+      touchGestureRef.current = "undecided";
+      return;
+    }
+    handleTouchStart(e, idx);
+  };
+
   const handleTouchMove = (e) => {
     if (!touchStartRef.current) return;
 
@@ -260,7 +284,13 @@ export const HandStrip = ({
   }, [stopAutoScroll]);
 
   return (
-    <div className="hand-strip-scroll w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain touch-pan-x">
+    <div
+      className="hand-strip-scroll w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain touch-pan-x"
+      onTouchStart={handleStripTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
       <div className="inline-flex gap-2 py-2 sm:py-4">
         {hand.map((card, idx) => (
           <div
@@ -271,9 +301,6 @@ export const HandStrip = ({
             onDragOver={(e) => handleDragOver(e, idx)}
             onDrop={(e) => handleDrop(e, idx)}
             onDragEnd={endDrag}
-            onTouchStart={(e) => handleTouchStart(e, idx)}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
             className={`
               transition-all duration-200 relative
               ${draggedIndex === idx ? "opacity-20 scale-90" : ""}

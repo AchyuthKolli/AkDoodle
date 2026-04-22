@@ -1676,16 +1676,16 @@ export default function Table() {
               <div
                 className={`rummy-main-column grid gap-4 grid-cols-1 ${
                   info.status === "playing"
-                    ? "max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:min-h-0 max-lg:gap-1 max-lg:overflow-hidden max-lg:pb-2 max-lg:pr-14"
+                    ? "max-[1024px]:flex max-[1024px]:flex-col max-[1024px]:flex-1 max-[1024px]:min-h-0 max-[1024px]:gap-1 max-[1024px]:overflow-hidden max-[1024px]:pb-2 max-[1024px]:pr-14"
                     : "pb-36 md:pb-0"
                 }`}
               >
-                <div className="rummy-play-main bg-card border border-border rounded-lg p-2 sm:p-3 md:p-4 order-1 max-lg:min-h-0 max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:overflow-hidden">
+                <div className="rummy-play-main bg-card border border-border rounded-lg p-2 sm:p-3 md:p-4 order-1 max-[1024px]:min-h-0 max-[1024px]:flex max-[1024px]:flex-col max-[1024px]:flex-1 max-[1024px]:overflow-hidden">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="rummy-compact-inner flex flex-col h-full min-h-0 flex-1 relative overflow-hidden">
                       {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="rummy-compact-board-wrap rummy-top-zone table-3d-container relative flex-1 min-h-[240px] sm:min-h-[280px] rounded-xl overflow-hidden shadow-2xl mb-2 max-lg:mb-1 max-lg:min-h-0">
+                      <div className="rummy-compact-board-wrap rummy-top-zone table-3d-container relative flex-1 min-h-[240px] sm:min-h-[280px] rounded-xl overflow-hidden shadow-2xl mb-2 max-[1024px]:mb-1 max-[1024px]:min-h-0">
                         <CasinoTable3D tableColor={tableColor}>
                           {/* Color Toggle */}
                           <div className="absolute top-4 right-4 z-50 flex gap-2">
@@ -1771,9 +1771,9 @@ export default function Table() {
                       </div>
 
                       {/* Bottom: Player Area (Melds + Hand) */}
-                      <div className="player-area-section rummy-player-stack flex flex-col min-h-0 flex-1 gap-1 max-lg:gap-1 space-y-4 max-lg:space-y-0">
+                      <div className="player-area-section rummy-player-stack flex flex-col min-h-0 flex-1 gap-1 max-[1024px]:gap-1 space-y-4 max-[1024px]:space-y-0">
                         {/* Melds Row */}
-                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto overflow-y-hidden pb-2 max-lg:pb-0 max-lg:flex-nowrap max-lg:justify-start max-lg:min-h-0 max-lg:shrink-0">
+                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto overflow-y-hidden pb-2 max-[1024px]:pb-0 max-[1024px]:flex-nowrap max-[1024px]:justify-start max-[1024px]:min-h-0 max-[1024px]:shrink-0">
                           <MeldSlotBox
                             title="Meld 1"
                             slots={meld1}
@@ -1857,11 +1857,11 @@ export default function Table() {
 
                         {/* Hand Strip Panel */}
                         <div
-                          className={`hand-strip-container p-4 max-lg:p-2 rounded-xl border transition-colors min-h-0 max-lg:flex max-lg:flex-col max-lg:flex-1 max-lg:overflow-hidden ${
+                          className={`hand-strip-container p-4 max-[1024px]:p-2 rounded-xl border transition-colors min-h-0 max-[1024px]:flex max-[1024px]:flex-col max-[1024px]:flex-1 max-[1024px]:overflow-hidden ${
                             isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"
                           }`}
                         >
-                          <div className="rummy-hand-toolbar flex max-lg:flex-wrap justify-between items-center gap-2 mb-3 max-lg:mb-1 shrink-0">
+                          <div className="rummy-hand-toolbar flex max-[1024px]:flex-wrap justify-between items-center gap-2 mb-3 max-[1024px]:mb-1 shrink-0">
                             <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
                               Your Hand
                               {isMyTurn && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}

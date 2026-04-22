@@ -72,7 +72,8 @@ body {
     overflow-x: hidden;
   }
 
-  .rummy-play-main {
+  /* Do not apply to one-screen playing layout (needs flex + min-height chain) */
+  .rummy-play-shell:not(.rummy-compact-playing) .rummy-play-main {
     height: auto !important;
     overflow: visible !important;
     display: block !important;
@@ -162,7 +163,7 @@ body {
     min-width: 90px !important;
   }
 
-  .hand-strip-container {
+  .rummy-play-shell:not(.rummy-compact-playing) .hand-strip-container {
     min-height: 176px !important;
     padding-top: 10px !important;
     padding-bottom: 16px !important;
@@ -173,7 +174,7 @@ body {
     gap: 10px !important;
   }
 
-  .hand-strip-container button {
+  .rummy-play-shell:not(.rummy-compact-playing) .hand-strip-container button {
     min-height: 42px;
     font-size: 0.95rem;
     border-radius: 10px;
@@ -201,7 +202,7 @@ body {
     min-width: 84px !important;
   }
 
-  .hand-strip-container {
+  .rummy-play-shell:not(.rummy-compact-playing) .hand-strip-container {
     min-height: 168px !important;
     padding-bottom: 18px !important;
   }
@@ -303,6 +304,8 @@ body {
   }
 
   .rummy-play-shell.rummy-compact-playing .rummy-main-column {
+    display: flex !important;
+    flex-direction: column !important;
     flex: 1 1 auto;
     min-height: 0;
     overflow: hidden;
@@ -356,7 +359,8 @@ body {
     margin-top: 0 !important;
   }
 
-  .rummy-play-shell.rummy-compact-playing .table-3d-container [data-table-color] > div.relative.flex.items-center.justify-center {
+  .rummy-play-shell.rummy-compact-playing .table-3d-container [data-table-color] > div.relative.flex.items-center.justify-center,
+  .rummy-play-shell.rummy-compact-playing .table-3d-container [data-table-color] > div:nth-child(3) {
     justify-content: center !important;
     align-items: center !important;
     width: 100%;
@@ -366,7 +370,8 @@ body {
     padding-right: 0.5rem !important;
   }
 
-  .rummy-play-shell.rummy-compact-playing .table-3d-container [data-table-color] > div.relative.flex.items-center.justify-center > div {
+  .rummy-play-shell.rummy-compact-playing .table-3d-container [data-table-color] > div.relative.flex.items-center.justify-center > div,
+  .rummy-play-shell.rummy-compact-playing .table-3d-container [data-table-color] > div:nth-child(3) > div {
     width: auto !important;
     max-width: min(94vw, 36rem) !important;
     height: auto !important;
@@ -420,7 +425,7 @@ body {
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0 !important;
-    overflow-x: auto !important;
+    overflow-x: scroll !important;
     overflow-y: hidden !important;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-x;
