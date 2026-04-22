@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { socket } from "../../../socket";
+import { toast } from "sonner";
 
 const ICE_SERVERS = {
     iceServers: [
@@ -49,20 +50,24 @@ export const useVoice = (tableId, userId) => {
             }
 
             if (peer) {
-                if (type === "offer") {
-                    await peer.setRemoteDescription(new RTCSessionDescription(data));
-                    const answer = await peer.createAnswer();
-                    await peer.setLocalDescription(answer);
-                    socket.emit("voice.signal", {
-                        table_id: tableId,
-                        target_id: sender_id,
-                        type: "answer",
-                        data: answer
-                    });
-                } else if (type === "answer") {
-                    await peer.setRemoteDescription(new RTCSessionDescription(data));
-                } else if (type === "ice-candidate") {
-                    await peer.addIceCandidate(new RTCIceCandidate(data));
+                try {
+                    if (type === "offer") {
+                        await peer.setRemoteDescription(new RTCSessionDescription(data));
+                        const answer = await peer.createAnswer();
+                        await peer.setLocalDescription(answer);
+                        socket.emit("voice.signal", {
+                            table_id: tableId,
+                            target_id: sender_id,
+                            type: "answer",
+                            data: answer
+                        });
+                    } else if (type === "answer") {
+                        await peer.setRemoteDescription(new RTCSessionDescription(data));
+                    } else if (type === "ice-candidate" && data) {
+                        await peer.addIceCandidate(new RTCIceCandidate(data));
+                    }
+                } catch (err) {
+                    console.warn("voice.signal handling error", type, sender_id, err?.message || err);
                 }
             }
         };
@@ -90,7 +95,8 @@ export const useVoice = (tableId, userId) => {
             // users is array of userIds
             const others = users.filter(id => id !== userId);
             setConnectedUsers(others);
-            others.forEach(uid => createPeer(uid, true));
+            // Important: existing members will initiate to newcomer via "voice.joined".
+            // Avoid dual-offer glare by not initiating from both ends.
         };
 
         socket.on("voice.signal", handleSignal);
@@ -145,16 +151,34 @@ export const useVoice = (tableId, userId) => {
         };
 
         if (initiator) {
-            peer.createOffer().then(offer => {
-                peer.setLocalDescription(offer);
+            peer.createOffer().then(async (offer) => {
+                await peer.setLocalDescription(offer);
                 socket.emit("voice.signal", {
                     table_id: tableId,
                     target_id: targetId,
                     type: "offer",
                     data: offer
                 });
+            }).catch((err) => {
+                console.warn("voice offer create/send failed", targetId, err?.message || err);
             });
         }
+
+        peer.onconnectionstatechange = () => {
+            const st = peer.connectionState;
+            if (st === "failed" || st === "closed" || st === "disconnected") {
+                setParticipants(prev => prev.filter(p => p.userId !== targetId));
+                setConnectedUsers(prev => prev.filter(id => id !== targetId));
+                try {
+                    peer.close();
+                } catch (_) {
+                    // ignore
+                }
+                if (peersRef.current[targetId] === peer) {
+                    delete peersRef.current[targetId];
+                }
+            }
+        };
 
         return peer;
     };
@@ -174,6 +198,7 @@ export const useVoice = (tableId, userId) => {
     const toggleMute = () => {
         if (localStreamRef.current) {
             const track = localStreamRef.current.getAudioTracks()[0];
+            if (!track) return;
             track.enabled = !track.enabled;
             setIsMuted(!track.enabled);
         }

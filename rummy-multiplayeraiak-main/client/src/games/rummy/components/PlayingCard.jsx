@@ -1,6 +1,28 @@
 // FINAL PlayingCard.jsx – supports mobile drag, joker, BACK cards, uppercase filenames
 import React from "react";
 
+let cardCacheWarmed = false;
+function warmCardImageCache() {
+  if (cardCacheWarmed || typeof window === "undefined") return;
+  cardCacheWarmed = true;
+  const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  const suits = ["H", "D", "S", "C"];
+  const warm = () => {
+    const sources = ["/cards/BACK.png", "/cards/JOKER_RED.png", "/cards/JOKER_BLACK.png"];
+    for (const s of suits) for (const r of ranks) sources.push(`/cards/${s}${r}.png`);
+    sources.forEach((src) => {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = src;
+    });
+  };
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(warm, { timeout: 1800 });
+  } else {
+    setTimeout(warm, 200);
+  }
+}
+
 export default function PlayingCard({
   card,
   onClick,
@@ -9,6 +31,7 @@ export default function PlayingCard({
   faceDown = false
 }) {
   if (!card) return null;
+  warmCardImageCache();
 
   /* -----------------------------
      FACE DOWN CARD (Stock/Discard)
@@ -19,6 +42,8 @@ export default function PlayingCard({
         src="/cards/BACK.png"
         alt="back"
         draggable={false}
+        loading="eager"
+        decoding="async"
         className="w-[70px] sm:w-[88px] aspect-[2/3] rounded-lg shadow-md"
       />
     );
@@ -35,6 +60,8 @@ export default function PlayingCard({
         src={file}
         alt="joker"
         draggable={draggable}
+        loading="eager"
+        decoding="async"
         onClick={onClick}
         onDragStart={(e) => {
           if (!draggable) return;
@@ -71,6 +98,8 @@ export default function PlayingCard({
       src={src}
       alt={filename}
       draggable={draggable}
+      loading="eager"
+      decoding="async"
       onClick={onClick}
       onDragStart={(e) => {
         if (!draggable) return;

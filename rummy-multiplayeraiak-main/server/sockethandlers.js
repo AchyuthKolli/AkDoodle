@@ -517,6 +517,31 @@ module.exports = function (io) {
       if (ack) ack({ ok: true });
     });
 
+    // WebRTC signaling relay (offer / answer / ice-candidate)
+    socket.on("voice.signal", (data = {}, ack) => {
+      const tableId = data.table_id || socket.tableId;
+      const targetId = data.target_id;
+      const type = data.type;
+      const payload = data.data;
+      if (!tableId || !tables[tableId] || !targetId || !type) {
+        if (ack) ack({ ok: false, message: "Invalid voice signal payload" });
+        return;
+      }
+      const t = tables[tableId];
+      const senderId = t.userIdBySocket[socket.id] || socket.userId || null;
+      const targetSocketId = t.socketByUserId[targetId];
+      if (!senderId || !targetSocketId) {
+        if (ack) ack({ ok: false, message: "Target not connected" });
+        return;
+      }
+      io.to(targetSocketId).emit("voice.signal", {
+        sender_id: senderId,
+        type,
+        data: payload,
+      });
+      if (ack) ack({ ok: true });
+    });
+
     // get full table snapshot (public view)
     socket.on("get_table_state", (data = {}, ack) => {
       const tableId = data.table_id || socket.tableId;
