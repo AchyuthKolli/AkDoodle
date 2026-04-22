@@ -65,6 +65,78 @@ body {
   font-family: sans-serif;
 }
 
+/* Desktop single-screen gameplay layout (UI only) */
+@media (min-width: 1025px) {
+  .rummy-play-shell {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .rummy-play-main {
+    height: calc(100dvh - 170px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .desktop-play-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 12px;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .desktop-board-area {
+    min-width: 0;
+  }
+
+  .desktop-board-area .rummy-top-zone {
+    min-height: 0 !important;
+    height: 100%;
+    margin-bottom: 0 !important;
+  }
+
+  .desktop-meld-area {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .desktop-meld-area .melds-container {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 0 !important;
+    padding-right: 2px;
+  }
+
+  .desktop-meld-actions {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .desktop-next-round-btn {
+    grid-column: 1 / -1;
+  }
+
+  .player-area-section {
+    padding-bottom: 0 !important;
+  }
+
+  .hand-strip-container {
+    min-height: 182px;
+    max-height: 260px;
+    overflow: hidden;
+  }
+}
+
 /* Rummy mobile/tablet playability overrides (UI only) */
 @media (max-width: 1024px) {
   .rummy-play-shell {

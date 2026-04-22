@@ -1672,10 +1672,11 @@ export default function Table() {
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
-                      {/* Top: Table Area (Opponents + Center Piles) */}
-                      {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="rummy-top-zone table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
-                        <CasinoTable3D tableColor={tableColor}>
+                      <div className="desktop-play-layout">
+                        <div className="desktop-board-area">
+                          {/* Top: Table Area (Opponents + Center Piles) */}
+                          <div className="rummy-top-zone table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
+                            <CasinoTable3D tableColor={tableColor}>
                           {/* Color Toggle */}
                           <div className="absolute top-4 right-4 z-50 flex gap-2">
                             <button
@@ -1690,11 +1691,11 @@ export default function Table() {
                             />
                           </div>
 
-                          {/* Opponent Avatars */}
-                          <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
+                              {/* Opponent Avatars */}
+                              <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
 
-                          {/* Center Piles (Deck & Discard) */}
-                          <div className="center-piles-row absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start gap-5 sm:gap-8 z-10">
+                              {/* Center Piles (Deck & Discard) */}
+                              <div className="center-piles-row absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start gap-5 sm:gap-8 z-10">
                             {/* Deck/Stock */}
                             <div
                               onClick={onDrawStock}
@@ -1755,14 +1756,13 @@ export default function Table() {
                                 </div>
                               );
                             })()}
+                              </div>
+                            </CasinoTable3D>
                           </div>
-                        </CasinoTable3D>
-                      </div>
+                        </div>
 
-                      {/* Bottom: Player Area (Melds + Hand) */}
-                      <div className="player-area-section space-y-4">
-                        {/* Melds Row */}
-                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
+                        <div className="desktop-meld-area">
+                          <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
                           <MeldSlotBox
                             title="Meld 1"
                             slots={meld1}
@@ -1842,8 +1842,40 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             boxIndex={4}
                           />
+                          </div>
+                          <div className="desktop-meld-actions hidden lg:grid">
+                            <Button
+                              size="sm"
+                              disabled={!isMyTurn || !hasDrawn || !selectedCard}
+                              onClick={onDiscard}
+                              className="bg-red-600 hover:bg-red-700 text-white font-medium shadow-md transition-all active:scale-95"
+                            >
+                              Discard Selected
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={!isMyTurn}
+                              onClick={onDeclare}
+                              className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md transition-all active:scale-95 shimmer"
+                            >
+                              Declare
+                            </Button>
+                            {roundHistory.length > 0 && user?.id === info?.host_user_id && !showScoreboardModal && (
+                              <Button
+                                size="sm"
+                                disabled={starting}
+                                onClick={onNextRound}
+                                className="desktop-next-round-btn bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium shadow-md transition-all active:scale-95"
+                              >
+                                {starting ? "Starting..." : "Start Next Round"}
+                              </Button>
+                            )}
+                          </div>
                         </div>
+                      </div>
 
+                      {/* Bottom: Player Area (Hand only) */}
+                      <div className="player-area-section space-y-4">
                         {/* Hand Strip Panel */}
                         <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="flex justify-between items-center mb-3">
@@ -1861,7 +1893,7 @@ export default function Table() {
                                 size="sm"
                                 disabled={!isMyTurn || !hasDrawn || !selectedCard}
                                 onClick={onDiscard}
-                                className="bg-red-600 hover:bg-red-700 text-white font-medium shadow-md transition-all active:scale-95"
+                                className="lg:hidden bg-red-600 hover:bg-red-700 text-white font-medium shadow-md transition-all active:scale-95"
                               >
                                 Discard Selected
                               </Button>
@@ -1870,7 +1902,7 @@ export default function Table() {
                                 size="sm"
                                 disabled={!isMyTurn}
                                 onClick={onDeclare}
-                                className="bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md transition-all active:scale-95 shimmer"
+                                className="lg:hidden bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-md transition-all active:scale-95 shimmer"
                               >
                                 Declare
                               </Button>
@@ -1879,7 +1911,7 @@ export default function Table() {
                                   size="sm"
                                   disabled={starting}
                                   onClick={onNextRound}
-                                  className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium shadow-md transition-all active:scale-95"
+                                  className="lg:hidden bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium shadow-md transition-all active:scale-95"
                                 >
                                   {starting ? "Starting..." : "Start Next Round"}
                                 </Button>
