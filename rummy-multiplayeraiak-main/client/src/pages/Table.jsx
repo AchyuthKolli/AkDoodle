@@ -1599,7 +1599,7 @@ export default function Table() {
                       </div>
 
                       {/* Bottom: Player Area (Melds + Hand) */}
-                      <div className="space-y-4">
+                      <div className="player-area-section space-y-4">
                         {/* Melds Row */}
                         <div className="melds-container flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
                           <MeldSlotBox

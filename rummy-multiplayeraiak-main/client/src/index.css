@@ -219,4 +219,13 @@ body {
     overflow: hidden !important;
     text-overflow: ellipsis !important;
   }
+
+  /* Reserve room for fixed hand strip so meld boxes never collide */
+  .player-area-section {
+    padding-bottom: 196px !important;
+  }
+
+  .melds-container {
+    margin-bottom: 8px !important;
+  }
 }
