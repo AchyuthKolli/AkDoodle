@@ -32,6 +32,9 @@ import {
   Mic,
   MicOff,
   UserX,
+  Phone,
+  MessageCircle,
+  PanelRightOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -464,6 +467,10 @@ export default function Table() {
   const [tableInfoVisible, setTableInfoVisible] = useState(true);
   const [tableInfoMinimized, setTableInfoMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState("info");
+  const [quickPanelOpen, setQuickPanelOpen] = useState(false);
+  const [chatOpenSignal, setChatOpenSignal] = useState(0);
+  const [voiceOpenSignal, setVoiceOpenSignal] = useState(0);
+  const [rulesOpenSignal, setRulesOpenSignal] = useState(0);
 
   // Meld lock state
   const [meldLocks, setMeldLocks] = useState({
@@ -811,6 +818,16 @@ export default function Table() {
     if (!user || !info?.players) return false;
     return info.players.find(p => p.user_id === user.id)?.disqualified || false;
   }, [info, user]);
+  const isHostUser = useMemo(() => {
+    if (!user || !info) return false;
+    return user.id === info.host_user_id;
+  }, [info, user]);
+  const kickablePlayers = useMemo(() => {
+    if (!info?.players || !isHostUser) return [];
+    const active = info.players.filter((p) => !p.is_spectator).length;
+    if (active < 3) return [];
+    return info.players.filter((p) => p.user_id !== info.host_user_id && !p.is_spectator);
+  }, [info, isHostUser]);
 
   // Reset hasDrawn when turn changes
   useEffect(() => {
@@ -1209,6 +1226,17 @@ export default function Table() {
       toast.error(e?.message || "Failed to grant spectate");
     }
   };
+  const denySpectate = async (spectatorId) => {
+    if (!tableId) return;
+    try {
+      const body = { table_id: tableId, spectator_id: spectatorId, granted: false };
+      await apiclient.grant_spectate(body);
+      setSpectateRequests((prev) => prev.filter((id) => id !== spectatorId));
+      toast.success("Spectate request denied");
+    } catch (e) {
+      toast.error(e?.message || "Failed to deny spectate");
+    }
+  };
 
   // Voice control handler
   const toggleVoiceMute = async () => {
@@ -1449,7 +1477,101 @@ export default function Table() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
-        <GameRules defaultOpen={false} />
+        <GameRules
+          defaultOpen={false}
+          hideToggleButton={true}
+          openSignal={rulesOpenSignal}
+        />
+
+        <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[75] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setVoiceOpenSignal((v) => v + 1)}
+            className="w-10 h-10 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 shadow-lg flex items-center justify-center"
+            title="Open call panel"
+          >
+            <Phone className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setChatOpenSignal((v) => v + 1)}
+            className="w-10 h-10 rounded-lg bg-blue-800 hover:bg-blue-700 text-blue-100 border border-blue-700/60 shadow-lg flex items-center justify-center"
+            title="Open chat panel"
+          >
+            <MessageCircle className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickPanelOpen((v) => !v)}
+            className="w-10 h-10 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-emerald-100 border border-emerald-700/60 shadow-lg flex items-center justify-center"
+            title="Open quick actions"
+          >
+            <PanelRightOpen className="w-4 h-4" />
+          </button>
+        </div>
+
+        {quickPanelOpen && (
+          <div className="fixed right-16 top-1/2 -translate-y-1/2 z-[74] w-64 max-h-[75vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur p-2 shadow-2xl flex flex-col gap-1">
+            <button type="button" onClick={() => { setTableInfoVisible(true); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">1. Table info</button>
+            <button type="button" onClick={() => { openRoundResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">2. Previous round scoreboard</button>
+            <button type="button" onClick={() => { openAllRoundsResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">3. All round scoreboard</button>
+            <button type="button" onClick={() => { setRulesOpenSignal((v) => v + 1); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">4. Game rules</button>
+
+            {isDisqualified && (
+              <button
+                type="button"
+                onClick={() => {
+                  requestSpectate(user?.id);
+                  setQuickPanelOpen(false);
+                }}
+                className="text-left px-3 py-2 rounded-md text-sm text-cyan-100 hover:bg-cyan-900/40 border border-cyan-800/60"
+              >
+                5. Request spectate
+              </button>
+            )}
+
+            {isHostUser && spectateRequests.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-700">
+                <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-amber-300">Spectate requests</p>
+                {spectateRequests.map((uid) => {
+                  const label = info?.players?.find((p) => p.user_id === uid)?.display_name || uid.slice(0, 8);
+                  return (
+                    <div key={`spec-${uid}`} className="mx-1 mb-1 rounded-md bg-slate-800/80 px-2 py-2">
+                      <p className="text-xs text-slate-200 mb-1 truncate">{label}</p>
+                      <div className="flex gap-1">
+                        <button type="button" onClick={() => grantSpectate(uid)} className="flex-1 rounded bg-green-700 hover:bg-green-600 text-white text-xs py-1">Allow</button>
+                        <button type="button" onClick={() => denySpectate(uid)} className="flex-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs py-1">Deny</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {isHostUser && (
+              <div className="mt-2 pt-2 border-t border-slate-700">
+                <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-rose-300">Kick player (host)</p>
+                {kickablePlayers.length === 0 ? (
+                  <p className="px-2 py-1 text-[11px] text-slate-400">Need at least 3 active players to kick.</p>
+                ) : (
+                  kickablePlayers.map((p) => (
+                    <button
+                      key={`kick-${p.user_id}`}
+                      type="button"
+                      onClick={() => {
+                        handleKickPlayer(p.user_id);
+                        setQuickPanelOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-md text-xs text-rose-100 hover:bg-rose-900/40 border border-rose-900/50 mb-1"
+                    >
+                      Kick {p.display_name || p.user_id.slice(0, 8)}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-between mb-4">
@@ -1831,11 +1953,24 @@ export default function Table() {
 
                   {/* Move ChatSidebar and VoicePanel INSIDE Provider to access useRummy context for avatars */}
                   {user && info && tableId && (
-                    <ChatSidebar tableId={tableId} currentUserId={user.id} players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))} />
+                    <ChatSidebar
+                      tableId={tableId}
+                      currentUserId={user.id}
+                      players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))}
+                      hideToggleButton={true}
+                      openSignal={chatOpenSignal}
+                    />
                   )}
 
                   {user && info && tableId && (
-                    <VoicePanel tableId={tableId} currentUserId={user.id} isHost={info.host_user_id === user.id} players={info.players} />
+                    <VoicePanel
+                      tableId={tableId}
+                      currentUserId={user.id}
+                      isHost={info.host_user_id === user.id}
+                      players={info.players}
+                      hideToggleButton={true}
+                      openSignal={voiceOpenSignal}
+                    />
                   )}
 
                   <WildJokerRevealModal

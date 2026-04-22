@@ -12,6 +12,7 @@ export const HandStrip = ({
   onExternalDrop,
 }) => {
   const [draggedIndexLocal, setDraggedIndexLocal] = useState(null);
+  const transparentDragImageRef = React.useRef(null);
   const cardRenderKeys = React.useMemo(() => {
     const occurrences = new Map();
     return (hand || []).map((card) => {
@@ -39,12 +40,13 @@ export const HandStrip = ({
 
     const card = hand[index];
     e.dataTransfer.setData("card", JSON.stringify(card));
+    e.dataTransfer.setData("text/plain", `${index}`);
     e.dataTransfer.effectAllowed = "move";
 
-    // Hide ghost image
-    const img = new Image();
-    img.src = "";
-    e.dataTransfer.setDragImage(img, 0, 0);
+    // Hide default browser drag preview (can incorrectly include multiple cards).
+    if (transparentDragImageRef.current) {
+      e.dataTransfer.setDragImage(transparentDragImageRef.current, 0, 0);
+    }
   };
 
   const handleDragOver = (e, index) => {
@@ -79,6 +81,15 @@ export const HandStrip = ({
     setDraggedIndex(null);
     setDropTargetIndex(null);
   };
+
+  React.useEffect(() => {
+    if (typeof document !== "undefined" && !transparentDragImageRef.current) {
+      const c = document.createElement("canvas");
+      c.width = 1;
+      c.height = 1;
+      transparentDragImageRef.current = c;
+    }
+  }, []);
 
   React.useEffect(() => {
     const hardStop = () => endDrag();

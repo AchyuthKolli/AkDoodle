@@ -30,6 +30,9 @@ export default function VoicePanel({
   currentUserId,
   isHost,
   players: initialPlayers,
+  hideToggleButton = false,
+  openSignal = 0,
+  onClose,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { joinCall, leaveCall, toggleMute, isMuted, inCall, participants, connectedUsers } = useVoice(tableId, currentUserId);
@@ -99,6 +102,10 @@ export default function VoicePanel({
     }
   };
 
+  useEffect(() => {
+    if (openSignal > 0) setIsOpen(true);
+  }, [openSignal]);
+
 
 
   /* ---------------------------
@@ -108,16 +115,18 @@ export default function VoicePanel({
     return (
       <>
         {audioElements}
-        <button
-          onClick={() => setIsOpen(true)}
-          className={`rummy-voice-toggle fixed top-32 right-4 max-md:top-auto max-md:bottom-16 max-md:right-3 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
-            ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
-            : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
-            }`}
-        >
-          {inCall ? <Mic className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
-          <span className="hidden md:inline">{inCall ? "In Call" : "Voice"}</span>
-        </button>
+        {!hideToggleButton && (
+          <button
+            onClick={() => setIsOpen(true)}
+            className={`rummy-voice-toggle fixed top-32 right-4 max-md:top-auto max-md:bottom-16 max-md:right-3 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
+              ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
+              : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
+              }`}
+          >
+            {inCall ? <Mic className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+            <span className="hidden md:inline">{inCall ? "In Call" : "Voice"}</span>
+          </button>
+        )}
       </>
     );
   }
@@ -136,7 +145,10 @@ export default function VoicePanel({
             <h3 className="font-semibold text-white text-sm">Voice Call</h3>
           </div>
           <button
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              setIsOpen(false);
+              onClose?.();
+            }}
             className="text-slate-400 hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />

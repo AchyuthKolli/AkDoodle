@@ -7,7 +7,14 @@ import { MessageCircle, X, Send, Lock, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-export default function ChatSidebar({ tableId, currentUserId, players }) {
+export default function ChatSidebar({
+  tableId,
+  currentUserId,
+  players,
+  hideToggleButton = false,
+  openSignal = 0,
+  onClose,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState("");
@@ -17,6 +24,13 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (openSignal > 0) {
+      setIsOpen(true);
+      setUnreadCount(0);
+    }
+  }, [openSignal]);
 
   // Auto scroll when messages arrive
   useEffect(() => {
@@ -165,7 +179,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
   return (
     <>
       {/* Toggle Button */}
-      {!isOpen && (
+      {!isOpen && !hideToggleButton && (
         <button
           onClick={() => {
             setIsOpen(true);
@@ -192,7 +206,10 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
               <MessageCircle className="h-5 w-5" />
               Chat
             </h2>
-            <Button onClick={() => setIsOpen(false)} variant="ghost" size="icon">
+            <Button onClick={() => {
+              setIsOpen(false);
+              onClose?.();
+            }} variant="ghost" size="icon">
               <X className="h-4 w-4" />
             </Button>
           </div>

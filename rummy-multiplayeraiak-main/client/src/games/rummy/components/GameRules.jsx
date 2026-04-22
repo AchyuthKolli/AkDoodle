@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, ChevronRight, ChevronDown } from 'lucide-react';
 
-export const GameRules = ({ defaultOpen = false }) => {
+export const GameRules = ({ defaultOpen = false, hideToggleButton = false, openSignal = 0, onClose }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
+  useEffect(() => {
+    if (openSignal > 0) setIsOpen(true);
+  }, [openSignal]);
+
   if (!isOpen) {
+    if (hideToggleButton) return null;
     return (
       <button
         onClick={() => setIsOpen(true)}
@@ -24,7 +29,10 @@ export const GameRules = ({ defaultOpen = false }) => {
           13 Card Rummy Rules
         </h3>
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={() => {
+            setIsOpen(false);
+            onClose?.();
+          }}
           className="text-muted-foreground hover:text-foreground"
         >
           <X className="w-4 h-4" />
@@ -83,6 +91,16 @@ export const GameRules = ({ defaultOpen = false }) => {
             <li>• A, K, Q, J = 10 points each</li>
             <li>• Number cards = face value</li>
             <li>• Jokers = 0 points</li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 className="font-medium text-foreground mb-1">Table Modes (Auto / Strict / Wildcard)</h4>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li>• <strong>Auto (auto_optimal):</strong> server auto-groups remaining cards into best valid melds; only ungrouped cards score.</li>
+            <li>• <strong>Strict (submit_or_full):</strong> cards not in your valid submitted meld slots score full points.</li>
+            <li>• <strong>Closed wildcard:</strong> reveal is player-specific after a pure 3-card or 4-card lock; before reveal, wild rank behaves as normal card for that player.</li>
+            <li>• <strong>Meld size rule:</strong> declaration must be exactly 4 melds with sizes 3,3,3,4 and at least one pure sequence.</li>
           </ul>
         </div>
 
