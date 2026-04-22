@@ -68,21 +68,19 @@ body {
 /* Rummy mobile/tablet playability overrides (UI only) */
 @media (max-width: 1024px) {
   .rummy-play-shell {
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
+    overflow-x: hidden;
   }
 
   .rummy-play-main {
-    height: calc(100dvh - 96px);
-    overflow: hidden;
-    display: grid;
-    grid-template-rows: minmax(240px, 40vh) minmax(138px, 1fr) auto;
-    gap: 8px;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
   }
 
   .rummy-top-zone {
-    margin-bottom: 0 !important;
-    min-height: 0 !important;
+    margin-bottom: 8px !important;
+    min-height: 320px !important;
   }
 
   .table-3d-container {
@@ -93,7 +91,8 @@ body {
 
   .table-3d-container [data-table-color] > div > div {
     transform: rotateX(10deg) rotateZ(0deg) !important;
-    max-height: 500px !important;
+    max-height: none !important;
+    height: 100% !important;
   }
 
   .center-piles-row {
@@ -118,7 +117,7 @@ body {
   }
 
   .rummy-meld-band {
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: hidden !important;
     overflow-x: auto !important;
     flex-wrap: nowrap !important;
