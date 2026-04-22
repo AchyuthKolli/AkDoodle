@@ -171,7 +171,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
             setIsOpen(true);
             setUnreadCount(0);
           }}
-          className="fixed top-20 right-4 z-40 bg-blue-800 hover:bg-blue-700 text-blue-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all"
+          className="fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:right-3 z-40 bg-blue-800 hover:bg-blue-700 text-blue-100 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all"
         >
           <ChevronRight className="w-4 h-4" />
           Chat
@@ -185,7 +185,7 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
 
       {/* SIDE BAR */}
       {isOpen && (
-        <div className="fixed right-0 top-0 h-full w-80 bg-background border-l border-border shadow-lg z-50 flex flex-col">
+        <div className="fixed right-0 top-0 h-full w-80 max-md:w-[92vw] max-md:right-2 max-md:top-16 max-md:h-[72vh] max-md:rounded-xl bg-background border border-border shadow-lg z-50 flex flex-col">
           {/* Header */}
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -319,3 +319,4 @@ export default function ChatSidebar({ tableId, currentUserId, players }) {
     </>
   );
 }
+

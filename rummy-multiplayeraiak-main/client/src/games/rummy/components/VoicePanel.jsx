@@ -110,7 +110,7 @@ export default function VoicePanel({
         {audioElements}
         <button
           onClick={() => setIsOpen(true)}
-          className={`fixed top-32 right-4 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
+          className={`fixed top-32 right-4 max-md:top-auto max-md:bottom-16 max-md:right-3 z-40 px-3 py-2 rounded-lg shadow-lg flex items-center gap-2 text-sm transition-all ${inCall
             ? "bg-green-700 hover:bg-green-600 text-green-100 animate-pulse"
             : "bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
             }`}
@@ -128,7 +128,7 @@ export default function VoicePanel({
   return (
     <>
       {audioElements}
-      <div className="fixed top-32 right-4 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-72 overflow-hidden flex flex-col transition-all animate-in fade-in slide-in-from-right-5">
+      <div className="fixed top-32 right-4 z-50 max-md:top-14 max-md:right-2 max-md:w-[92vw] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-72 overflow-hidden flex flex-col transition-all animate-in fade-in slide-in-from-right-5">
         {/* Header */}
         <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -248,3 +248,4 @@ export default function VoicePanel({
     </>
   );
 }
+

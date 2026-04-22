@@ -1443,7 +1443,7 @@ export default function Table() {
       <div className="relative">
         <GameRules defaultOpen={false} />
 
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
             <div className="flex items-center gap-2">
@@ -1498,8 +1498,8 @@ export default function Table() {
             </div>
           ) : (
             <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
-              <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px]">
-                <div className="bg-card border border-border rounded-lg p-4 order-2 lg:order-1">
+              <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr,300px] pb-36 md:pb-0">
+                <div className="bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
                     <div className="flex flex-col h-full relative">
@@ -1844,18 +1844,18 @@ export default function Table() {
                   />
 
                   {roundHistory.length > 0 && !showScoreboardModal && (
-                    <div className="fixed bottom-5 right-5 z-[70] flex flex-col gap-2">
+                    <div className="fixed z-[70] flex flex-col gap-2 max-md:left-3 max-md:right-3 max-md:bottom-28 md:bottom-5 md:right-5">
                       <button
                         type="button"
                         onClick={openRoundResults}
-                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg"
+                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold shadow-lg max-md:w-full"
                       >
                         Round scoreboard
                       </button>
                       <button
                         type="button"
                         onClick={openAllRoundsResults}
-                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold shadow-lg border border-cyan-500/40"
+                        className="px-4 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold shadow-lg border border-cyan-500/40 max-md:w-full"
                       >
                         All round results
                       </button>
@@ -1864,7 +1864,7 @@ export default function Table() {
                           type="button"
                           disabled={starting}
                           onClick={onNextRound}
-                          className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg"
+                          className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-semibold shadow-lg max-md:w-full"
                         >
                           {starting ? "Starting..." : "Start Next Round"}
                         </button>
@@ -1876,7 +1876,7 @@ export default function Table() {
 
                 {/* Sidebar - Table Info with Round History */}
                 {tableInfoVisible && (
-                  <div className={`bg-card border border-border rounded-lg shadow-lg ${tableInfoMinimized ? "w-auto" : "order-1 lg:order-2"}`}>
+                  <div className={`bg-card border border-border rounded-lg shadow-lg order-2 ${tableInfoMinimized ? "w-auto" : ""}`}>
                     <div className="flex items-center justify-between p-3 bg-muted/30 border-b border-border rounded-t-lg">
                       <h3 className="text-sm font-semibold text-foreground">{tableInfoMinimized ? "Table" : "Table Info"}</h3>
                       <div className="flex items-center gap-1">
@@ -1938,7 +1938,7 @@ export default function Table() {
                   </div>
                 )}
                 {!tableInfoVisible && (
-                  <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 z-20 bg-card border border-border rounded-lg shadow-lg px-4 py-2 hover:bg-accent/50 transition-colors">
+                  <button onClick={() => setTableInfoVisible(true)} className="fixed top-20 right-4 max-md:top-auto max-md:bottom-28 max-md:left-3 max-md:right-auto z-20 bg-card border border-border rounded-lg shadow-lg px-3 py-2 hover:bg-accent/50 transition-colors">
                     Show Table Info
                   </button>
                 )}
@@ -1984,3 +1984,5 @@ export default function Table() {
     </div >
   );
 }
+
+
