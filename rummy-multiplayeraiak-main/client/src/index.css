@@ -187,3 +187,36 @@ body {
     bottom: 136px !important;
   }
 }
+
+/* Tight mobile band where center piles looked cramped */
+@media (max-width: 600px) {
+  .center-piles-row {
+    gap: 8px !important;
+    top: 60% !important;
+    align-items: flex-start !important;
+  }
+
+  .center-pile-slot {
+    width: 92px !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+
+  .center-pile-card {
+    width: 92px !important;
+    height: 132px !important;
+  }
+
+  .center-pile-label {
+    bottom: -30px !important;
+    max-width: 92px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}

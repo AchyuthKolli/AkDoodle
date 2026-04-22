@@ -7,20 +7,15 @@ function warmCardImageCache() {
   cardCacheWarmed = true;
   const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
   const suits = ["H", "D", "S", "C"];
-  const warm = () => {
-    const sources = ["/cards/BACK.png", "/cards/JOKER_RED.png", "/cards/JOKER_BLACK.png"];
-    for (const s of suits) for (const r of ranks) sources.push(`/cards/${s}${r}.png`);
-    sources.forEach((src) => {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = src;
-    });
-  };
-  if (typeof window.requestIdleCallback === "function") {
-    window.requestIdleCallback(warm, { timeout: 1800 });
-  } else {
-    setTimeout(warm, 200);
-  }
+  const sources = ["/cards/BACK.png", "/cards/JOKER_RED.png", "/cards/JOKER_BLACK.png"];
+  for (const s of suits) for (const r of ranks) sources.push(`/cards/${s}${r}.png`);
+
+  // Warm immediately to avoid first-render blank card slots on slower devices.
+  sources.forEach((src) => {
+    const img = new Image();
+    img.decoding = "sync";
+    img.src = src;
+  });
 }
 
 export default function PlayingCard({
@@ -44,7 +39,8 @@ export default function PlayingCard({
         alt="back"
         draggable={false}
         loading="eager"
-        decoding="async"
+        decoding="sync"
+        fetchPriority="high"
         className={`w-[70px] sm:w-[88px] aspect-[2/3] rounded-lg shadow-md ${className}`}
       />
     );
@@ -62,7 +58,8 @@ export default function PlayingCard({
         alt="joker"
         draggable={draggable}
         loading="eager"
-        decoding="async"
+        decoding="sync"
+        fetchPriority="high"
         onClick={onClick}
         onDragStart={(e) => {
           if (!draggable) return;
@@ -101,7 +98,8 @@ export default function PlayingCard({
       alt={filename}
       draggable={draggable}
       loading="eager"
-      decoding="async"
+      decoding="sync"
+      fetchPriority="high"
       onClick={onClick}
       onDragStart={(e) => {
         if (!draggable) return;

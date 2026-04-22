@@ -64,7 +64,15 @@ import { useAuth } from "../auth/AuthContext";
 
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
-  <img src="/cards/BACK.png" alt="deck back" className={`rounded-lg shadow-2xl ${className}`} draggable={false} />
+  <img
+    src="/cards/BACK.png"
+    alt="deck back"
+    className={`rounded-lg shadow-2xl ${className}`}
+    draggable={false}
+    loading="eager"
+    decoding="sync"
+    fetchPriority="high"
+  />
 );
 
 /* ----------------- MeldSlotBox & LeftoverSlotBox (no TS) ----------------- */
@@ -1529,11 +1537,11 @@ export default function Table() {
                             {/* Deck/Stock */}
                             <div
                               onClick={onDrawStock}
-                              className={`relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
+                              className={`center-pile-slot relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
                             >
                               <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
                               <CardBack className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 shadow-2xl relative z-10" />
-                              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                              <div className="center-pile-label absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
                                 Deck ({myRound?.stock_count || 0})
                               </div>
                             </div>
@@ -1541,7 +1549,7 @@ export default function Table() {
                             {/* Discard Pile */}
                             <div
                               onClick={onDrawDiscard}
-                              className={`discard-pile-area relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
+                              className={`center-pile-slot discard-pile-area relative group cursor-pointer transition-all ${isMyTurn && !hasDrawn ? 'hover:scale-105 hover:-translate-y-2' : ''}`}
                             >
                               <div className={`absolute inset-0 bg-yellow-400 blur-md rounded-lg opacity-0 transition-opacity ${isMyTurn && !hasDrawn && myRound?.discard_top ? 'group-hover:opacity-40 animate-pulse' : ''}`} />
                               {myRound?.discard_top ? (
@@ -1551,11 +1559,11 @@ export default function Table() {
                                   className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 shadow-2xl relative z-10"
                                 />
                               ) : (
-                                <div className="w-24 h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
+                                <div className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/20 text-xs bg-white/5 relative z-10">
                                   Empty
                                 </div>
                               )}
-                              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                              <div className="center-pile-label absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
                                 Discard Pile
                               </div>
                             </div>
@@ -1570,7 +1578,7 @@ export default function Table() {
                                   ? "Wild Joker"
                                   : "Wild Joker (Hidden)";
                               return (
-                                <div className="relative">
+                                <div className="center-pile-slot relative">
                                   <div className="center-pile-card w-[98px] h-[140px] sm:w-24 sm:h-36 rounded-lg border border-yellow-500/45 bg-black/45 flex items-center justify-center shadow-2xl">
                                     {mode === "no_joker" ? (
                                       <span className="text-yellow-100 text-sm font-semibold">No Wild</span>
@@ -1580,7 +1588,7 @@ export default function Table() {
                                       <span className="text-slate-200 font-bold text-3xl">?</span>
                                     )}
                                   </div>
-                                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
+                                  <div className="center-pile-label absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
                                     {label}
                                   </div>
                                 </div>
