@@ -180,7 +180,8 @@ body {
   }
 
   .rummy-rules-toggle {
-    bottom: 230px !important;
+    top: 72px !important;
+    bottom: auto !important;
   }
 
   .rummy-voice-toggle {
@@ -227,5 +228,10 @@ body {
 
   .melds-container {
     margin-bottom: 8px !important;
+  }
+
+  .rummy-rules-toggle {
+    top: 72px !important;
+    bottom: auto !important;
   }
 }
