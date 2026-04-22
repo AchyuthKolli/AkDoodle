@@ -119,6 +119,8 @@ export const HandStrip = ({
   const touchStartRef = React.useRef(null);
   const externalDropRef = React.useRef(null); // track external target
   const autoScrollRafRef = React.useRef(null);
+  /** When user is panning horizontally, let the overflow-x strip scroll (do not preventDefault). */
+  const touchGestureRef = React.useRef("undecided"); // 'undecided' | 'scroll' | 'drag'
 
   const stopAutoScroll = React.useCallback(() => {
     if (autoScrollRafRef.current != null) {
@@ -144,15 +146,59 @@ export const HandStrip = ({
       y: t.clientY,
     };
     externalDropRef.current = null;
+    touchGestureRef.current = "undecided";
     setDraggedIndex(index);
   };
 
   const handleTouchMove = (e) => {
     if (!touchStartRef.current) return;
 
+    const t = e.touches[0];
+    const start = touchStartRef.current;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+
+    if (touchGestureRef.current === "undecided") {
+      if (ax > 10 && ax > ay) {
+        touchGestureRef.current = "scroll";
+        stopAutoScroll();
+        touchStartRef.current = null;
+        externalDropRef.current = null;
+        setDropTargetIndex(null);
+        endDrag();
+        return;
+      }
+      if (ay > 10 && ay > ax * 1.12) {
+        touchGestureRef.current = "drag";
+      } else if (ax + ay < 8) {
+        return;
+      } else if (ax + ay > 22) {
+        touchGestureRef.current = ax >= ay ? "scroll" : "drag";
+        if (touchGestureRef.current === "scroll") {
+          stopAutoScroll();
+          touchStartRef.current = null;
+          externalDropRef.current = null;
+          setDropTargetIndex(null);
+          endDrag();
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (touchGestureRef.current === "scroll") {
+      return;
+    }
+
+    if (touchGestureRef.current !== "drag") {
+      return;
+    }
+
     e.preventDefault();
 
-    const t = e.touches[0];
     const topEdge = 120;
     const bottomEdge = window.innerHeight - 140;
     if (t.clientY < topEdge) startAutoScroll(-1);
@@ -186,6 +232,7 @@ export const HandStrip = ({
 
   const handleTouchEnd = () => {
     stopAutoScroll();
+    touchGestureRef.current = "undecided";
     const start = touchStartRef.current;
 
     // Check external drop first
@@ -213,8 +260,8 @@ export const HandStrip = ({
   }, [stopAutoScroll]);
 
   return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex gap-2 py-4">
+    <div className="hand-strip-scroll w-full min-w-0 overflow-x-auto overflow-y-hidden overscroll-x-contain touch-pan-x">
+      <div className="inline-flex gap-2 py-2 sm:py-4">
         {hand.map((card, idx) => (
           <div
             key={cardRenderKeys[idx] || `${card.rank}-${card.suit}-${idx}`}
