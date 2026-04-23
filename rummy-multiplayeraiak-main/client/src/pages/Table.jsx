@@ -1494,7 +1494,7 @@ export default function Table() {
           />
         )}
 
-        <div className="fixed right-2 md:right-3 z-[75] hidden min-[1025px]:flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
+        <div className="fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
           <button
             type="button"
             onClick={() => {
@@ -1542,7 +1542,7 @@ export default function Table() {
         </div>
 
         {quickPanelOpen && (
-          <div className="fixed right-16 top-1/2 -translate-y-1/2 z-[74] w-64 max-h-[75vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur p-2 shadow-2xl hidden min-[1025px]:flex flex-col gap-1">
+          <div className="fixed right-16 top-1/2 -translate-y-1/2 z-[74] w-64 max-h-[75vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur p-2 shadow-2xl flex flex-col gap-1">
             <button type="button" onClick={() => { setTableInfoVisible((v) => !v); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">1. Table info (toggle)</button>
             <button type="button" onClick={() => { openRoundResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">2. Previous round scoreboard</button>
             <button type="button" onClick={() => { openAllRoundsResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">3. All round scoreboard</button>

@@ -456,8 +456,6 @@ body {
   .rummy-play-shell.rummy-playing-layout .rummy-page-wrap {
     padding-left: 0.35rem !important;
     padding-right: 0.35rem !important;
-    /* Keep content clear of the right floating dock on phones. */
-    padding-inline-end: 3.4rem !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-topbar {
