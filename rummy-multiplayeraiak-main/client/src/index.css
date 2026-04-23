@@ -456,6 +456,8 @@ body {
   .rummy-play-shell.rummy-playing-layout .rummy-page-wrap {
     padding-left: 0.35rem !important;
     padding-right: 0.35rem !important;
+    /* Keep content clear of the right floating dock on phones. */
+    padding-inline-end: 3.4rem !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-topbar {
@@ -505,18 +507,27 @@ body {
     display: grid;
     grid-template-rows: auto auto;
     gap: 0 !important;
-    overflow: visible;
+    overflow: hidden;
     padding-bottom: 0 !important;
   }
 
+  /* Neutralize Tailwind `space-y-4` in playing layout to avoid fake gaps. */
+  .rummy-play-shell.rummy-playing-layout .rummy-player-area.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 0 !important;
+  }
+
   .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    flex: 0 0 98px;
-    max-height: 98px;
-    min-height: 98px;
+    flex: 0 0 116px;
+    max-height: 116px;
+    min-height: 116px;
     margin-bottom: 0 !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     overflow-y: hidden !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-meld-row {
+    padding-bottom: 0 !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-hand-header {
@@ -570,56 +581,26 @@ body {
   }
 }
 
-/* Very narrow phones: force tight board->meld->hand stack with no filler gaps */
+/* Very narrow phones: just scale cards/buttons, keep same stack logic as <=600. */
 @media (max-width: 480px) {
-  .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
-    gap: 0 !important;
+  .rummy-play-shell.rummy-playing-layout .center-pile-card {
+    width: 64px !important;
+    height: 92px !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
-    flex: 1 1 auto;
-    min-height: clamp(170px, 43vh, 340px) !important;
-    margin-bottom: 0 !important;
+  .rummy-play-shell.rummy-playing-layout .center-pile-label {
+    font-size: 8px !important;
+    max-width: 66px !important;
+    bottom: -20px !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .player-area-section {
-    flex: 0 0 auto;
-    display: grid;
-    grid-template-rows: auto auto;
-    align-content: start;
-    gap: 0 !important;
-    padding-bottom: 0 !important;
+  .rummy-play-shell.rummy-playing-layout .rummy-hand-actions button {
+    min-height: 28px;
+    font-size: 0.66rem;
   }
 
-  .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    flex: 0 0 86px;
-    min-height: 86px;
-    max-height: 86px;
-    margin-bottom: 0 !important;
-  }
-
-  .rummy-play-shell.rummy-playing-layout .hand-strip-container {
-    flex: 0 0 auto;
-    min-height: 0;
-    max-height: none;
-    margin-top: 0 !important;
-    padding: 0.28rem !important;
-    display: block;
-  }
-
-  .rummy-play-shell.rummy-playing-layout .rummy-hand-header {
-    margin-bottom: 0.12rem !important;
-  }
-
-  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto,
-  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll {
-    min-height: 0;
-    overflow-y: hidden !important;
-  }
-
-  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto .flex,
-  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll > div {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
+  .rummy-play-shell.rummy-playing-layout .mobile-hand-card {
+    width: 52px !important;
+    min-width: 52px !important;
   }
 }

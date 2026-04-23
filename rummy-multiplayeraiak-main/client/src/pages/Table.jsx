@@ -1762,9 +1762,9 @@ export default function Table() {
                       </div>
 
                       {/* Bottom: Player Area (Melds + Hand) */}
-                      <div className="player-area-section space-y-4">
+                      <div className="player-area-section rummy-player-area space-y-4">
                         {/* Melds Row */}
-                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
+                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2 rummy-meld-row">
                           <MeldSlotBox
                             title="Meld 1"
                             slots={meld1}
