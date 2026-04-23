@@ -627,12 +627,22 @@ body {
 /* Device-tuned override: Surface Duo-like portrait 540x720 only */
 @media (min-width: 520px) and (max-width: 560px) and (min-height: 700px) and (max-height: 740px) {
   .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
-    grid-template-rows: minmax(0, 60%) minmax(0, 40%);
+    grid-template-rows: minmax(0, 64%) minmax(0, 36%);
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
+    min-height: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .table-3d-container [data-table-color] > div > div {
+    max-width: min(84vw, 30rem) !important;
+    max-height: min(56vh, 420px) !important;
+    transform: rotateX(14deg) rotateZ(0deg) !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .center-pile-card {
-    width: 82px !important;
-    height: 118px !important;
+    width: 86px !important;
+    height: 122px !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .center-pile-label {
@@ -642,43 +652,67 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    min-height: 112px !important;
-    max-height: 112px !important;
+    min-height: 106px !important;
+    max-height: 106px !important;
   }
 }
 
-/* Device-tuned override: Nest Hub-like 1024x600 only (desktop-like proportions) */
+/* Device-tuned override: Nest Hub-like 1024x600 only (desktop-style scrolling layout) */
 @media (min-width: 980px) and (max-width: 1040px) and (min-height: 560px) and (max-height: 640px) {
+  .rummy-play-shell.rummy-playing-layout {
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout > .relative,
+  .rummy-play-shell.rummy-playing-layout .rummy-page-wrap,
+  .rummy-play-shell.rummy-playing-layout .rummy-content-wrap {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
   .rummy-play-shell.rummy-playing-layout .rummy-play-main {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
     padding: 0.5rem !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
-    grid-template-rows: minmax(0, 66%) minmax(0, 34%);
+    display: block !important;
+    overflow: visible !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .center-piles-row {
-    top: 54% !important;
-    gap: 12px !important;
+  .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
+    min-height: 360px !important;
+    margin-bottom: 0.5rem !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .center-pile-card {
-    width: 94px !important;
-    height: 134px !important;
+  .rummy-play-shell.rummy-playing-layout .table-3d-container [data-table-color] > div > div {
+    max-width: min(90vw, 42rem) !important;
+    max-height: none !important;
+    height: 100% !important;
+    transform: rotateX(10deg) rotateZ(0deg) !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .center-pile-label {
-    font-size: 11px !important;
-    bottom: -28px !important;
+  .rummy-play-shell.rummy-playing-layout .player-area-section {
+    display: block !important;
+    overflow: visible !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    min-height: 98px !important;
-    max-height: 98px !important;
+    min-height: 110px !important;
+    max-height: 110px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    margin-bottom: 0.35rem !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .mobile-hand-card {
-    width: 68px !important;
-    min-width: 68px !important;
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container {
+    min-height: 116px !important;
+    overflow: hidden !important;
   }
 }
