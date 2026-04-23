@@ -604,7 +604,22 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .mobile-hand-card {
-    width: 52px !important;
-    min-width: 52px !important;
+    width: 62px !important;
+    min-width: 62px !important;
+  }
+
+  /* Keep floating dock above meld zone on phones so it won't block hand scrolling/cards. */
+  .rummy-play-shell.rummy-playing-layout .rummy-mobile-dock {
+    right: 0.45rem !important;
+    top: auto !important;
+    transform: none !important;
+    bottom: calc(46% + 10px) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .rummy-play-shell.rummy-playing-layout .mobile-hand-card {
+    width: 58px !important;
+    min-width: 58px !important;
   }
 }

@@ -1494,7 +1494,7 @@ export default function Table() {
           />
         )}
 
-        <div className="fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
+        <div className="rummy-mobile-dock fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
           <button
             type="button"
             onClick={() => {
