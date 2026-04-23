@@ -269,3 +269,115 @@ body {
     bottom: auto !important;
   }
 }
+
+/* Playing only (mobile/tablet): fit board + melds + hand in one frame */
+@media (max-width: 1024px) {
+  .rummy-play-shell.rummy-playing-layout {
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .rummy-play-shell.rummy-playing-layout > .relative {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-page-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-topbar {
+    margin-bottom: 0.35rem !important;
+    flex-shrink: 0;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-content-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-play-main {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex !important;
+    flex-direction: column;
+    overflow: hidden !important;
+    padding: 0.5rem !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    gap: 0.35rem;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
+    flex: 1 1 58%;
+    min-height: clamp(220px, 48vh, 520px) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .player-area-section {
+    flex: 1 1 42%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    overflow: hidden;
+    padding-bottom: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
+    flex: 0 0 auto;
+    max-height: min(22vh, 210px);
+    min-height: 86px;
+    margin-bottom: 0 !important;
+    padding-bottom: 0.25rem !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0.5rem !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container > .flex {
+    margin-bottom: 0.25rem !important;
+    flex-shrink: 0;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto,
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto .flex,
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll > div {
+    gap: 8px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+}

@@ -1484,7 +1484,7 @@ export default function Table() {
 
   /* ------------------------------- Render ------------------------------- */
   return (
-    <div className="rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+    <div className={`rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 ${info?.status === "playing" ? "rummy-playing-layout" : ""}`}>
       <div className="relative">
         {rulesPanelVisible && (
           <GameRules
@@ -1604,8 +1604,8 @@ export default function Table() {
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto px-2 sm:px-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="rummy-page-wrap max-w-7xl mx-auto px-2 sm:px-4">
+          <div className="rummy-topbar flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
             <div className="flex items-center gap-2">
               {canStart && (
@@ -1669,11 +1669,11 @@ export default function Table() {
             </div>
           ) : (
             <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
-              <div className="grid gap-4 grid-cols-1 pb-36 md:pb-0">
+              <div className={`rummy-content-wrap grid gap-4 grid-cols-1 ${info?.status === "playing" ? "pb-0" : "pb-36 md:pb-0"}`}>
                 <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
-                    <div className="flex flex-col h-full relative">
+                    <div className="rummy-playing-stack flex flex-col h-full relative">
                       {/* Top: Table Area (Opponents + Center Piles) */}
                       {/* Top: Table Area (Opponents + Center Piles) */}
                       <div className="rummy-top-zone table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
