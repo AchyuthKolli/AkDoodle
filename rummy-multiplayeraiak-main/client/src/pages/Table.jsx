@@ -1848,13 +1848,13 @@ export default function Table() {
 
                         {/* Hand Strip Panel */}
                         <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
-                          <div className="flex justify-between items-center mb-3">
+                          <div className="rummy-hand-header flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
                               Your Hand
                               {isMyTurn && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
                             </h3>
 
-                            <div className="flex items-center gap-3">
+                            <div className="rummy-hand-actions flex items-center gap-3">
                               <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white" onClick={onClearMelds}>
                                 Reset Melds
                               </Button>
