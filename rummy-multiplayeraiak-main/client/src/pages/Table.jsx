@@ -1484,11 +1484,7 @@ export default function Table() {
 
   /* ------------------------------- Render ------------------------------- */
   return (
-    <div
-      className={`rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 ${
-        info?.status === "playing" ? "rummy-compact-playing" : ""
-      }`}
-    >
+    <div className="rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <div className="relative">
         {rulesPanelVisible && (
           <GameRules
@@ -1608,8 +1604,8 @@ export default function Table() {
           </div>
         )}
 
-        <div className="rummy-page-inner max-w-7xl mx-auto px-2 sm:px-4">
-          <div className="rummy-table-header-row flex items-center justify-between mb-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-semibold text-foreground">Table</h2>
             <div className="flex items-center gap-2">
               {canStart && (
@@ -1673,19 +1669,14 @@ export default function Table() {
             </div>
           ) : (
             <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
-              <div
-                className={`rummy-main-column grid gap-4 grid-cols-1 ${
-                  info.status === "playing"
-                    ? "max-[1024px]:flex max-[1024px]:flex-col max-[1024px]:flex-1 max-[1024px]:min-h-0 max-[1024px]:gap-1 max-[1024px]:overflow-hidden max-[1024px]:pb-2 max-[1024px]:pr-14"
-                    : "pb-36 md:pb-0"
-                }`}
-              >
-                <div className="rummy-play-main bg-card border border-border rounded-lg p-2 sm:p-3 md:p-4 order-1 max-[1024px]:min-h-0 max-[1024px]:flex max-[1024px]:flex-col max-[1024px]:flex-1 max-[1024px]:overflow-hidden">
+              <div className="grid gap-4 grid-cols-1 pb-36 md:pb-0">
+                <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
                   {info.status === "playing" ? (
                     /* ================= GAME BOARD UI ================= */
-                    <div className="rummy-compact-inner flex flex-col h-full min-h-0 flex-1 relative overflow-hidden">
+                    <div className="flex flex-col h-full relative">
                       {/* Top: Table Area (Opponents + Center Piles) */}
-                      <div className="rummy-compact-board-wrap rummy-top-zone table-3d-container relative flex-1 min-h-[240px] sm:min-h-[280px] rounded-xl overflow-hidden shadow-2xl mb-2 max-[1024px]:mb-1 max-[1024px]:min-h-0">
+                      {/* Top: Table Area (Opponents + Center Piles) */}
+                      <div className="rummy-top-zone table-3d-container relative flex-1 min-h-[300px] sm:min-h-[360px] rounded-xl overflow-hidden shadow-2xl mb-4">
                         <CasinoTable3D tableColor={tableColor}>
                           {/* Color Toggle */}
                           <div className="absolute top-4 right-4 z-50 flex gap-2">
@@ -1771,9 +1762,9 @@ export default function Table() {
                       </div>
 
                       {/* Bottom: Player Area (Melds + Hand) */}
-                      <div className="player-area-section rummy-player-stack flex flex-col min-h-0 flex-1 gap-1 max-[1024px]:gap-1 space-y-4 max-[1024px]:space-y-0">
+                      <div className="player-area-section space-y-4">
                         {/* Melds Row */}
-                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto overflow-y-hidden pb-2 max-[1024px]:pb-0 max-[1024px]:flex-nowrap max-[1024px]:justify-start max-[1024px]:min-h-0 max-[1024px]:shrink-0">
+                        <div className="melds-container rummy-meld-band flex flex-wrap justify-center gap-2 lg:gap-4 overflow-x-auto pb-2">
                           <MeldSlotBox
                             title="Meld 1"
                             slots={meld1}
@@ -1856,12 +1847,8 @@ export default function Table() {
                         </div>
 
                         {/* Hand Strip Panel */}
-                        <div
-                          className={`hand-strip-container p-4 max-[1024px]:p-2 rounded-xl border transition-colors min-h-0 max-[1024px]:flex max-[1024px]:flex-col max-[1024px]:flex-1 max-[1024px]:overflow-hidden ${
-                            isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"
-                          }`}
-                        >
-                          <div className="rummy-hand-toolbar flex max-[1024px]:flex-wrap justify-between items-center gap-2 mb-3 max-[1024px]:mb-1 shrink-0">
+                        <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
+                          <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
                               Your Hand
                               {isMyTurn && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
@@ -2131,7 +2118,39 @@ export default function Table() {
         </div>
 
       </div>
-    </div>
+      {/* Mobile Styles for Table and Hand */}
+      <style>{`
+        @media (max-width: 768px) {
+          .hand-strip-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            padding-bottom: 26px; /* Safe area + larger cards */
+            border-top: 1px solid rgba(255,255,255,0.1);
+          }
+          .table-3d-container {
+             transform: scale(1);
+             transform-origin: top center;
+             margin-top: 0;
+          }
+           /* Adjust discard pile visibility */
+          .discard-pile-area {
+             transform: scale(1);
+          }
+           /* Make melds scrollable horizontally without wrapping weirdly */
+          .melds-container {
+             flex-wrap: nowrap;
+             justify-content: flex-start;
+             padding-left: 1rem;
+             padding-right: 1rem;
+          }
+        }
+      `}</style>
+    </div >
   );
 }
 
