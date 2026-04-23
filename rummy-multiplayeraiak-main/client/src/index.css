@@ -555,6 +555,11 @@ body {
     font-size: 0.68rem;
   }
 
+  /* Keep action row compact so `Declare` remains visible on narrow widths. */
+  .rummy-play-shell.rummy-playing-layout .rummy-hand-actions {
+    gap: 0.2rem !important;
+  }
+
   .rummy-play-shell.rummy-playing-layout .mobile-hand-card {
     width: 54px !important;
     min-width: 54px !important;

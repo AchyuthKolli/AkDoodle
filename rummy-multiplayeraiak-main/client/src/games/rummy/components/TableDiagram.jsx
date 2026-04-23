@@ -9,18 +9,22 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
     const angle = angleStep * (seat - 1) - 90; // Start from top (12 o'clock)
 
     // Convert polar to cartesian coordinates
-    const radius = 45; // % from center
+    // More seats => keep avatars closer to edge to protect center play piles.
+    const radius = totalSeats >= 6 ? 47 : totalSeats >= 4 ? 46 : 45; // % from center
     const x = 50 + radius * Math.cos((angle * Math.PI) / 180);
     const y = 50 + radius * Math.sin((angle * Math.PI) / 180);
 
     return { x, y, angle };
   };
 
+  const totalSeats = players?.length || 0;
+  const compactSeats = totalSeats >= 4;
+
   return (
     <div className="relative w-full h-full">
       {/* Player positions around the table */}
       {players.map((player) => {
-        const { x, y } = getSeatPosition(player.seat, players.length);
+        const { x, y } = getSeatPosition(player.seat, totalSeats || 1);
         const isActive = player.user_id === activeUserId;
         const isCurrent = player.user_id === currentUserId;
 
@@ -35,7 +39,7 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
             }}
           >
             <div className={`
-              flex flex-col items-center gap-2 p-3 max-md:p-1.5 rounded-xl transition-all backdrop-blur-sm
+              flex flex-col items-center ${compactSeats ? "gap-1 p-2" : "gap-2 p-3"} max-md:p-1.5 rounded-xl transition-all backdrop-blur-sm
               ${isActive
                 ? "bg-amber-500/40 border-3 border-amber-400 ring-4 ring-amber-400/50 shadow-xl shadow-amber-400/50"
                 : "bg-green-900/60 border-2 border-green-700/80"
@@ -46,7 +50,7 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
               }
             `}>
               <div className={`
-                w-14 h-14 max-md:w-9 max-md:h-9 rounded-full flex items-center justify-center border-2 overflow-hidden
+                ${compactSeats ? "w-11 h-11" : "w-14 h-14"} max-md:w-9 max-md:h-9 rounded-full flex items-center justify-center border-2 overflow-hidden
                 ${isActive
                   ? "bg-amber-500 border-amber-300"
                   : "bg-green-700 border-green-600"
@@ -63,10 +67,10 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
                 )}
               </div>
               <div className="text-center">
-                <div className="text-sm max-md:text-[10px] font-bold text-white truncate max-w-[80px] max-md:max-w-[56px] drop-shadow">
+                <div className={`${compactSeats ? "text-xs" : "text-sm"} max-md:text-[10px] font-bold text-white truncate max-w-[80px] max-md:max-w-[56px] drop-shadow`}>
                   {isCurrent ? "You" : player.display_name?.slice(0, 10) || `Player ${player.seat}`}
                 </div>
-                <div className="text-xs max-md:text-[9px] text-green-200 font-medium">Seat {player.seat}</div>
+                <div className={`${compactSeats ? "text-[10px]" : "text-xs"} max-md:text-[9px] text-green-200 font-medium`}>Seat {player.seat}</div>
               </div>
               {isActive && (
                 <div className="absolute -top-2 -right-2 w-4 h-4 bg-amber-400 rounded-full animate-pulse border-2 border-white" />
