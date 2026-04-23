@@ -467,7 +467,7 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
-    gap: 0.15rem;
+    gap: 0 !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-topbar h2 {
@@ -482,8 +482,9 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
-    flex: 1 1 47%;
-    min-height: clamp(146px, 36vh, 280px) !important;
+    flex: 1 1 56%;
+    min-height: clamp(160px, 40vh, 300px) !important;
+    margin-bottom: 0 !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .center-pile-card {
@@ -498,19 +499,19 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .player-area-section {
-    flex: 1 1 53%;
+    flex: 1 1 44%;
     min-height: 0;
-    display: grid;
-    grid-template-rows: auto auto;
-    align-content: start;
-    gap: 0.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0 !important;
     overflow: hidden;
+    padding-bottom: 0 !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    flex: 0 0 auto;
-    max-height: 96px;
-    min-height: 82px;
+    flex: 0 0 88px;
+    max-height: 88px;
+    min-height: 88px;
     margin-bottom: 0 !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
@@ -547,15 +548,15 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .hand-strip-container {
-    flex: 0 0 auto;
-    min-height: 106px;
-    max-height: 122px;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     margin-top: 0 !important;
-    padding: 0.35rem !important;
+    padding: 0.3rem !important;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 0.1rem;
-    align-content: start;
+    gap: 0 !important;
+    align-content: stretch;
   }
 
   .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto,
