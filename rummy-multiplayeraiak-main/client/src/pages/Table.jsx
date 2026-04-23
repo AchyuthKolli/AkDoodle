@@ -195,6 +195,7 @@ const MeldSlotBox = ({
           {slots.map((card, i) => (
             <div
               key={i}
+              data-drop-zone={`meld-${boxIndex}-slot-${i}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
@@ -300,6 +301,7 @@ const LeftoverSlotBox = ({
           {slots.map((card, i) => (
             <div
               key={i}
+              data-drop-zone={`deadwood-slot-${i}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
@@ -1266,11 +1268,13 @@ export default function Table() {
     setSelectedCardIndex(idx);
   };
 
-  const dropHandCardToZone = (zoneIndex, card) => {
+  const dropHandCardToZone = (zoneIndex, card, preferredSlotIndex = null) => {
     if (!card) return false;
     if (zoneIndex === 0) {
       if (meldLocks.meld1) return false;
-      const i = meld1.findIndex((x) => x === null);
+      const i = preferredSlotIndex != null
+        ? (meld1[preferredSlotIndex] === null ? preferredSlotIndex : -1)
+        : meld1.findIndex((x) => x === null);
       if (i === -1) return false;
       const next = [...meld1];
       next[i] = card;
@@ -1279,7 +1283,9 @@ export default function Table() {
     }
     if (zoneIndex === 1) {
       if (meldLocks.meld2) return false;
-      const i = meld2.findIndex((x) => x === null);
+      const i = preferredSlotIndex != null
+        ? (meld2[preferredSlotIndex] === null ? preferredSlotIndex : -1)
+        : meld2.findIndex((x) => x === null);
       if (i === -1) return false;
       const next = [...meld2];
       next[i] = card;
@@ -1288,7 +1294,9 @@ export default function Table() {
     }
     if (zoneIndex === 2) {
       if (meldLocks.meld3) return false;
-      const i = meld3.findIndex((x) => x === null);
+      const i = preferredSlotIndex != null
+        ? (meld3[preferredSlotIndex] === null ? preferredSlotIndex : -1)
+        : meld3.findIndex((x) => x === null);
       if (i === -1) return false;
       const next = [...meld3];
       next[i] = card;
@@ -1297,7 +1305,9 @@ export default function Table() {
     }
     if (zoneIndex === 3) {
       if (meldLocks.meld4) return false;
-      const i = meld4.findIndex((x) => x === null);
+      const i = preferredSlotIndex != null
+        ? (meld4[preferredSlotIndex] === null ? preferredSlotIndex : -1)
+        : meld4.findIndex((x) => x === null);
       if (i === -1) return false;
       const next = [...meld4];
       next[i] = card;
@@ -1900,12 +1910,14 @@ export default function Table() {
                               if (!availableHand || !availableHand[cardIndex]) return;
                               const card = availableHand[cardIndex];
                               if (zoneId.startsWith("meld-")) {
-                                const meldIdx = parseInt(zoneId.split("-")[1]);
-                                if (!isNaN(meldIdx)) {
-                                  const ok = dropHandCardToZone(meldIdx, card);
-                                  if (!ok) toast.error("Drop failed: slot full or locked");
+                                const match = zoneId.match(/^meld-(\d+)(?:-slot-(\d+))?$/);
+                                const meldIdx = match ? Number(match[1]) : NaN;
+                                const slotIdx = match && match[2] != null ? Number(match[2]) : null;
+                                if (!Number.isNaN(meldIdx)) {
+                                  const ok = dropHandCardToZone(meldIdx, card, Number.isNaN(slotIdx) ? null : slotIdx);
+                                  if (!ok) toast.error("Drop failed: selected slot is occupied or meld is locked");
                                 }
-                              } else if (zoneId === "deadwood") {
+                              } else if (zoneId === "deadwood" || zoneId.startsWith("deadwood-slot-")) {
                                 const ok = dropHandCardToZone(4, card);
                                 if (!ok) toast.error("Drop failed: deadwood slot full or locked");
                               }
