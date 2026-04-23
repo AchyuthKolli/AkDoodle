@@ -162,7 +162,7 @@ body {
     min-width: 90px !important;
   }
 
-  .hand-strip-container {
+  .rummy-play-shell:not(.rummy-playing-layout) .hand-strip-container {
     min-height: 176px !important;
     padding-top: 10px !important;
     padding-bottom: 16px !important;
@@ -174,7 +174,7 @@ body {
     gap: 10px !important;
   }
 
-  .hand-strip-container button {
+  .rummy-play-shell:not(.rummy-playing-layout) .hand-strip-container button {
     min-height: 42px;
     font-size: 0.95rem;
     border-radius: 10px;
@@ -202,7 +202,7 @@ body {
     min-width: 84px !important;
   }
 
-  .hand-strip-container {
+  .rummy-play-shell:not(.rummy-playing-layout) .hand-strip-container {
     min-height: 168px !important;
     padding-bottom: 18px !important;
   }
@@ -256,11 +256,11 @@ body {
   }
 
   /* Reserve room for fixed hand strip so meld boxes never collide */
-  .player-area-section {
+  .rummy-play-shell:not(.rummy-playing-layout) .player-area-section {
     padding-bottom: 170px !important;
   }
 
-  .melds-container {
+  .rummy-play-shell:not(.rummy-playing-layout) .melds-container {
     margin-bottom: 8px !important;
   }
 
@@ -470,8 +470,8 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
-    flex: 1 1 54%;
-    min-height: clamp(190px, 45vh, 360px) !important;
+    flex: 1 1 52%;
+    min-height: clamp(170px, 42vh, 330px) !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .center-pile-card {
@@ -486,8 +486,8 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    max-height: min(20vh, 145px);
-    min-height: 72px;
+    max-height: min(18vh, 128px);
+    min-height: 64px;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-hand-header {
@@ -515,7 +515,7 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .mobile-hand-card {
-    width: 62px !important;
-    min-width: 62px !important;
+    width: 58px !important;
+    min-width: 58px !important;
   }
 }
