@@ -569,3 +569,57 @@ body {
     padding-bottom: 0 !important;
   }
 }
+
+/* Very narrow phones: force tight board->meld->hand stack with no filler gaps */
+@media (max-width: 480px) {
+  .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
+    gap: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
+    flex: 1 1 auto;
+    min-height: clamp(170px, 43vh, 340px) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .player-area-section {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-rows: auto auto;
+    align-content: start;
+    gap: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
+    flex: 0 0 86px;
+    min-height: 86px;
+    max-height: 86px;
+    margin-bottom: 0 !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container {
+    flex: 0 0 auto;
+    min-height: 0;
+    max-height: none;
+    margin-top: 0 !important;
+    padding: 0.28rem !important;
+    display: block;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .rummy-hand-header {
+    margin-bottom: 0.12rem !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto,
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll {
+    min-height: 0;
+    overflow-y: hidden !important;
+  }
+
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto .flex,
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll > div {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+}
