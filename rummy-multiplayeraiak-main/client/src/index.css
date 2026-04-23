@@ -72,7 +72,7 @@ body {
     overflow-x: hidden;
   }
 
-  .rummy-play-main {
+  .rummy-play-shell:not(.rummy-playing-layout) .rummy-play-main {
     height: auto !important;
     overflow: visible !important;
     display: block !important;
@@ -470,7 +470,7 @@ body {
 
   .rummy-play-shell.rummy-playing-layout .rummy-playing-stack {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 54%) minmax(0, 46%);
     gap: 0 !important;
   }
 
@@ -486,7 +486,7 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-top-zone {
-    min-height: clamp(170px, 40vh, 320px) !important;
+    min-height: 0 !important;
     margin-bottom: 0 !important;
   }
 
@@ -502,10 +502,9 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .player-area-section {
-    flex: 0 0 auto;
-    min-height: auto;
+    min-height: 0;
     display: grid;
-    grid-template-rows: auto auto;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0 !important;
     overflow: hidden;
     padding-bottom: 0 !important;
@@ -517,13 +516,14 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .melds-container.rummy-meld-band {
-    flex: 0 0 116px;
-    max-height: 116px;
-    min-height: 116px;
+    min-height: 0 !important;
+    max-height: none !important;
     margin-bottom: 0 !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     overflow-y: hidden !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
   }
 
   .rummy-play-shell.rummy-playing-layout .rummy-meld-row {
@@ -561,23 +561,24 @@ body {
   }
 
   .rummy-play-shell.rummy-playing-layout .hand-strip-container {
-    flex: 0 0 auto;
-    min-height: auto;
+    min-height: 0 !important;
     max-height: none;
     margin-top: 0 !important;
-    padding: 0.3rem !important;
-    display: block;
-    gap: 0 !important;
+    padding: 0.28rem !important;
+    overflow: hidden;
   }
 
   .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto,
   .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll {
-    min-height: auto;
+    min-height: 0;
+    overflow-y: hidden !important;
   }
 
-  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll > div {
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .hand-strip-scroll > div,
+  .rummy-play-shell.rummy-playing-layout .hand-strip-container .overflow-x-auto .flex {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
+    gap: 6px !important;
   }
 }
 
