@@ -27,6 +27,20 @@ function canActAsOptionalWildJoker(card, wildRank = null, revealed = false) {
 
 const rankIndex = (rank) => RANK_ORDER.indexOf(String(rank));
 
+function canMakeStraightFromIndexes(indexes = [], jokerCount = 0) {
+    const sorted = [...indexes].sort((a, b) => a - b);
+    for (let i = 0; i < sorted.length; i++) {
+        if (sorted[i] < 0) return false;
+        if (i > 0 && sorted[i] === sorted[i - 1]) return false;
+    }
+    const gapsNeeded = sorted.reduce((gaps, v, i) => {
+        if (i === 0) return 0;
+        const gap = v - sorted[i - 1] - 1;
+        return gaps + Math.max(gap, 0);
+    }, 0);
+    return gapsNeeded <= jokerCount;
+}
+
 function isSequence(cards = [], wildRank = null, revealed = false) {
     if (!Array.isArray(cards) || cards.length < 3) return false;
     const printedJokers = cards.filter((c) => _getAttr(c, "rank") === "JOKER");
@@ -49,30 +63,17 @@ function isSequence(cards = [], wildRank = null, revealed = false) {
         const suits = nonJokers.map((c) => _getAttr(c, "suit"));
         if (suits.length > 0 && new Set(suits).size > 1) continue;
 
-        const idx = nonJokers
-            .map((c) => rankIndex(_getAttr(c, "rank")))
-            .sort((a, b) => a - b);
+        const ranks = nonJokers.map((c) => String(_getAttr(c, "rank")));
+        const baseIndexes = ranks.map((r) => rankIndex(r));
 
-        let invalid = false;
-        for (let i = 0; i < idx.length; i++) {
-            if (idx[i] < 0) {
-                invalid = true;
-                break;
-            }
-            if (i > 0 && idx[i] === idx[i - 1]) {
-                invalid = true;
-                break;
-            }
+        // Standard low-ace sequence check (A-2-3, A-2-3-4, 10-J-Q, 10-J-Q-K, etc.)
+        if (canMakeStraightFromIndexes(baseIndexes, jokerCount)) return true;
+
+        // High-ace sequence check (J-Q-K-A and joker-assisted variants like J-Q-JOKER-A).
+        if (ranks.includes("A")) {
+            const highAceIndexes = baseIndexes.map((v, i) => (ranks[i] === "A" ? 13 : v));
+            if (canMakeStraightFromIndexes(highAceIndexes, jokerCount)) return true;
         }
-        if (invalid) continue;
-
-        const gapsNeeded = idx.reduce((gaps, v, i) => {
-            if (i === 0) return 0;
-            const gap = v - idx[i - 1] - 1;
-            return gaps + Math.max(gap, 0);
-        }, 0);
-
-        if (gapsNeeded <= jokerCount) return true;
     }
     return false;
 }

@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Crown } from "lucide-react";
 import { AdminTableRulesPanel } from "./AdminTableRulesPanel.jsx";
 
 /**
@@ -92,12 +92,19 @@ export function AllRoundsResultsModal({
                         {rounds.map((round) => {
                           const roundScore = Number(round?.scores?.[player.user_id] || 0);
                           runningTotal += roundScore;
+                          const isRoundWinner =
+                            round?.status !== "invalid" &&
+                            round?.winner_user_id != null &&
+                            String(round.winner_user_id) === String(player.user_id);
                           return (
                             <td
                               key={`${player.user_id}-${round.round_number}`}
                               className="text-center py-2 px-1 text-slate-300"
                             >
-                              {roundScore}
+                              <span className="inline-flex items-center justify-center gap-1">
+                                {roundScore}
+                                {isRoundWinner && <Crown className="w-3.5 h-3.5 text-yellow-400" />}
+                              </span>
                             </td>
                           );
                         })}

@@ -1428,6 +1428,10 @@ export default function Table() {
     const clientVal = validateHand(groups, info.wild_joker_rank, true);
     if (!clientVal.valid) {
       console.warn("⚠️ Client validation failed:", clientVal.reason);
+      if (clientVal.reason === "At least one pure sequence required") {
+        toast.error("Invalid declaration: at least one pure sequence is mandatory.");
+        return;
+      }
     }
 
     setActing(true);
