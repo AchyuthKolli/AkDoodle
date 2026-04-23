@@ -32,6 +32,7 @@ export default function VoicePanel({
   players: initialPlayers,
   hideToggleButton = false,
   openSignal = 0,
+  closeSignal = 0,
   onClose,
   onCallStateChange,
 }) {
@@ -106,6 +107,10 @@ export default function VoicePanel({
   useEffect(() => {
     if (openSignal > 0) setIsOpen(true);
   }, [openSignal]);
+
+  useEffect(() => {
+    if (closeSignal > 0) setIsOpen(false);
+  }, [closeSignal]);
 
   useEffect(() => {
     onCallStateChange?.(!!inCall);

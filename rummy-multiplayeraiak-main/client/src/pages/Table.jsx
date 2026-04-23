@@ -471,7 +471,9 @@ export default function Table() {
   const [activeTab, setActiveTab] = useState("info");
   const [quickPanelOpen, setQuickPanelOpen] = useState(false);
   const [chatOpenSignal, setChatOpenSignal] = useState(0);
+  const [chatCloseSignal, setChatCloseSignal] = useState(0);
   const [voiceOpenSignal, setVoiceOpenSignal] = useState(0);
+  const [voiceCloseSignal, setVoiceCloseSignal] = useState(0);
   const [rulesPanelVisible, setRulesPanelVisible] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
@@ -616,6 +618,13 @@ export default function Table() {
 
     onSpectateUpdate((data) => {
       console.log("👁 Spectate update", data);
+      const spectatorId = data?.user_id || data?.spectator_id || data?.requester_id || data?.player_id;
+      if (data?.type === "requested" && spectatorId) {
+        setSpectateRequests((prev) => (prev.includes(spectatorId) ? prev : [...prev, spectatorId]));
+      }
+      if (data?.type === "granted" && spectatorId) {
+        setSpectateRequests((prev) => prev.filter((id) => id !== spectatorId));
+      }
       refresh();
     });
 
@@ -1508,8 +1517,13 @@ export default function Table() {
           <button
             type="button"
             onClick={() => {
-              setVoicePanelOpen(true);
-              setVoiceOpenSignal((v) => v + 1);
+              if (voicePanelOpen) {
+                setVoicePanelOpen(false);
+                setVoiceCloseSignal((v) => v + 1);
+              } else {
+                setVoicePanelOpen(true);
+                setVoiceOpenSignal((v) => v + 1);
+              }
             }}
             className={`w-11 h-11 rounded-xl border shadow-xl flex items-center justify-center transition-all ${inCallActive || voicePanelOpen
               ? "bg-emerald-700/90 hover:bg-emerald-600 text-emerald-100 border-emerald-500 ring-2 ring-emerald-400/40"
@@ -1522,8 +1536,13 @@ export default function Table() {
           <button
             type="button"
             onClick={() => {
-              setChatPanelOpen(true);
-              setChatOpenSignal((v) => v + 1);
+              if (chatPanelOpen) {
+                setChatPanelOpen(false);
+                setChatCloseSignal((v) => v + 1);
+              } else {
+                setChatPanelOpen(true);
+                setChatOpenSignal((v) => v + 1);
+              }
             }}
             className={`relative w-11 h-11 rounded-xl border shadow-xl flex items-center justify-center transition-all ${chatPanelOpen
               ? "bg-blue-700/95 hover:bg-blue-600 text-blue-100 border-blue-500 ring-2 ring-blue-400/40"
@@ -1993,6 +2012,7 @@ export default function Table() {
                       players={info.players.map((p) => ({ userId: p.user_id, displayName: p.display_name || p.user_id.slice(0, 6), profileImage: p.profile_image_url }))}
                       hideToggleButton={true}
                       openSignal={chatOpenSignal}
+                      closeSignal={chatCloseSignal}
                       onUnreadChange={setChatUnreadCount}
                       onClose={() => setChatPanelOpen(false)}
                     />
@@ -2006,6 +2026,7 @@ export default function Table() {
                       players={info.players}
                       hideToggleButton={true}
                       openSignal={voiceOpenSignal}
+                      closeSignal={voiceCloseSignal}
                       onClose={() => setVoicePanelOpen(false)}
                       onCallStateChange={setInCallActive}
                     />

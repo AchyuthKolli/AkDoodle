@@ -13,6 +13,7 @@ export default function ChatSidebar({
   players,
   hideToggleButton = false,
   openSignal = 0,
+  closeSignal = 0,
   onClose,
   onUnreadChange,
 }) {
@@ -32,6 +33,12 @@ export default function ChatSidebar({
       setUnreadCount(0);
     }
   }, [openSignal]);
+
+  useEffect(() => {
+    if (closeSignal > 0) {
+      setIsOpen(false);
+    }
+  }, [closeSignal]);
 
   useEffect(() => {
     onUnreadChange?.(unreadCount);
