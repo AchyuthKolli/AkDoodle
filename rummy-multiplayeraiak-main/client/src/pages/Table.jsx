@@ -2118,38 +2118,6 @@ export default function Table() {
         </div>
 
       </div>
-      {/* Mobile Styles for Table and Hand */}
-      <style>{`
-        @media (max-width: 768px) {
-          .hand-strip-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 50;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(10px);
-            padding-bottom: 26px; /* Safe area + larger cards */
-            border-top: 1px solid rgba(255,255,255,0.1);
-          }
-          .table-3d-container {
-             transform: scale(1);
-             transform-origin: top center;
-             margin-top: 0;
-          }
-           /* Adjust discard pile visibility */
-          .discard-pile-area {
-             transform: scale(1);
-          }
-           /* Make melds scrollable horizontally without wrapping weirdly */
-          .melds-container {
-             flex-wrap: nowrap;
-             justify-content: flex-start;
-             padding-left: 1rem;
-             padding-right: 1rem;
-          }
-        }
-      `}</style>
     </div >
   );
 }
