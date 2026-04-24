@@ -1291,6 +1291,7 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     // Validate groups if provided
     let isValidDeclaration = false;
+    let validationReason = "";
     const scores = {};
 
     const tablePlayers = await db.fetch(
@@ -1329,6 +1330,7 @@ router.post("/declare", requireAuth, async (req, res) => {
         ? scoring.validateHand(groups, [], wild_joker_rank, declarer_wild_joker_revealed)
         : { valid: false, reason: "Validator unavailable" };
       isValidDeclaration = !!validation.valid;
+      validationReason = validation?.reason || "";
 
       if (isValidDeclaration) {
         scores[sub] = 0;
@@ -1336,7 +1338,8 @@ router.post("/declare", requireAuth, async (req, res) => {
           const uid = normId(p.user_id);
           if (uid === sub) continue;
           if (spectatorMap[uid]) {
-            scores[uid] = 20;
+            // Eliminated/spectator users should not keep receiving penalty scores in later rounds.
+            scores[uid] = 0;
           } else {
             const oppHand = hands[uid] || [];
             let pts = 0;
@@ -1372,7 +1375,7 @@ router.post("/declare", requireAuth, async (req, res) => {
         for (const p of tablePlayers) {
           const uid = normId(p.user_id);
           if (uid === sub) scores[uid] = declarer_pts;
-          else if (spectatorMap[uid]) scores[uid] = 20;
+          else if (spectatorMap[uid]) scores[uid] = 0;
           else scores[uid] = 0;
         }
         isValidDeclaration = false;
@@ -1455,7 +1458,9 @@ router.post("/declare", requireAuth, async (req, res) => {
       declared_by: sub,
       valid: isValidDeclaration,
       status: isValidDeclaration ? "valid" : "invalid",
-      message: isValidDeclaration ? "Valid declaration" : `Invalid declaration. ${INVALID_DECLARE_PENALTY} penalty points applied.`,
+      message: isValidDeclaration
+        ? "Valid declaration"
+        : `Invalid declaration${validationReason ? `: ${validationReason}` : ""}. ${INVALID_DECLARE_PENALTY} penalty points applied.`,
       scores: scoresForDb,
       disqualified_user_ids: dqResult.disqualified_user_ids,
       table_finished: dqResult.table_finished,
@@ -1681,14 +1686,6 @@ router.post("/round/next", requireAuth, async (req, res) => {
     const startIdx = (nextNumber - 1) % activePlayers.length;
     const startPlayer = activePlayers[startIdx];
 
-    // Restore dropped-but-not-disqualified players for new round.
-    await db.execute(
-      `UPDATE rummy_table_players
-       SET is_spectator=false, spectator_allowed='[]'::jsonb
-       WHERE table_id=$1 AND disqualified=false`,
-      [table_id]
-    );
-
     // Build a fresh deal for next round.
     const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
     const suits = ["H", "D", "S", "C"];
@@ -1871,7 +1868,7 @@ router.post("/game/kick-player", requireAuth, async (req, res) => {
     if (tgt.is_spectator) return res.status(400).json({ error: "Player is already dropped/spectating" });
 
     const cntRow = await db.fetchrow(
-      `SELECT COUNT(*)::int AS n FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false`,
+      `SELECT COUNT(*)::int AS n FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false AND disqualified=false`,
       [table_id]
     );
     if ((cntRow?.n || 0) < 3) {
@@ -1957,6 +1954,10 @@ router.post("/game/request-spectate", requireAuth, async (req, res) => {
        DO UPDATE SET admin_approved=false, granted=false`,
       [table_id, req.user.sub, player_id]
     );
+    nspEmit(req, table_id, "spectate.requested", {
+      spectator_id: normId(req.user.sub),
+      player_id: normId(player_id),
+    });
     return res.json({ success: true });
   } catch (e) {
     console.error("request-spectate error", e);
@@ -1967,7 +1968,7 @@ router.post("/game/request-spectate", requireAuth, async (req, res) => {
 // POST /game/grant-spectate
 router.post("/game/grant-spectate", requireAuth, async (req, res) => {
   try {
-    const { table_id, spectator_id, granted } = req.body;
+    const { table_id, spectator_id, player_id, granted } = req.body;
     if (!table_id || !spectator_id || typeof granted === "undefined") return res.status(400).json({ error: "Invalid request" });
 
     const table = await db.fetchrow(`SELECT host_user_id FROM rummy_tables WHERE id=$1`, [table_id]);
@@ -1976,8 +1977,9 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
     const pending = await db.fetchrow(
       `SELECT table_id, spectator_id, player_id, admin_approved, granted
        FROM spectate_permissions
-       WHERE table_id=$1 AND spectator_id=$2`,
-      [table_id, spectator_id]
+       WHERE table_id=$1 AND spectator_id=$2 AND ($3::text IS NULL OR player_id=$3)
+       ORDER BY created_at DESC LIMIT 1`,
+      [table_id, spectator_id, player_id || null]
     );
     if (!pending) return res.status(404).json({ error: "No spectate request found" });
 
@@ -1988,6 +1990,12 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
          WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`,
         [!!granted, table_id, spectator_id, pending.player_id]
       );
+      nspEmit(req, table_id, "spectate.granted", {
+        spectator_id: normId(spectator_id),
+        player_id: normId(pending.player_id),
+        granted: !!granted,
+        stage: "admin",
+      });
       return res.json({ success: true, stage: "admin", admin_approved: !!granted });
     }
 
@@ -2012,10 +2020,128 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
         [JSON.stringify([spectator_id]), table_id, pending.player_id]
       );
     }
+    nspEmit(req, table_id, "spectate.granted", {
+      spectator_id: normId(spectator_id),
+      player_id: normId(pending.player_id),
+      granted: !!granted,
+      stage: "player",
+    });
     return res.json({ success: true, stage: "player", granted: !!granted });
   } catch (e) {
     console.error("grant-spectate error", e);
     res.status(500).json({ error: "Failed to update spectate permission" });
+  }
+});
+
+// GET /game/spectate-requests
+router.get("/game/spectate-requests", requireAuth, async (req, res) => {
+  try {
+    const table_id = req.query.table_id;
+    if (!table_id) return res.status(400).json({ error: "table_id required" });
+
+    const table = await db.fetchrow(`SELECT host_user_id FROM rummy_tables WHERE id=$1`, [table_id]);
+    if (!table) return res.status(404).json({ error: "Table not found" });
+
+    const me = normId(req.user.sub);
+    const hostId = normId(table.host_user_id);
+
+    const hostRequests = me === hostId
+      ? await db.fetch(
+        `SELECT spectator_id, player_id, admin_approved, granted, created_at
+         FROM spectate_permissions
+         WHERE table_id=$1 AND admin_approved=false
+         ORDER BY created_at DESC`,
+        [table_id]
+      )
+      : [];
+
+    const playerRequests = await db.fetch(
+      `SELECT spectator_id, player_id, admin_approved, granted, created_at
+       FROM spectate_permissions
+       WHERE table_id=$1 AND player_id=$2 AND admin_approved=true AND granted=false
+       ORDER BY created_at DESC`,
+      [table_id, me]
+    );
+
+    const myRequests = await db.fetch(
+      `SELECT spectator_id, player_id, admin_approved, granted, created_at
+       FROM spectate_permissions
+       WHERE table_id=$1 AND spectator_id=$2
+       ORDER BY created_at DESC`,
+      [table_id, me]
+    );
+
+    return res.json({
+      host_requests: hostRequests,
+      player_requests: playerRequests,
+      my_requests: myRequests,
+    });
+  } catch (e) {
+    console.error("spectate-requests error", e);
+    return res.status(500).json({ error: "Failed to fetch spectate requests" });
+  }
+});
+
+// POST /game/remove-spectator (host-only permanent remove from table roster)
+router.post("/game/remove-spectator", requireAuth, async (req, res) => {
+  try {
+    const { table_id, spectator_id } = req.body;
+    if (!table_id || !spectator_id) return res.status(400).json({ error: "table_id and spectator_id required" });
+
+    const table = await db.fetchrow(`SELECT host_user_id FROM rummy_tables WHERE id=$1`, [table_id]);
+    if (!table) return res.status(404).json({ error: "Table not found" });
+    if (normId(table.host_user_id) !== normId(req.user.sub)) {
+      return res.status(403).json({ error: "Only host can remove spectator permanently" });
+    }
+
+    const target = await db.fetchrow(
+      `SELECT is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+      [table_id, spectator_id]
+    );
+    if (!target) return res.status(404).json({ error: "Player not found at table" });
+    if (!target.is_spectator) return res.status(400).json({ error: "Only spectator players can be permanently removed" });
+
+    await db.execute(`DELETE FROM spectate_permissions WHERE table_id=$1 AND spectator_id=$2`, [table_id, spectator_id]);
+    await db.execute(`DELETE FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`, [table_id, spectator_id]);
+
+    nspEmit(req, table_id, "game_update", { table_id });
+    return res.json({ success: true, removed_user_id: normId(spectator_id) });
+  } catch (e) {
+    console.error("remove-spectator error", e);
+    return res.status(500).json({ error: "Failed to remove spectator" });
+  }
+});
+
+// POST /table/transfer-host
+router.post("/table/transfer-host", requireAuth, async (req, res) => {
+  try {
+    const { table_id, new_host_user_id } = req.body;
+    if (!table_id || !new_host_user_id) {
+      return res.status(400).json({ error: "table_id and new_host_user_id required" });
+    }
+
+    const table = await db.fetchrow(`SELECT host_user_id FROM rummy_tables WHERE id=$1`, [table_id]);
+    if (!table) return res.status(404).json({ error: "Table not found" });
+    if (normId(table.host_user_id) !== normId(req.user.sub)) {
+      return res.status(403).json({ error: "Only current host can transfer host role" });
+    }
+
+    const target = await db.fetchrow(
+      `SELECT user_id FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+      [table_id, new_host_user_id]
+    );
+    if (!target) return res.status(400).json({ error: "New host must be in this table" });
+
+    await db.execute(`UPDATE rummy_tables SET host_user_id=$1, updated_at=now() WHERE id=$2`, [new_host_user_id, table_id]);
+    nspEmit(req, table_id, "table.host_changed", {
+      previous_host_user_id: normId(table.host_user_id),
+      host_user_id: normId(new_host_user_id),
+    });
+    nspEmit(req, table_id, "game_update", { table_id });
+    return res.json({ success: true, host_user_id: normId(new_host_user_id) });
+  } catch (e) {
+    console.error("transfer-host error", e);
+    return res.status(500).json({ error: "Failed to transfer host" });
   }
 });
 

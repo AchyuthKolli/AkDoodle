@@ -424,6 +424,11 @@ export default function Table() {
   const [droppingGame, setDroppingGame] = useState(false);
   const [spectateRequested, setSpectateRequested] = useState(false);
   const [spectateRequests, setSpectateRequests] = useState([]);
+  const [hostSpectateRequests, setHostSpectateRequests] = useState([]);
+  const [playerSpectateRequests, setPlayerSpectateRequests] = useState([]);
+  const [mySpectateRequests, setMySpectateRequests] = useState([]);
+  const [transferringHost, setTransferringHost] = useState(false);
+  const [removingSpectatorId, setRemovingSpectatorId] = useState(null);
   const [showScoreboardModal, setShowScoreboardModal] = useState(false);
   const [showAllRoundsModal, setShowAllRoundsModal] = useState(false);
   const [revealedHands, setRevealedHands] = useState(null);
@@ -618,13 +623,7 @@ export default function Table() {
 
     onSpectateUpdate((data) => {
       console.log("👁 Spectate update", data);
-      const spectatorId = data?.user_id || data?.spectator_id || data?.requester_id || data?.player_id;
-      if (data?.type === "requested" && spectatorId) {
-        setSpectateRequests((prev) => (prev.includes(spectatorId) ? prev : [...prev, spectatorId]));
-      }
-      if (data?.type === "granted" && spectatorId) {
-        setSpectateRequests((prev) => prev.filter((id) => id !== spectatorId));
-      }
+      fetchSpectateRequests().catch(() => {});
       refresh();
     });
 
@@ -775,6 +774,7 @@ export default function Table() {
         }
       }
       fetchRoundHistory();
+      fetchSpectateRequests();
       setLoading(false);
     } catch (e) {
       console.error("❌ Failed to refresh:", e);
@@ -803,6 +803,24 @@ export default function Table() {
     }
   };
 
+  const fetchSpectateRequests = async () => {
+    if (!tableId) return;
+    try {
+      const resp = await apiclient.get_spectate_requests({ table_id: tableId });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const hostReq = Array.isArray(data.host_requests) ? data.host_requests : [];
+      const playerReq = Array.isArray(data.player_requests) ? data.player_requests : [];
+      const mine = Array.isArray(data.my_requests) ? data.my_requests : [];
+      setHostSpectateRequests(hostReq);
+      setPlayerSpectateRequests(playerReq);
+      setMySpectateRequests(mine);
+      setSpectateRequests(hostReq.map((r) => r.spectator_id));
+    } catch {
+      // keep silent to avoid noisy toasts during periodic refresh
+    }
+  };
+
   // Poll fallback (still keep occasional refresh in case sockets miss something)
   useEffect(() => {
     if (!tableId) return;
@@ -819,11 +837,28 @@ export default function Table() {
 
   const canStart = useMemo(() => {
     if (!info || !user) return false;
-    const seated = (info.players || []).filter((p) => !p.is_spectator).length;
+    const seated = (info.players || []).filter((p) => !p.is_spectator && !p.disqualified).length;
     const requiredSeats = Number(info.max_players || 2);
     const isHost = user.id === info.host_user_id;
     return info.status === "waiting" && seated >= requiredSeats && isHost;
   }, [info, user]);
+
+  const activePlayers = useMemo(() => {
+    return (info?.players || []).filter((p) => !p.is_spectator && !p.disqualified);
+  }, [info]);
+
+  const spectatorPlayers = useMemo(() => {
+    return (info?.players || []).filter((p) => p.is_spectator);
+  }, [info]);
+
+  const hostTransferCandidates = useMemo(() => {
+    return (info?.players || []).filter((p) => p.user_id !== info?.host_user_id);
+  }, [info]);
+
+  const preferredSpectateTarget = useMemo(() => {
+    if (!user) return null;
+    return activePlayers.find((p) => p.user_id !== user.id) || activePlayers[0] || null;
+  }, [activePlayers, user]);
 
   const isMyTurn = useMemo(() => {
     if (!user) return false;
@@ -840,10 +875,10 @@ export default function Table() {
   }, [info, user]);
   const kickablePlayers = useMemo(() => {
     if (!info?.players || !isHostUser) return [];
-    const active = info.players.filter((p) => !p.is_spectator).length;
+    const active = activePlayers.length;
     if (active < 3) return [];
-    return info.players.filter((p) => p.user_id !== info.host_user_id && !p.is_spectator);
-  }, [info, isHostUser]);
+    return activePlayers.filter((p) => p.user_id !== info.host_user_id);
+  }, [info, isHostUser, activePlayers]);
 
   // Reset hasDrawn when turn changes
   useEffect(() => {
@@ -873,7 +908,7 @@ export default function Table() {
     if (!info || !tableId) return;
     setStarting(true);
     try {
-      const deck_count = determineDecksForPlayers(info.players.length);
+      const deck_count = determineDecksForPlayers(activePlayers.length);
       const body = { table_id: tableId, deck_count };
       const res = await apiclient.start_game(body);
       if (!res.ok) {
@@ -1103,7 +1138,7 @@ export default function Table() {
     }
     setStarting(true);
     try {
-      const players = info.players || [];
+      const players = activePlayers || [];
       const firstPlayerId = info.first_player_id || info.active_user_id || info.host_user_id;
       let nextFirstPlayerId = firstPlayerId;
       if (firstPlayerId && players.length > 0) {
@@ -1167,7 +1202,7 @@ export default function Table() {
 
   const handleKickPlayer = async (targetUserId) => {
     if (!tableId || !info || user.id !== info.host_user_id) return;
-    const active = (info.players || []).filter((p) => !p.is_spectator).length;
+    const active = activePlayers.length;
     if (active < 3) {
       toast.error("At least 3 active players are required before the host can kick someone.");
       return;
@@ -1190,7 +1225,7 @@ export default function Table() {
   // Drop game handler - only allowed before player has drawn
   const onDropGame = async () => {
     if (!tableId || droppingGame) return;
-    const playersCount = info?.players?.length || 0;
+    const playersCount = activePlayers.length || 0;
     if (playersCount <= 2) {
       toast.error("Drop is not allowed for 2-player matches.");
       return;
@@ -1222,12 +1257,18 @@ export default function Table() {
 
   // Spectate handlers
   const requestSpectate = async (playerId) => {
-    if (!tableId || spectateRequested) return;
+    if (!tableId || spectateRequested || !playerId) return;
     setSpectateRequested(true);
     try {
       const body = { table_id: tableId, player_id: playerId };
-      await apiclient.request_spectate(body);
+      const resp = await apiclient.request_spectate(body);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "Failed to request spectate");
+        toast.error(txt);
+        return;
+      }
       toast.success("Spectate request sent");
+      await fetchSpectateRequests();
     } catch (e) {
       toast.error(e?.message || "Failed to request spectate");
     } finally {
@@ -1235,26 +1276,77 @@ export default function Table() {
     }
   };
 
-  const grantSpectate = async (spectatorId) => {
+  const grantSpectate = async (spectatorId, playerId = null) => {
     if (!tableId) return;
     try {
-      const body = { table_id: tableId, spectator_id: spectatorId, granted: true };
-      await apiclient.grant_spectate(body);
-      setSpectateRequests((prev) => prev.filter((id) => id !== spectatorId));
+      const body = { table_id: tableId, spectator_id: spectatorId, player_id: playerId, granted: true };
+      const resp = await apiclient.grant_spectate(body);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "Failed to grant spectate");
+        toast.error(txt);
+        return;
+      }
       toast.success("Spectate access granted");
+      await fetchSpectateRequests();
     } catch (e) {
       toast.error(e?.message || "Failed to grant spectate");
     }
   };
-  const denySpectate = async (spectatorId) => {
+  const denySpectate = async (spectatorId, playerId = null) => {
     if (!tableId) return;
     try {
-      const body = { table_id: tableId, spectator_id: spectatorId, granted: false };
-      await apiclient.grant_spectate(body);
-      setSpectateRequests((prev) => prev.filter((id) => id !== spectatorId));
+      const body = { table_id: tableId, spectator_id: spectatorId, player_id: playerId, granted: false };
+      const resp = await apiclient.grant_spectate(body);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "Failed to deny spectate");
+        toast.error(txt);
+        return;
+      }
       toast.success("Spectate request denied");
+      await fetchSpectateRequests();
     } catch (e) {
       toast.error(e?.message || "Failed to deny spectate");
+    }
+  };
+
+  const removeSpectatorPermanently = async (spectatorId) => {
+    if (!tableId || !isHostUser || !spectatorId) return;
+    if (!window.confirm("Remove this spectator permanently from this table?")) return;
+    setRemovingSpectatorId(spectatorId);
+    try {
+      const resp = await apiclient.remove_spectator({ table_id: tableId, spectator_id: spectatorId });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "Failed to remove spectator");
+        toast.error(txt);
+        return;
+      }
+      toast.success("Spectator removed permanently");
+      await refresh();
+      await fetchSpectateRequests();
+    } catch (e) {
+      toast.error(e?.message || "Failed to remove spectator");
+    } finally {
+      setRemovingSpectatorId(null);
+    }
+  };
+
+  const transferHostTo = async (newHostUserId) => {
+    if (!tableId || !isHostUser || !newHostUserId) return;
+    if (!window.confirm("Transfer host controls to this player?")) return;
+    setTransferringHost(true);
+    try {
+      const resp = await apiclient.transfer_host({ table_id: tableId, new_host_user_id: newHostUserId });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "Failed to transfer host");
+        toast.error(txt);
+        return;
+      }
+      toast.success("Host transferred successfully");
+      await refresh();
+    } catch (e) {
+      toast.error(e?.message || "Failed to transfer host");
+    } finally {
+      setTransferringHost(false);
     }
   };
 
@@ -1585,26 +1677,68 @@ export default function Table() {
               <button
                 type="button"
                 onClick={() => {
-                  requestSpectate(user?.id);
+                  if (!preferredSpectateTarget) {
+                    toast.error("No active player available to spectate.");
+                    return;
+                  }
+                  requestSpectate(preferredSpectateTarget.user_id);
                   setQuickPanelOpen(false);
                 }}
                 className="text-left px-3 py-2 rounded-md text-sm text-cyan-100 hover:bg-cyan-900/40 border border-cyan-800/60"
               >
-                5. Request spectate
+                5. Request spectate {preferredSpectateTarget ? `(${preferredSpectateTarget.display_name || preferredSpectateTarget.user_id.slice(0, 8)})` : ""}
               </button>
             )}
 
-            {isHostUser && spectateRequests.length > 0 && (
+            {mySpectateRequests.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-700">
+                <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-cyan-300">My spectate requests</p>
+                {mySpectateRequests.slice(0, 4).map((r, idx) => (
+                  <div key={`my-spec-${idx}`} className="mx-1 mb-1 rounded-md bg-slate-800/80 px-2 py-2">
+                    <p className="text-xs text-slate-200 truncate">
+                      Target: {info?.players?.find((p) => p.user_id === r.player_id)?.display_name || r.player_id?.slice(0, 8)}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      {r.granted ? "Granted" : r.admin_approved ? "Waiting player approval" : "Waiting host approval"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {isHostUser && hostSpectateRequests.length > 0 && (
               <div className="mt-2 pt-2 border-t border-slate-700">
                 <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-amber-300">Spectate requests</p>
-                {spectateRequests.map((uid) => {
-                  const label = info?.players?.find((p) => p.user_id === uid)?.display_name || uid.slice(0, 8);
+                {hostSpectateRequests.map((row, idx) => {
+                  const uid = row.spectator_id;
+                  const label = info?.players?.find((p) => p.user_id === uid)?.display_name || uid?.slice(0, 8);
+                  const targetLabel = info?.players?.find((p) => p.user_id === row.player_id)?.display_name || row.player_id?.slice(0, 8);
                   return (
-                    <div key={`spec-${uid}`} className="mx-1 mb-1 rounded-md bg-slate-800/80 px-2 py-2">
+                    <div key={`spec-${uid}-${idx}`} className="mx-1 mb-1 rounded-md bg-slate-800/80 px-2 py-2">
+                      <p className="text-xs text-slate-200 mb-0.5 truncate">{label}</p>
+                      <p className="text-[10px] text-slate-400 mb-1 truncate">Wants to spectate {targetLabel}</p>
+                      <div className="flex gap-1">
+                        <button type="button" onClick={() => grantSpectate(uid, row.player_id)} className="flex-1 rounded bg-green-700 hover:bg-green-600 text-white text-xs py-1">Allow</button>
+                        <button type="button" onClick={() => denySpectate(uid, row.player_id)} className="flex-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs py-1">Deny</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {playerSpectateRequests.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-700">
+                <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-cyan-300">Player approvals</p>
+                {playerSpectateRequests.map((row, idx) => {
+                  const uid = row.spectator_id;
+                  const label = info?.players?.find((p) => p.user_id === uid)?.display_name || uid?.slice(0, 8);
+                  return (
+                    <div key={`player-spec-${uid}-${idx}`} className="mx-1 mb-1 rounded-md bg-slate-800/80 px-2 py-2">
                       <p className="text-xs text-slate-200 mb-1 truncate">{label}</p>
                       <div className="flex gap-1">
-                        <button type="button" onClick={() => grantSpectate(uid)} className="flex-1 rounded bg-green-700 hover:bg-green-600 text-white text-xs py-1">Allow</button>
-                        <button type="button" onClick={() => denySpectate(uid)} className="flex-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs py-1">Deny</button>
+                        <button type="button" onClick={() => grantSpectate(uid, row.player_id)} className="flex-1 rounded bg-green-700 hover:bg-green-600 text-white text-xs py-1">Allow</button>
+                        <button type="button" onClick={() => denySpectate(uid, row.player_id)} className="flex-1 rounded bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs py-1">Deny</button>
                       </div>
                     </div>
                   );
@@ -1632,6 +1766,44 @@ export default function Table() {
                     </button>
                   ))
                 )}
+              </div>
+            )}
+
+            {isHostUser && (
+              <div className="mt-2 pt-2 border-t border-slate-700">
+                <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-indigo-300">Transfer host</p>
+                {hostTransferCandidates.length === 0 ? (
+                  <p className="px-2 py-1 text-[11px] text-slate-400">No eligible player available.</p>
+                ) : (
+                  hostTransferCandidates.map((p) => (
+                    <button
+                      key={`host-transfer-${p.user_id}`}
+                      type="button"
+                      disabled={transferringHost}
+                      onClick={() => transferHostTo(p.user_id)}
+                      className="w-full text-left px-3 py-2 rounded-md text-xs text-indigo-100 hover:bg-indigo-900/40 border border-indigo-900/50 mb-1 disabled:opacity-50"
+                    >
+                      Make {p.display_name || p.user_id.slice(0, 8)} host
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {isHostUser && spectatorPlayers.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-700">
+                <p className="px-2 pb-1 text-[11px] uppercase tracking-wide text-orange-300">Spectators (permanent remove)</p>
+                {spectatorPlayers.map((p) => (
+                  <button
+                    key={`remove-spectator-${p.user_id}`}
+                    type="button"
+                    disabled={removingSpectatorId === p.user_id}
+                    onClick={() => removeSpectatorPermanently(p.user_id)}
+                    className="w-full text-left px-3 py-2 rounded-md text-xs text-orange-100 hover:bg-orange-900/40 border border-orange-900/50 mb-1 disabled:opacity-50"
+                  >
+                    {removingSpectatorId === p.user_id ? "Removing..." : `Remove ${p.display_name || p.user_id.slice(0, 8)}`}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -1701,7 +1873,7 @@ export default function Table() {
               <p className="text-muted-foreground">Table info not available.</p>
             </div>
           ) : (
-            <RummyProvider players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id}>
+            <RummyProvider players={activePlayers} activeUserId={info.active_user_id} currentUserId={user?.id}>
               <div className={`rummy-content-wrap grid gap-4 grid-cols-1 ${info?.status === "playing" ? "pb-0" : "pb-36 md:pb-0"}`}>
                 <div className="rummy-play-main bg-card border border-border rounded-lg p-3 sm:p-4 order-1">
                   {info.status === "playing" ? (
@@ -1726,7 +1898,7 @@ export default function Table() {
                           </div>
 
                           {/* Opponent Avatars */}
-                          <TableDiagram players={info.players} activeUserId={info.active_user_id} currentUserId={user?.id} />
+                          <TableDiagram players={activePlayers} activeUserId={info.active_user_id} currentUserId={user?.id} />
 
                           {/* Center Piles (Deck & Discard) */}
                           <div className="center-piles-row absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-start gap-5 sm:gap-8 z-10">

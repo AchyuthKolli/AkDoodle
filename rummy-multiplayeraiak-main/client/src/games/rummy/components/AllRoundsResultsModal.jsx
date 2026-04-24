@@ -26,6 +26,18 @@ export function AllRoundsResultsModal({
   onViewRoundDetail,
 }) {
   const rounds = roundHistory || [];
+  const disqualifiedOrder = (players || []).filter((p) => p?.disqualified);
+  const disqualifiedRankByUserId = new Map(
+    disqualifiedOrder.map((p, idx) => [String(p.user_id), idx + 1])
+  );
+
+  const ordinal = (n) => {
+    if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
+    if (n % 10 === 1) return `${n}st`;
+    if (n % 10 === 2) return `${n}nd`;
+    if (n % 10 === 3) return `${n}rd`;
+    return `${n}th`;
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -84,10 +96,18 @@ export function AllRoundsResultsModal({
                 <tbody>
                   {(players || []).map((player) => {
                     let runningTotal = 0;
+                    const dqRank = disqualifiedRankByUserId.get(String(player.user_id)) || null;
                     return (
-                      <tr key={player.user_id} className="border-b border-slate-800/80">
-                        <td className="py-2 px-2 text-slate-200">
-                          {player.display_name || "Player"}
+                      <tr key={player.user_id} className={`border-b border-slate-800/80 ${dqRank ? "bg-red-950/25" : ""}`}>
+                        <td className={`py-2 px-2 ${dqRank ? "text-red-300" : "text-slate-200"}`}>
+                          <span className="inline-flex items-center gap-2">
+                            {player.display_name || "Player"}
+                            {dqRank && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded border border-red-700/70 text-red-200 bg-red-900/30">
+                                {ordinal(dqRank)} disqualified
+                              </span>
+                            )}
+                          </span>
                         </td>
                         {rounds.map((round) => {
                           const roundScore = Number(round?.scores?.[player.user_id] || 0);

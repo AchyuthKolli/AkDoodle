@@ -111,6 +111,9 @@ export const kick_player = async (body) => post(`${RUMMY_API_PREFIX}/game/kick-p
 export const meld_snapshot = async (body) => post(`${RUMMY_API_PREFIX}/round/meld-snapshot`, body);
 export const request_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/request-spectate`, body);
 export const grant_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/grant-spectate`, body);
+export const get_spectate_requests = async (query) => get(`${RUMMY_API_PREFIX}/game/spectate-requests`, query);
+export const remove_spectator = async (body) => post(`${RUMMY_API_PREFIX}/game/remove-spectator`, body);
+export const transfer_host = async (body) => post(`${RUMMY_API_PREFIX}/table/transfer-host`, body);
 
 // Fallback for penalize if not on server
 export const penalize_leave = async (body) => post(`${RUMMY_API_PREFIX}/game/drop`, body);
@@ -155,6 +158,9 @@ export default {
   meld_snapshot,
   request_spectate,
   grant_spectate,
+  get_spectate_requests,
+  remove_spectator,
+  transfer_host,
   penalize_leave,
   get_my_profile,
   get_voice_participants,

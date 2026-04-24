@@ -113,6 +113,19 @@ export const ScoreboardModal = ({
   const winnerName =
     sortedPlayers.find((p) => p.isWinner)?.display_name || "Winner";
 
+  const disqualifiedOrder = (players || []).filter((p) => p?.disqualified);
+  const disqualifiedRankByUserId = new Map(
+    disqualifiedOrder.map((p, idx) => [uidKey(p.user_id), idx + 1])
+  );
+
+  const ordinal = (n) => {
+    if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
+    if (n % 10 === 1) return `${n}st`;
+    if (n % 10 === 2) return `${n}nd`;
+    if (n % 10 === 3) return `${n}rd`;
+    return `${n}th`;
+  };
+
   const handleStartNextRound = async () => {
     setStartingNextRound(true);
     try {
@@ -177,12 +190,15 @@ export const ScoreboardModal = ({
               const kinds = (o && o.slot_kind) || [null, null, null, null];
               const handRemainder = (o && (o.hand_remainder ?? o.ungrouped)) || [];
               const deadwood = (o && o.deadwood) || [];
+              const dqRank = disqualifiedRankByUserId.get(uidKey(p.user_id)) || null;
 
               return (
                 <div
                   key={p.user_id}
                   className={`rounded-lg border p-4 transition-all ${
-                    p.isWinner
+                    dqRank
+                      ? "bg-red-950/20 border-red-700/60 shadow-lg shadow-red-700/20"
+                      : p.isWinner
                       ? "bg-yellow-950/20 border-yellow-600/60 shadow-lg shadow-yellow-600/20"
                       : "bg-slate-800/50 border-slate-700"
                   }`}
@@ -215,6 +231,11 @@ export const ScoreboardModal = ({
                           {p.isDeclarer && (
                             <span className="text-xs bg-amber-700/40 text-amber-200 px-2 py-1 rounded border border-amber-600/50">
                               Declared
+                            </span>
+                          )}
+                          {dqRank && (
+                            <span className="text-xs bg-red-900/40 text-red-200 px-2 py-1 rounded border border-red-700/60">
+                              {ordinal(dqRank)} disqualified
                             </span>
                           )}
                         </div>
