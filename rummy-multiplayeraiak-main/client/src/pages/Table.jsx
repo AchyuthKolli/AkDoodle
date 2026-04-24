@@ -962,14 +962,25 @@ export default function Table() {
     return "kicked";
   }, [myPlayerState]);
 
-  const spectatorMeldReadOnly = useMemo(
-    () => !!myRound?.spectating_user_id || !!isSpectatorMe,
-    [myRound?.spectating_user_id, isSpectatorMe]
-  );
-
   const strictArrangementActive = useMemo(
     () => info?.status === "playing" && !!myRound && !myRound.finished_at && !!myRound.strict_declare_arrangement,
     [info?.status, myRound]
+  );
+
+  /** Declarer cannot move melds/cards while losers have the strict arrangement window. */
+  const strictDeclarerBoardLocked = useMemo(
+    () =>
+      info?.status === "playing" &&
+      !!myRound &&
+      !myRound.finished_at &&
+      !!myRound.strict_declare_arrangement &&
+      uidEq(user?.id, myRound.strict_declare_arrangement.declarer_user_id),
+    [info?.status, myRound, user?.id]
+  );
+
+  const spectatorMeldReadOnly = useMemo(
+    () => !!myRound?.spectating_user_id || !!isSpectatorMe || strictDeclarerBoardLocked,
+    [myRound?.spectating_user_id, isSpectatorMe, strictDeclarerBoardLocked]
   );
 
   /** player_id -> truthy if this spectator has a non-granted spectate row for that target */
@@ -1363,6 +1374,11 @@ export default function Table() {
     if (!tableId || !info || info.status !== "playing" || !myRound || myRound.finished_at) return;
     const meRow = info.players?.find((p) => uidEq(p.user_id, user?.id));
     if (myRound?.spectating_user_id || meRow?.is_spectator) return;
+    if (
+      myRound.strict_declare_arrangement &&
+      uidEq(user?.id, myRound.strict_declare_arrangement.declarer_user_id)
+    )
+      return;
     const timer = setTimeout(() => {
       (async () => {
         try {
@@ -1384,7 +1400,21 @@ export default function Table() {
       })();
     }, 900);
     return () => clearTimeout(timer);
-  }, [tableId, info?.status, info?.players, user?.id, myRound?.finished_at, myRound?.spectating_user_id, meld1, meld2, meld3, meld4, leftover, myRound]);
+  }, [
+    tableId,
+    info?.status,
+    info?.players,
+    user?.id,
+    myRound?.finished_at,
+    myRound?.spectating_user_id,
+    myRound?.strict_declare_arrangement,
+    meld1,
+    meld2,
+    meld3,
+    meld4,
+    leftover,
+    myRound,
+  ]);
 
   const handleKickPlayer = async (targetUserId) => {
     if (!tableId || !info || user.id !== info.host_user_id) return;
@@ -1811,44 +1841,64 @@ export default function Table() {
       {strictArrangementActive && myRound?.strict_declare_arrangement && (
         <div className="fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 pointer-events-none">
           <div className="pointer-events-auto w-full max-w-4xl rounded-xl border border-amber-500/50 bg-amber-950/95 px-4 py-3 shadow-xl backdrop-blur-md">
-            <p className="text-center text-sm text-amber-50 font-medium">
-              <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>
-              {myRound.strict_declare_arrangement.invalid_declaration ? (
-                <>
+            {strictDeclarerBoardLocked ? (
+              <>
+                <p className="text-center text-sm text-amber-50 font-medium">
+                  You declared
+                  {myRound.strict_declare_arrangement.invalid_declaration
+                    ? ", and this hand does not validate under table rules."
+                    : " (strict mode)."}
                   {" "}
-                  declared a hand that does not validate (strict mode). Other players: use the countdown to arrange your
-                  meld board and reduce deadwood — you still score from your layout even though the declare was invalid.
-                </>
-              ) : (
-                <>
-                  {" "}
-                  declared (strict mode). Losers: arrange your meld board to reduce points.
-                </>
-              )}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-              <div className="text-3xl font-mono font-bold tabular-nums text-white bg-black/30 px-4 py-1 rounded-lg border border-amber-600/40">
-                {strictArrangeSecondsLeft}
-              </div>
-              {Array.isArray(myRound.strict_declare_arrangement.loser_user_ids) &&
-                myRound.strict_declare_arrangement.loser_user_ids.some((id) => uidEq(id, user?.id)) && (
-                  <>
-                    {Array.isArray(myRound.strict_declare_arrangement.done_user_ids) &&
-                    myRound.strict_declare_arrangement.done_user_ids.some((id) => uidEq(id, user?.id)) ? (
-                      <span className="text-xs text-emerald-300">You tapped Done — waiting for other losers…</span>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={acting}
-                        onClick={() => onStrictArrangeDone()}
-                        className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                      >
-                        Done arranging
-                      </button>
+                  <span className="text-amber-200/95">Your meld board is locked</span> — only other active players can
+                  move cards during this window.
+                </p>
+                <p className="text-center text-xs text-amber-200/85 mt-2">
+                  Time left for opponents:{" "}
+                  <span className="font-mono font-bold tabular-nums text-white">{strictArrangeSecondsLeft}</span>s
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-center text-sm text-amber-50 font-medium">
+                  <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>
+                  {myRound.strict_declare_arrangement.invalid_declaration ? (
+                    <>
+                      {" "}
+                      declared a hand that does not validate (strict mode). Arrange your meld board if you are still in
+                      play — round points for others stay at 0; only the declarer takes the penalty.
+                    </>
+                  ) : (
+                    <>
+                      {" "}
+                      declared (strict mode). Losers: arrange your meld board to reduce points.
+                    </>
+                  )}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+                  <div className="text-3xl font-mono font-bold tabular-nums text-white bg-black/30 px-4 py-1 rounded-lg border border-amber-600/40">
+                    {strictArrangeSecondsLeft}
+                  </div>
+                  {Array.isArray(myRound.strict_declare_arrangement.loser_user_ids) &&
+                    myRound.strict_declare_arrangement.loser_user_ids.some((id) => uidEq(id, user?.id)) && (
+                      <>
+                        {Array.isArray(myRound.strict_declare_arrangement.done_user_ids) &&
+                        myRound.strict_declare_arrangement.done_user_ids.some((id) => uidEq(id, user?.id)) ? (
+                          <span className="text-xs text-emerald-300">You tapped Done — waiting for other losers…</span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={acting}
+                            onClick={() => onStrictArrangeDone()}
+                            className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                          >
+                            Done arranging
+                          </button>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2396,13 +2446,19 @@ export default function Table() {
                         <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn && !spectatorMeldReadOnly ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="rummy-hand-header flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
-                              {spectatorMeldReadOnly && myRound?.spectating_user_id
-                                ? `Spectating hand (${info?.players?.find((p) => uidEq(p.user_id, myRound.spectating_user_id))?.display_name || "player"})`
-                                : "Your Hand"}
+                              {strictDeclarerBoardLocked
+                                ? "Your hand (locked)"
+                                : spectatorMeldReadOnly && myRound?.spectating_user_id
+                                  ? `Spectating hand (${info?.players?.find((p) => uidEq(p.user_id, myRound.spectating_user_id))?.display_name || "player"})`
+                                  : "Your Hand"}
                               {isMyTurn && !spectatorMeldReadOnly && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
                             </h3>
 
-                            {spectatorMeldReadOnly ? (
+                            {strictDeclarerBoardLocked ? (
+                              <p className="text-[11px] text-amber-200/90 max-w-[min(100%,260px)] text-right">
+                                Only opponents may change melds during this countdown. Your declare is already submitted.
+                              </p>
+                            ) : spectatorMeldReadOnly ? (
                               <p className="text-[11px] text-cyan-200/90 max-w-[min(100%,220px)] text-right">
                                 View only. Melds refresh from the player you follow; other players’ board counts are below.
                               </p>

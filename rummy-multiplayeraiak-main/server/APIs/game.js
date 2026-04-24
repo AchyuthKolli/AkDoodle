@@ -1002,6 +1002,9 @@ router.post("/round/meld-snapshot", requireAuth, async (req, res) => {
     if (!rnd) return res.status(400).json({ error: "No active round" });
 
     const pendingSnap = parsePostDeclarePending(rnd.post_declare_pending);
+    if (pendingSnap && pendingSnap.declarer_user_id && normId(pendingSnap.declarer_user_id) === normId(req.user.sub)) {
+      return res.status(400).json({ error: "The declarer cannot update melds during the loser arrangement window." });
+    }
     if (pendingSnap && Array.isArray(pendingSnap.loser_user_ids)) {
       const losers = pendingSnap.loser_user_ids.map(normId);
       if (!losers.includes(normId(req.user.sub))) {
@@ -1485,7 +1488,7 @@ async function finishValidDeclaredRoundCore(
   return { scores, scoresForDb, declarationPayload };
 }
 
-/** After strict-mode arrangement when the original declare was invalid (declarer already penalized). */
+/** After strict-mode arrangement when the original declare was invalid (declarer penalized; others score 0). */
 async function finishInvalidStrictDeclaredRoundCore(
   table_id,
   rnd,
@@ -1495,48 +1498,16 @@ async function finishInvalidStrictDeclaredRoundCore(
   spectatorMap,
   meld_snapshots,
   groups,
-  loserDeadwoodMode
+  _loserDeadwoodMode
 ) {
   const wild_joker_rank = rnd.wild_joker_rank || null;
-  const ace_value = rnd.ace_value || 10;
-  const face_card_mode = String(rnd.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
 
   const scores = {};
   scores[sub] = INVALID_DECLARE_PENALTY;
   for (const p of tablePlayers) {
     const uid = normId(p.user_id);
     if (uid === sub) continue;
-    if (spectatorMap[uid]) {
-      scores[uid] = 0;
-    } else {
-      const oppHand = hands[uid] || [];
-      let pts = 0;
-      const oppWildRevealed = wildMode.isWildJokerRevealedForPlayer(
-        rnd.game_mode,
-        wild_joker_rank,
-        rnd.players_with_first_sequence,
-        uid
-      );
-      if (scoring && typeof scoring.calculateLoserDeadwoodPoints === "function") {
-        const snapUid = meld_snapshots[uid] || null;
-        pts = scoring.calculateLoserDeadwoodPoints(
-          oppHand,
-          loserDeadwoodMode,
-          snapUid,
-          wild_joker_rank,
-          oppWildRevealed,
-          ace_value,
-          face_card_mode
-        );
-      } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
-        pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
-      } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
-        pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
-      } else {
-        pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value, face_card_mode), 0);
-      }
-      scores[uid] = Math.min(pts, 80);
-    }
+    scores[uid] = 0;
   }
 
   const wild_joker_revealed = wildMode.isWildJokerRevealedGlobally(
@@ -1960,7 +1931,7 @@ router.post("/declare", requireAuth, async (req, res) => {
           expires_at: new Date(deadlineMs).toISOString(),
           loser_user_ids: loser_user_ids_invalid,
           declarer_name: declarer_name_inv,
-          message: `That declaration is not valid. Other players still have ${STRICT_DECLARE_ARRANGE_MS / 1000} seconds to arrange melds and reduce deadwood (strict mode).`,
+          message: `That declaration is not valid. Other players have ${STRICT_DECLARE_ARRANGE_MS / 1000} seconds to confirm (strict mode). They score 0 for this round; only the declarer takes the ${INVALID_DECLARE_PENALTY}-point penalty.`,
           scores: {},
           disqualified_user_ids: dqEmptyInv.disqualified_user_ids,
           table_finished: dqEmptyInv.table_finished,
