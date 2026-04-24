@@ -110,6 +110,7 @@ export const drop_player = async (body) => post(`${RUMMY_API_PREFIX}/game/drop`,
 export const kick_player = async (body) => post(`${RUMMY_API_PREFIX}/game/kick-player`, body);
 export const meld_snapshot = async (body) => post(`${RUMMY_API_PREFIX}/round/meld-snapshot`, body);
 export const strict_arrange_done = async (body) => post(`${RUMMY_API_PREFIX}/round/strict-arrange-done`, body);
+export const strict_finalize_if_due = async (body) => post(`${RUMMY_API_PREFIX}/round/strict-finalize-if-due`, body);
 export const request_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/request-spectate`, body);
 export const grant_spectate = async (body) => post(`${RUMMY_API_PREFIX}/game/grant-spectate`, body);
 export const get_spectate_requests = async (query) => get(`${RUMMY_API_PREFIX}/game/spectate-requests`, query);
@@ -158,6 +159,7 @@ export default {
   kick_player,
   meld_snapshot,
   strict_arrange_done,
+  strict_finalize_if_due,
   request_spectate,
   grant_spectate,
   get_spectate_requests,

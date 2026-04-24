@@ -2070,6 +2070,39 @@ router.post("/declare", requireAuth, async (req, res) => {
   }
 });
 
+// POST /round/strict-finalize-if-due — when deadline_ms has passed, close the round (backup if the declare handler's setTimeout never ran).
+router.post("/round/strict-finalize-if-due", requireAuth, async (req, res) => {
+  try {
+    const { table_id } = req.body || {};
+    if (!table_id) return res.status(400).json({ error: "table_id required" });
+
+    const mem = await db.fetchrow(`SELECT 1 FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`, [table_id, req.user.sub]);
+    if (!mem) return res.status(403).json({ error: "Not at table" });
+
+    const rnd = await db.fetchrow(
+      `SELECT id, finished_at, post_declare_pending FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
+      [table_id]
+    );
+    if (!rnd) return res.json({ ok: true, finalized: false, reason: "no_round" });
+    if (rnd.finished_at) return res.json({ ok: true, finalized: false, reason: "already_finished" });
+
+    const pending = parsePostDeclarePending(rnd.post_declare_pending);
+    if (!pending) return res.json({ ok: true, finalized: false, reason: "no_pending" });
+
+    const deadline = Number(pending.deadline_ms);
+    if (!Number.isFinite(deadline) || Date.now() < deadline) {
+      return res.json({ ok: true, finalized: false, reason: "not_due", deadline_ms: deadline });
+    }
+
+    await finalizeStrictDeclareRound(req.app, table_id, rnd.id);
+    nspEmit(req, table_id, "game_update", { table_id });
+    return res.json({ ok: true, finalized: true });
+  } catch (e) {
+    console.error("strict-finalize-if-due", e);
+    return res.status(500).json({ error: "Finalize failed" });
+  }
+});
+
 // POST /round/strict-arrange-done — losers tap Done during strict-mode post-declare window
 router.post("/round/strict-arrange-done", requireAuth, async (req, res) => {
   try {
@@ -2101,7 +2134,12 @@ router.post("/round/strict-arrange-done", requireAuth, async (req, res) => {
 
     const allDone = losers.length > 0 && losers.every((id) => done.includes(id));
     if (allDone) {
-      await finalizeStrictDeclareRound(req.app, table_id, rnd.id);
+      try {
+        await finalizeStrictDeclareRound(req.app, table_id, rnd.id);
+      } catch (finErr) {
+        console.error("finalizeStrictDeclareRound after all_done", finErr);
+        return res.status(500).json({ error: "Could not finalize round; please retry or wait for the timer." });
+      }
     }
 
     res.json({ ok: true, done_user_ids: done, all_done: allDone });

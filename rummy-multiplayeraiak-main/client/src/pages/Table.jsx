@@ -859,6 +859,9 @@ export default function Table() {
     }
   };
 
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
   const fetchRoundHistory = async () => {
     if (!tableId) return;
     try {
@@ -1196,7 +1199,7 @@ export default function Table() {
   const fetchRevealedHands = async (roundNumber = null) => {
     console.log("📊 Fetching revealed hands...");
     let lastError = null;
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 6; attempt++) {
       try {
         const query = { table_id: tableId };
         if (roundNumber != null) query.round_number = roundNumber;
@@ -1204,7 +1207,7 @@ export default function Table() {
         if (!resp.ok) {
           const errorText = await resp.text();
           lastError = { status: resp.status, message: errorText };
-          if (attempt < 3 && resp.status === 400) {
+          if (attempt < 6 && resp.status === 400) {
             await new Promise((resolve) => setTimeout(resolve, 500));
             continue;
           } else {
@@ -1220,9 +1223,9 @@ export default function Table() {
         }
         return data;
       } catch (error) {
-        console.error(`❌ Error fetching revealed hands (attempt ${attempt}/3):`, error);
+        console.error(`❌ Error fetching revealed hands (attempt ${attempt}/6):`, error);
         lastError = error;
-        if (attempt < 3) {
+        if (attempt < 6) {
           await new Promise((resolve) => setTimeout(resolve, 500));
         } else {
           break;
@@ -1285,6 +1288,32 @@ export default function Table() {
     if (!a?.expires_at) return 0;
     return Math.max(0, Math.ceil((new Date(a.expires_at).getTime() - Date.now()) / 1000));
   }, [myRound?.strict_declare_arrangement, arrangeTick]);
+
+  /** If server-side declare timeout never ran, ask server to finalize once deadline_ms passed; then refresh opens scoreboard. */
+  useEffect(() => {
+    if (!tableId) return;
+    const inStrictWindow =
+      info?.status === "playing" &&
+      myRound &&
+      !myRound.finished_at &&
+      !!myRound.strict_declare_arrangement;
+    if (!inStrictWindow) return;
+
+    const tick = async () => {
+      try {
+        const res = await apiclient.strict_finalize_if_due({ table_id: tableId });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        if (data.finalized) await refreshRef.current();
+      } catch {
+        /* ignore */
+      }
+    };
+
+    void tick();
+    const id = setInterval(tick, 2500);
+    return () => clearInterval(id);
+  }, [tableId, info?.status, myRound?.finished_at, myRound?.strict_declare_arrangement]);
 
   const onStrictArrangeDone = async () => {
     if (!tableId) return;
