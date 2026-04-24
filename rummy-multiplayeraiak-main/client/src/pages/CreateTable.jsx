@@ -64,7 +64,7 @@ export default function CreateTable() {
   const [aceValue, setAceValue] = useState(10);
   const [faceCardMode, setFaceCardMode] = useState("ten");
   /** auto_optimal: wrong meld slots pay; unplaced uses greedy valid melds. submit_or_full: no greedy melds on unplaced; no snapshot = full hand pays. */
-  const [loserDeadwoodMode, setLoserDeadwoodMode] = useState("auto_optimal");
+  const [loserDeadwoodMode, setLoserDeadwoodMode] = useState("submit_or_full");
   const [creating, setCreating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState("");
   const [tableId, setTableId] = useState(null);
@@ -434,8 +434,9 @@ export default function CreateTable() {
                   <div>
                     <div className="text-slate-200 text-sm font-medium">Auto + your meld board</div>
                     <p className="text-xs text-slate-500 mt-1">
-                      Wrong meld slots count. Cards you never put on the meld board get greedy valid-meld reduction.
-                      Send your layout from the table (auto-saved while you play).
+                      Beginner-friendly: after a declare the server tries a best legal 3+3+3+4 split on all 13 of your
+                      cards first (0 pts if possible). Otherwise wrong meld slots count and unplaced cards get greedy
+                      meld reduction. Meld layout syncs while you play.
                     </p>
                   </div>
                 </label>
@@ -448,10 +449,11 @@ export default function CreateTable() {
                     onChange={() => setLoserDeadwoodMode("submit_or_full")}
                   />
                   <div>
-                    <div className="text-slate-200 text-sm font-medium">Strict (no auto on unplaced)</div>
+                    <div className="text-slate-200 text-sm font-medium">Strict — default (30s arrange + full unplaced)</div>
                     <p className="text-xs text-slate-500 mt-1">
-                      Valid meld slots only reduce points. Unplaced cards pay full value (no auto-melds). If you never
-                      sync your meld board, the whole hand counts.
+                      After a valid declare, losers get 30 seconds on-screen to arrange melds; tap Done when ready.
+                      Valid meld slots reduce points; unplaced cards pay full value (no auto-melds). No synced layout
+                      means the whole hand counts.
                     </p>
                   </div>
                 </label>

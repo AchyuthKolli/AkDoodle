@@ -1,5 +1,5 @@
 export function normalizeLoserScoringMode(mode) {
-  return String(mode || "auto_optimal").toLowerCase() === "submit_or_full"
+  return String(mode || "submit_or_full").toLowerCase() === "submit_or_full"
     ? "submit_or_full"
     : "auto_optimal";
 }

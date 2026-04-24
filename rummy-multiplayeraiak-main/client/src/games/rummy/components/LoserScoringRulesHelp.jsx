@@ -51,27 +51,32 @@ export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
       <section>
         <h4 className="font-semibold text-emerald-300 mb-1.5">Auto + meld board (auto_optimal)</h4>
         <ol className="list-decimal list-inside space-y-1.5 text-slate-400 text-xs sm:text-sm">
-          <li>Only meld slots that actually contain cards are checked (empty Meld 1–4 slots are ignored).</li>
-          <li>If a slot is a valid pure sequence, impure sequence, or set → that slot adds 0 points.</li>
-          <li>If a slot is not a valid meld (including only 1–2 cards) → every card in that slot counts toward points.</li>
           <li>
-            Cards you put only in the <strong className="text-slate-300">leftover / deadwood</strong> area, plus any
-            cards still not placed on the meld board in the saved layout, are taken together: the server looks for
-            legal melds among them (greedy “auto”); only what cannot be placed in any valid meld still counts.
+            After a valid declare, each active loser&apos;s <strong className="text-slate-300">entire 13-card hand</strong> is
+            checked first: if the cards can be split into a legal winning shape (four melds 3+3+3+4 with at least one pure
+            sequence, same rules as declare), that layout scores <strong className="text-slate-300">0</strong> for the round.
+            Your on-table arrangement does not lock you into a worse score.
           </li>
-          <li>During the round your meld board is synced to the server periodically so this layout can be used.</li>
+          <li>
+            If no such full-hand layout exists, scoring falls back to: valid filled meld slots → 0; invalid slots → those
+            cards count; leftover + unplaced cards → greedy auto-melds then pay the rest (same as before).
+          </li>
+          <li>During play your meld board is still synced for the fallback path and for the scoreboard display.</li>
         </ol>
         <div className="mt-2 rounded-md border border-emerald-700/40 bg-emerald-950/20 px-3 py-2 text-xs text-emerald-100/95">
-          <strong className="text-emerald-200">Beginner example:</strong> if you have invalid meld cards{" "}
-          <span className="text-slate-100">K + 3</span> in one slot, they are counted directly. But cards in{" "}
-          <span className="text-slate-100">Hand + Deadwood</span> are auto-checked for possible melds first. If
-          auto can group some cards, those points reduce; remaining cards only are counted.
+          <strong className="text-emerald-200">Beginner tip:</strong> new players who are unsure how to arrange melds
+          still get a fair penalty in Auto — the server optimizes all 13 cards when a perfect split exists.
         </div>
       </section>
 
       <section>
-        <h4 className="font-semibold text-sky-300 mb-1.5">Strict — submit or full hand (submit_or_full)</h4>
+        <h4 className="font-semibold text-sky-300 mb-1.5">Strict — submit or full hand (submit_or_full, default)</h4>
         <ol className="list-decimal list-inside space-y-1.5 text-slate-400 text-xs sm:text-sm">
+          <li>
+            After a valid declare, each loser gets <strong className="text-slate-300">30 seconds</strong> to arrange cards on
+            the meld board. A countdown runs on screen; tap <strong className="text-slate-300">Done</strong> when finished.
+            When every loser has Done, scoring runs immediately (you do not have to wait the full 30 seconds).
+          </li>
           <li>Same slot rules: valid meld slots → 0; invalid slots → all cards in those slots count.</li>
           <li>
             Cards not placed on the meld board in the saved layout, and cards only in the leftover slot, count at{" "}
@@ -84,8 +89,8 @@ export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
           </li>
         </ol>
         <div className="mt-2 rounded-md border border-sky-700/40 bg-sky-950/20 px-3 py-2 text-xs text-sky-100/95">
-          <strong className="text-sky-200">Beginner example:</strong> invalid meld cards + hand cards + deadwood
-          cards are all counted directly. No auto-scan reduction is applied in Strict mode.
+          <strong className="text-sky-200">Strict vs Auto:</strong> Strict rewards deliberate arrangement and gives you
+          time to fix your board; Auto helps beginners by optimizing the full hand when the rules allow it.
         </div>
       </section>
 

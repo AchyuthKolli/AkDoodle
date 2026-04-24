@@ -433,6 +433,7 @@ export default function Table() {
   const [showAllRoundsModal, setShowAllRoundsModal] = useState(false);
   const [revealedHands, setRevealedHands] = useState(null);
   const [roundResultsByNumber, setRoundResultsByNumber] = useState({});
+  const [arrangeTick, setArrangeTick] = useState(0);
 
   // Dragged card tracking (local UI fix for lag)
   const [draggedCardIndex, setDraggedCardIndex] = useState(null);
@@ -628,12 +629,22 @@ export default function Table() {
       refresh();
     });
 
+    const onArrangementStarted = (data) => {
+      toast.info(
+        `${data?.declarer_name || "A player"} declared. Losers: arrange your melds on the board (30s countdown).`,
+        { duration: 5500 }
+      );
+      refresh().catch(() => {});
+    };
+    socket.on("declare.arrangement_started", onArrangementStarted);
+
     onChatMessage((msg) => {
       console.log("💬 Chat:", msg);
     });
 
     return () => {
       console.log("🔴 Leaving room:", tableId);
+      socket.off("declare.arrangement_started", onArrangementStarted);
       socket.off("game_update");
       socket.off("round.state");
       socket.off("table.state");
@@ -1148,7 +1159,49 @@ export default function Table() {
     setShowAllRoundsModal(true);
   };
 
+  useEffect(() => {
+    const a = myRound?.strict_declare_arrangement;
+    if (!a || myRound?.finished_at) return undefined;
+    const id = setInterval(() => setArrangeTick((t) => t + 1), 500);
+    return () => clearInterval(id);
+  }, [myRound?.strict_declare_arrangement, myRound?.finished_at]);
 
+  const strictArrangeSecondsLeft = useMemo(() => {
+    const a = myRound?.strict_declare_arrangement;
+    if (!a?.expires_at) return 0;
+    return Math.max(0, Math.ceil((new Date(a.expires_at).getTime() - Date.now()) / 1000));
+  }, [myRound?.strict_declare_arrangement, arrangeTick]);
+
+  const onStrictArrangeDone = async () => {
+    if (!tableId) return;
+    setActing(true);
+    try {
+      const res = await apiclient.strict_arrange_done({ table_id: tableId });
+      if (!res.ok) {
+        let msg = "Could not confirm Done";
+        try {
+          const err = await res.json();
+          if (err.error) msg = err.error;
+        } catch {
+          /* ignore */
+        }
+        toast.error(msg);
+        return;
+      }
+      const data = await res.json();
+      if (data.all_done) {
+        toast.success("Everyone ready — opening scoreboard.");
+      } else {
+        toast.success("Marked Done.");
+      }
+      await refresh();
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to send Done");
+    } finally {
+      setActing(false);
+    }
+  };
 
 
   const onNextRound = async () => {
@@ -1309,6 +1362,7 @@ export default function Table() {
       }
       toast.success("Spectate access granted");
       await fetchSpectateRequests();
+      await refresh();
     } catch (e) {
       toast.error(e?.message || "Failed to grant spectate");
     }
@@ -1325,6 +1379,7 @@ export default function Table() {
       }
       toast.success("Spectate request denied");
       await fetchSpectateRequests();
+      await refresh();
     } catch (e) {
       toast.error(e?.message || "Failed to deny spectate");
     }
@@ -1562,7 +1617,9 @@ export default function Table() {
         setHasDrawn(false);
         setLastDrawnCard(null);
 
-        if (data.valid) {
+        if (data.arrangement_pending) {
+          toast.info(data.message || "Losers have 30 seconds to arrange melds (strict mode).", { duration: 6500 });
+        } else if (data.valid) {
           toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
           await fetchRevealedHands();
         } else {
@@ -1628,6 +1685,38 @@ export default function Table() {
             hideToggleButton={true}
             onClose={() => setRulesPanelVisible(false)}
           />
+        )}
+
+        {info?.status === "playing" && myRound && !myRound.finished_at && myRound.strict_declare_arrangement && (
+          <div className="sticky top-0 z-[70] mx-auto max-w-4xl px-3 pt-2">
+            <div className="rounded-xl border border-amber-500/50 bg-amber-950/90 px-4 py-3 shadow-lg backdrop-blur">
+              <p className="text-center text-sm text-amber-50 font-medium">
+                <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>{" "}
+                declared (strict mode). Losers: arrange your meld board to reduce points.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+                <div className="text-3xl font-mono font-bold tabular-nums text-white bg-black/30 px-4 py-1 rounded-lg border border-amber-600/40">
+                  {strictArrangeSecondsLeft}
+                </div>
+                {myRound.strict_declare_arrangement.loser_user_ids?.includes(user?.id) && (
+                  <>
+                    {myRound.strict_declare_arrangement.done_user_ids?.includes(user?.id) ? (
+                      <span className="text-xs text-emerald-300">You tapped Done — waiting for other losers…</span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={acting}
+                        onClick={() => onStrictArrangeDone()}
+                        className="rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                      >
+                        Done arranging
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="rummy-mobile-dock fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
@@ -1720,7 +1809,11 @@ export default function Table() {
                       Target: {info?.players?.find((p) => p.user_id === r.player_id)?.display_name || r.player_id?.slice(0, 8)}
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      {r.granted ? "Granted" : r.admin_approved ? "Waiting player approval" : "Waiting host approval"}
+                      {r.granted
+                        ? "Approved — you should see their hand after refresh."
+                        : r.admin_approved
+                          ? "Waiting player approval (ask them to Allow in quick panel)"
+                          : "Waiting host approval"}
                     </p>
                   </div>
                 ))}

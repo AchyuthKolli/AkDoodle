@@ -285,14 +285,80 @@ function analyzeHandVsSnapshot(hand, snap) {
   return { ok: true, unplaced: handCopy, slotGroups };
 }
 
+/** Index combinations C(n,k) as index arrays (sorted ascending). */
+function combinationsChooseIndices(n, k) {
+  const results = [];
+  if (k < 0 || k > n) return results;
+  function backtrack(start, path) {
+    if (path.length === k) {
+      results.push(path.slice());
+      return;
+    }
+    for (let i = start; i < n; i++) {
+      path.push(i);
+      backtrack(i + 1, path);
+      path.pop();
+    }
+  }
+  backtrack(0, []);
+  return results;
+}
+
+/**
+ * For auto_optimal losers: try every 3+3+3+4 partition of all 13 cards; if any matches
+ * full declare rules (incl. one pure sequence), deadwood is 0. Otherwise fall back to
+ * greedy ungrouped scoring (same as calculateUngroupedDeadwoodPoints).
+ */
+function findBestValidDeclareLayout(hand = [], wildRank = null, revealed = false) {
+  if (!Array.isArray(hand) || hand.length !== 13) return null;
+  const n = 13;
+  const comb4 = combinationsChooseIndices(n, 4);
+  for (const c4 of comb4) {
+    const set4 = new Set(c4);
+    const restIdx = [];
+    for (let i = 0; i < n; i++) if (!set4.has(i)) restIdx.push(i);
+    const comb3a = combinationsChooseIndices(9, 3);
+    for (const rel3a of comb3a) {
+      const i3a = rel3a.map((r) => restIdx[r]);
+      const set3a = new Set(i3a);
+      const rest6 = restIdx.filter((i) => !set3a.has(i));
+      const comb3b = combinationsChooseIndices(6, 3);
+      for (const rel3b of comb3b) {
+        const i3b = rel3b.map((r) => rest6[r]);
+        const set3b = new Set(i3b);
+        const i3c = rest6.filter((i) => !set3b.has(i));
+        const g4 = c4.map((i) => hand[i]);
+        const ga = i3a.map((i) => hand[i]);
+        const gb = i3b.map((i) => hand[i]);
+        const gc = i3c.map((i) => hand[i]);
+        const groups = [ga, gb, gc, g4];
+        const v = validateHand(groups, [], wildRank, revealed);
+        if (v.valid) return { meld1: ga, meld2: gb, meld3: gc, meld4: g4 };
+      }
+    }
+  }
+  return null;
+}
+
+function minimalDeadwoodAutoFullHand(hand = [], wildRank = null, revealed = false, aceValue = 10, faceCardMode = "ten") {
+  if (findBestValidDeclareLayout(hand, wildRank, revealed)) return 0;
+  return calculateUngroupedDeadwoodPoints(hand, wildRank, revealed, aceValue, faceCardMode);
+}
+
 /**
  * loser_deadwood_mode:
- * - auto_optimal: invalid / short meld slots pay; valid slots free; unplaced cards use greedy valid melds then pay remainder.
+ * - auto_optimal: for a full 13-card loser hand, ignore meld-board layout and score using
+ *   best legal 3+3+3+4 partition if one exists (0 pts), else greedy ungrouped deadwood.
+ *   For other hand sizes, invalid / short meld slots pay; valid slots free; unplaced uses greedy melds.
  * - submit_or_full: same for slots; unplaced pays full card values (no greedy melds). Missing/invalid snapshot → full hand pays.
  */
 function calculateLoserDeadwoodPoints(hand = [], loserMode, snapshot, wildRank = null, revealed = false, aceValue = 10, faceCardMode = "ten") {
   const mode = loserMode === "submit_or_full" ? "submit_or_full" : "auto_optimal";
   const snap = snapshot && typeof snapshot === "object" ? snapshot : null;
+
+  if (mode === "auto_optimal" && Array.isArray(hand) && hand.length === 13) {
+    return Math.min(minimalDeadwoodAutoFullHand(hand, wildRank, revealed, aceValue, faceCardMode), 80);
+  }
 
   if (!snap || !snapshotHasAnyPlacedCards(snap)) {
     if (mode === "submit_or_full") {
@@ -488,6 +554,10 @@ module.exports = {
 
   calculateLoserDeadwoodPoints,
   calculate_loser_deadwood_points: calculateLoserDeadwoodPoints,
+  findBestValidDeclareLayout,
+  find_best_valid_declare_layout: findBestValidDeclareLayout,
+  minimalDeadwoodAutoFullHand,
+  minimal_deadwood_auto_full_hand: minimalDeadwoodAutoFullHand,
   isValidMeldGroup,
   is_valid_meld_group: isValidMeldGroup,
 

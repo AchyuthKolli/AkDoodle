@@ -97,8 +97,8 @@ export const GameRules = ({ defaultOpen = false, hideToggleButton = false, openS
         <div>
           <h4 className="font-medium text-foreground mb-1">Table Modes (Auto / Strict / Wildcard)</h4>
           <ul className="space-y-1 text-xs text-muted-foreground">
-            <li>• <strong>Auto (auto_optimal):</strong> server auto-groups remaining cards into best valid melds; only ungrouped cards score.</li>
-            <li>• <strong>Strict (submit_or_full):</strong> cards not in your valid submitted meld slots score full points.</li>
+            <li>• <strong>Auto (auto_optimal):</strong> beginner-friendly: after someone declares, each loser&apos;s full 13 cards are evaluated for the best legal 3+3+3+4 layout (same rules as a valid declare). If none exists, greedy ungrouped scoring applies. Your on-screen meld layout does not limit the server optimization.</li>
+            <li>• <strong>Strict (submit_or_full, default):</strong> losers have 30 seconds after a valid declare to arrange melds on the board; unplaced cards score at full value. Tap Done when ready — when all losers have Done, the scoreboard opens immediately.</li>
             <li>• <strong>Closed wildcard:</strong> reveal is player-specific after a pure 3-card or 4-card lock; before reveal, wild rank behaves as normal card for that player.</li>
             <li>• <strong>Meld size rule:</strong> declaration must be exactly 4 melds with sizes 3,3,3,4 and at least one pure sequence.</li>
           </ul>

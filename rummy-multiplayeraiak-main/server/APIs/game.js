@@ -13,6 +13,7 @@ const scoring = require("./scoring");
 const wildMode = require("./wildJokerMode");
 const loserMode = require("./loserScoringMode");
 const INVALID_DECLARE_PENALTY = 20;
+const STRICT_DECLARE_ARRANGE_MS = 30000;
 
 /* ---------------------------
     Helpers
@@ -193,12 +194,19 @@ function buildOrganizedScoreboardForUser({
   isSpectator,
   wildJokerRank,
   wildJokerRevealed = true,
+  wildJokerRevealedForLayout = null,
   snapshot,
+  loserDeadwoodMode = null,
 }) {
   const uid = normId(userId);
   const declarer = declarerUserId ? normId(declarerUserId) : null;
   const groups = Array.isArray(declarationGroups) ? declarationGroups : [];
   const isDeclarer = declarer && uid === declarer;
+  const layoutReveal =
+    wildJokerRevealedForLayout !== undefined && wildJokerRevealedForLayout !== null
+      ? wildJokerRevealedForLayout
+      : wildJokerRevealed;
+  const normLoserMode = loserDeadwoodMode != null ? loserMode.normalizeLoserMode(loserDeadwoodMode) : null;
 
   if (isSpectator) {
     return {
@@ -218,14 +226,14 @@ function buildOrganizedScoreboardForUser({
   }
 
   if (isDeclarer && groups.length > 0) {
-    const classified = classifyDeclaredGroups(groups, wildJokerRank, wildJokerRevealed);
+    const classified = classifyDeclaredGroups(groups, wildJokerRank, layoutReveal);
     const leftover = extractLeftoverFromHand(hand, groups);
     const meld1 = groups[0] || [];
     const meld2 = groups[1] || [];
     const meld3 = groups[2] || [];
     const meld4 = groups[3] || [];
     const slot_kind = [meld1, meld2, meld3, meld4].map((g) =>
-      g.length ? classifySingleGroup(g, wildJokerRank, wildJokerRevealed) : null
+      g.length ? classifySingleGroup(g, wildJokerRank, layoutReveal) : null
     );
     return {
       ...classified,
@@ -259,10 +267,43 @@ function buildOrganizedScoreboardForUser({
     };
   }
 
-  const snapLayout = buildFromSnapshotLayout(hand || [], snapshot, wildJokerRank, wildJokerRevealed);
+  if (
+    !isDeclarer &&
+    !isSpectator &&
+    normLoserMode === "auto_optimal" &&
+    Array.isArray(hand) &&
+    hand.length === 13 &&
+    scoring.findBestValidDeclareLayout
+  ) {
+    const best = scoring.findBestValidDeclareLayout(hand, wildJokerRank, layoutReveal);
+    if (best) {
+      const slots = [best.meld1, best.meld2, best.meld3, best.meld4];
+      const classified = classifyDeclaredGroups(
+        slots.filter((g) => g && g.length),
+        wildJokerRank,
+        layoutReveal
+      );
+      const slot_kind = slots.map((g) =>
+        g && g.length ? classifySingleGroup(g, wildJokerRank, layoutReveal) : null
+      );
+      return {
+        ...classified,
+        meld1: best.meld1,
+        meld2: best.meld2,
+        meld3: best.meld3,
+        meld4: best.meld4,
+        deadwood: [],
+        hand_remainder: [],
+        ungrouped: [],
+        slot_kind,
+      };
+    }
+  }
+
+  const snapLayout = buildFromSnapshotLayout(hand || [], snapshot, wildJokerRank, layoutReveal);
   if (snapLayout) return snapLayout;
 
-  const auto = scoring.organizeHandByMelds(hand || [], wildJokerRank, wildJokerRevealed);
+  const auto = scoring.organizeHandByMelds(hand || [], wildJokerRank, layoutReveal);
   const { meld1, meld2, meld3, meld4, remainder, slot_kind } = splitAutoMeldsIntoSlots(auto);
   return {
     pure_sequences: auto.pure_sequences,
@@ -706,15 +747,6 @@ router.post("/start-game", requireAuth, async (req, res) => {
   }
 });
 
-/* ------------------------------------------------------------------
-   STOP HERE
-   (File is extremely long. The rest includes: draw/discard, 
-    lock-sequence, declare, scoreboard, next-round, history...)
-   I will send the next chunk immediately once you reply:
-   "send next part"
-------------------------------------------------------------------- */
-
-module.exports = router;
 /* ---------------------------
    Part 2 — Round / Draw / Discard / Lock Sequence
 ------------------------------ */
@@ -739,7 +771,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
 
     // Get latest round
     const rnd = await db.fetchrow(
-      `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence
+      `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence, post_declare_pending
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
@@ -798,13 +830,30 @@ router.get("/round/me", requireAuth, async (req, res) => {
       code: c.joker && c.rank === "JOKER" ? "JOKER" : `${c.rank}${c.suit || ""}`,
     }));
 
+    const wildRevealSubject = spectating_user_id ? normId(spectating_user_id) : normId(req.user.sub);
     const wild_joker_revealed = wildMode.isWildJokerRevealedForPlayer(
       rnd.game_mode,
       rnd.wild_joker_rank,
       rnd.players_with_first_sequence,
-      req.user.sub
+      wildRevealSubject
     );
     const players_with_first_sequence = wildMode.parseSequenceList(rnd.players_with_first_sequence);
+
+    const pendingMe = parsePostDeclarePending(rnd.post_declare_pending);
+    let strict_declare_arrangement = null;
+    if (pendingMe && !rnd.finished_at) {
+      const decRow = await db.fetchrow(
+        `SELECT display_name FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+        [table_id, pendingMe.declarer_user_id]
+      );
+      strict_declare_arrangement = {
+        declarer_user_id: normId(pendingMe.declarer_user_id),
+        declarer_name: decRow?.display_name || "Player",
+        expires_at: new Date(pendingMe.deadline_ms).toISOString(),
+        loser_user_ids: (pendingMe.loser_user_ids || []).map(normId),
+        done_user_ids: (pendingMe.done_user_ids || []).map(normId),
+      };
+    }
 
     return res.json({
       table_id,
@@ -818,6 +867,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
       spectating_user_id,
       finished_at: rnd.finished_at ? new Date(rnd.finished_at).toISOString() : null,
       active_user_id: rnd.active_user_id || null,
+      strict_declare_arrangement,
     });
   } catch (e) {
     console.error("round/me error", e);
@@ -843,11 +893,14 @@ router.post("/lock-sequence", requireAuth, async (req, res) => {
 
     // Fetch latest round
     const rnd = await db.fetchrow(
-      `SELECT id, wild_joker_rank, players_with_first_sequence
+      `SELECT id, wild_joker_rank, players_with_first_sequence, post_declare_pending
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
     if (!rnd) return res.status(404).json({ error: "No active round" });
+    if (parsePostDeclarePending(rnd.post_declare_pending)) {
+      return res.status(400).json({ success: false, message: "Cannot lock sequence while the round is settling a declaration." });
+    }
 
     // normalize players_with_first_sequence
     const players_with_first_sequence = wildMode.parseSequenceList(rnd.players_with_first_sequence);
@@ -910,10 +963,18 @@ router.post("/round/meld-snapshot", requireAuth, async (req, res) => {
     if (!membership) return res.status(403).json({ error: "Not an active player at this table" });
 
     const rnd = await db.fetchrow(
-      `SELECT id, hands, finished_at, meld_snapshots FROM rummy_rounds WHERE table_id=$1 AND finished_at IS NULL ORDER BY number DESC LIMIT 1`,
+      `SELECT id, hands, finished_at, meld_snapshots, post_declare_pending FROM rummy_rounds WHERE table_id=$1 AND finished_at IS NULL ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
     if (!rnd) return res.status(400).json({ error: "No active round" });
+
+    const pendingSnap = parsePostDeclarePending(rnd.post_declare_pending);
+    if (pendingSnap && Array.isArray(pendingSnap.loser_user_ids)) {
+      const losers = pendingSnap.loser_user_ids.map(normId);
+      if (!losers.includes(normId(req.user.sub))) {
+        return res.status(400).json({ error: "Only losers may arrange melds during the strict countdown." });
+      }
+    }
 
     let hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
     hands = normalizeKeyedJson(hands);
@@ -985,10 +1046,10 @@ router.post("/draw/stock", requireAuth, async (req, res) => {
          SELECT id, status, EXISTS(SELECT 1 FROM rummy_table_players WHERE table_id=$1 AND user_id=$2) AS is_member
          FROM rummy_tables WHERE id=$1
        ), round_data AS (
-         SELECT id, number, stock, hands, discard, active_user_id, finished_at
+         SELECT id, number, stock, hands, discard, active_user_id, finished_at, post_declare_pending
          FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1
        )
-       SELECT t.id, t.status, t.is_member, r.id AS round_id, r.number, r.stock, r.hands, r.discard, r.active_user_id, r.finished_at
+       SELECT t.id, t.status, t.is_member, r.id AS round_id, r.number, r.stock, r.hands, r.discard, r.active_user_id, r.finished_at, r.post_declare_pending
        FROM table_check t LEFT JOIN round_data r ON true
       `,
       [table_id, req.user.sub]
@@ -998,6 +1059,9 @@ router.post("/draw/stock", requireAuth, async (req, res) => {
     if (row.status !== "playing") return res.status(400).json({ error: "Game not in playing state" });
     if (!row.is_member) return res.status(403).json({ error: "Not part of the table" });
     if (!row.round_id) return res.status(404).json({ error: "No active round" });
+    if (parsePostDeclarePending(row.post_declare_pending)) {
+      return res.status(400).json({ error: "Round is settling after a declaration. Please wait." });
+    }
     if (row.active_user_id !== req.user.sub) return res.status(403).json({ error: "Not your turn" });
 
     const hands = typeof row.hands === "string" ? JSON.parse(row.hands) : (row.hands || {});
@@ -1061,10 +1125,10 @@ router.post("/draw/discard", requireAuth, async (req, res) => {
          SELECT id, status, EXISTS(SELECT 1 FROM rummy_table_players WHERE table_id=$1 AND user_id=$2) AS is_member
          FROM rummy_tables WHERE id=$1
        ), round_data AS (
-         SELECT id, number, stock, hands, discard, active_user_id, finished_at
+         SELECT id, number, stock, hands, discard, active_user_id, finished_at, post_declare_pending
          FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1
        )
-       SELECT t.id, t.status, t.is_member, r.id AS round_id, r.number, r.stock, r.hands, r.discard, r.active_user_id, r.finished_at
+       SELECT t.id, t.status, t.is_member, r.id AS round_id, r.number, r.stock, r.hands, r.discard, r.active_user_id, r.finished_at, r.post_declare_pending
        FROM table_check t LEFT JOIN round_data r ON true
       `,
       [table_id, req.user.sub]
@@ -1074,6 +1138,9 @@ router.post("/draw/discard", requireAuth, async (req, res) => {
     if (row.status !== "playing") return res.status(400).json({ error: "Game not in playing state" });
     if (!row.is_member) return res.status(403).json({ error: "Not part of the table" });
     if (!row.round_id) return res.status(404).json({ error: "No active round" });
+    if (parsePostDeclarePending(row.post_declare_pending)) {
+      return res.status(400).json({ error: "Round is settling after a declaration. Please wait." });
+    }
     if (row.active_user_id !== req.user.sub) return res.status(403).json({ error: "Not your turn" });
 
     const hands = typeof row.hands === "string" ? JSON.parse(row.hands) : (row.hands || {});
@@ -1134,14 +1201,14 @@ router.post("/discard", requireAuth, async (req, res) => {
          SELECT id, status, EXISTS(SELECT 1 FROM rummy_table_players WHERE table_id=$1 AND user_id=$2) AS is_member
          FROM rummy_tables WHERE id=$1
        ), round_data AS (
-         SELECT id, number, stock, hands, discard, active_user_id
+         SELECT id, number, stock, hands, discard, active_user_id, post_declare_pending
          FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1
        ), seat_order AS (
          SELECT user_id, seat FROM rummy_table_players WHERE table_id=$1 AND is_spectator=false ORDER BY seat ASC
        )
-       SELECT t.id, t.status, t.is_member, r.id AS round_id, r.number, r.stock, r.hands, r.discard, r.active_user_id, json_agg(s.user_id ORDER BY s.seat) AS user_order
+       SELECT t.id, t.status, t.is_member, r.id AS round_id, r.number, r.stock, r.hands, r.discard, r.active_user_id, r.post_declare_pending, json_agg(s.user_id ORDER BY s.seat) AS user_order
        FROM table_check t LEFT JOIN round_data r ON true LEFT JOIN seat_order s ON true
-       GROUP BY t.id, t.status, t.is_member, r.id, r.number, r.stock, r.hands, r.discard, r.active_user_id
+       GROUP BY t.id, t.status, t.is_member, r.id, r.number, r.stock, r.hands, r.discard, r.active_user_id, r.post_declare_pending
       `,
       [table_id, req.user.sub]
     );
@@ -1150,6 +1217,9 @@ router.post("/discard", requireAuth, async (req, res) => {
     if (row.status !== "playing") return res.status(400).json({ error: "Game not in playing state" });
     if (!row.is_member) return res.status(403).json({ error: "Not part of the table" });
     if (!row.round_id) return res.status(404).json({ error: "No active round" });
+    if (parsePostDeclarePending(row.post_declare_pending)) {
+      return res.status(400).json({ error: "Round is settling after a declaration. Please wait." });
+    }
     if (row.active_user_id !== req.user.sub) return res.status(403).json({ error: "Not your turn" });
 
     const hands = typeof row.hands === "string" ? JSON.parse(row.hands) : (row.hands || {});
@@ -1248,6 +1318,229 @@ function cardValueForScoring(card, aceValue = 10, faceCardMode = "ten") {
   return Number.isNaN(n) ? 0 : n;
 }
 
+function parsePostDeclarePending(raw) {
+  if (raw == null || raw === "") return null;
+  let o = raw;
+  if (typeof o === "string") {
+    try {
+      o = JSON.parse(o);
+    } catch {
+      return null;
+    }
+  }
+  if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+  if (!o.declarer_user_id) return null;
+  return o;
+}
+
+async function finishValidDeclaredRoundCore(
+  table_id,
+  rnd,
+  sub,
+  hands,
+  tablePlayers,
+  spectatorMap,
+  meld_snapshots,
+  groups,
+  loserDeadwoodMode
+) {
+  const wild_joker_rank = rnd.wild_joker_rank || null;
+  const ace_value = rnd.ace_value || 10;
+  const face_card_mode = String(rnd.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
+
+  const scores = {};
+  scores[sub] = 0;
+  for (const p of tablePlayers) {
+    const uid = normId(p.user_id);
+    if (uid === sub) continue;
+    if (spectatorMap[uid]) {
+      scores[uid] = 0;
+    } else {
+      const oppHand = hands[uid] || [];
+      let pts = 0;
+      const oppWildRevealed = wildMode.isWildJokerRevealedForPlayer(
+        rnd.game_mode,
+        wild_joker_rank,
+        rnd.players_with_first_sequence,
+        uid
+      );
+      if (scoring && typeof scoring.calculateLoserDeadwoodPoints === "function") {
+        const snapUid = meld_snapshots[uid] || null;
+        pts = scoring.calculateLoserDeadwoodPoints(
+          oppHand,
+          loserDeadwoodMode,
+          snapUid,
+          wild_joker_rank,
+          oppWildRevealed,
+          ace_value,
+          face_card_mode
+        );
+      } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
+        pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
+      } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
+        pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
+      } else {
+        pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value, face_card_mode), 0);
+      }
+      scores[uid] = Math.min(pts, 80);
+    }
+  }
+
+  const wild_joker_revealed = wildMode.isWildJokerRevealedGlobally(
+    rnd.game_mode,
+    wild_joker_rank,
+    rnd.players_with_first_sequence
+  );
+
+  const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
+  const organizedMelds = {};
+  for (const p of tablePlayers) {
+    const uid = normId(p.user_id);
+    if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+    const uidWild = wildMode.isWildJokerRevealedForPlayer(
+      rnd.game_mode,
+      wild_joker_rank,
+      rnd.players_with_first_sequence,
+      uid
+    );
+    organizedMelds[uid] = buildOrganizedScoreboardForUser({
+      userId: uid,
+      declarerUserId: sub,
+      hand: hands[uid] || [],
+      declarationGroups,
+      isSpectator: !!spectatorMap[uid],
+      wildJokerRank: wild_joker_rank,
+      wildJokerRevealed: wild_joker_revealed,
+      wildJokerRevealedForLayout: uidWild,
+      snapshot: meld_snapshots[uid] || null,
+      loserDeadwoodMode,
+    });
+  }
+  for (const uid of Object.keys(hands)) {
+    const n = normId(uid);
+    if (organizedMelds[n]) continue;
+    const uidWild = wildMode.isWildJokerRevealedForPlayer(
+      rnd.game_mode,
+      wild_joker_rank,
+      rnd.players_with_first_sequence,
+      n
+    );
+    organizedMelds[n] = buildOrganizedScoreboardForUser({
+      userId: n,
+      declarerUserId: sub,
+      hand: hands[n] || [],
+      declarationGroups,
+      isSpectator: !!spectatorMap[n],
+      wildJokerRank: wild_joker_rank,
+      wildJokerRevealed: wild_joker_revealed,
+      wildJokerRevealedForLayout: uidWild,
+      snapshot: meld_snapshots[n] || null,
+      loserDeadwoodMode,
+    });
+  }
+
+  const declarationPayload = {
+    groups: declarationGroups,
+    valid: true,
+    revealed_hands: hands,
+    organized_melds: organizedMelds,
+  };
+
+  const scoresForDb = {};
+  for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
+
+  return { scores, scoresForDb, declarationPayload };
+}
+
+async function finalizeStrictDeclareRound(app, table_id, round_id) {
+  const fakeReq = { app };
+  try {
+    const rnd = await db.fetchrow(
+      `SELECT id, number, hands, meld_snapshots, wild_joker_rank, players_with_first_sequence, ace_value, face_card_mode, game_mode,
+              finished_at, post_declare_pending
+       FROM rummy_rounds WHERE id=$1`,
+      [round_id]
+    );
+    if (!rnd || rnd.finished_at) return;
+    const pending = parsePostDeclarePending(rnd.post_declare_pending);
+    if (!pending) return;
+
+    const sub = normId(pending.declarer_user_id);
+    const groups = pending.declaration_groups || [];
+
+    const table = await db.fetchrow(`SELECT loser_deadwood_mode FROM rummy_tables WHERE id=$1`, [table_id]);
+    const loserDeadwoodMode = loserMode.normalizeLoserMode(table && table.loser_deadwood_mode);
+
+    let hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
+    hands = normalizeKeyedJson(hands);
+    let meld_snapshots_raw = rnd.meld_snapshots;
+    if (typeof meld_snapshots_raw === "string") {
+      try {
+        meld_snapshots_raw = JSON.parse(meld_snapshots_raw);
+      } catch {
+        meld_snapshots_raw = {};
+      }
+    }
+    const meld_snapshots = normalizeKeyedJson(meld_snapshots_raw || {});
+
+    const tablePlayers = await db.fetch(
+      `SELECT user_id, is_spectator FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`,
+      [table_id]
+    );
+    const spectatorMap = {};
+    for (const p of tablePlayers) spectatorMap[normId(p.user_id)] = p.is_spectator;
+
+    const { scores, scoresForDb, declarationPayload } = await finishValidDeclaredRoundCore(
+      table_id,
+      rnd,
+      sub,
+      hands,
+      tablePlayers,
+      spectatorMap,
+      meld_snapshots,
+      groups,
+      loserDeadwoodMode
+    );
+
+    const updated = await db.fetchrow(
+      `UPDATE rummy_rounds SET post_declare_pending=NULL, winner_user_id=$1, scores=$2::jsonb,
+         declarations = COALESCE(declarations, '{}'::jsonb) || $3::jsonb, finished_at=now(), updated_at=now(), points_accumulated = true
+       WHERE id=$4 AND post_declare_pending IS NOT NULL
+       RETURNING id`,
+      [sub, JSON.stringify(scoresForDb), JSON.stringify({ [sub]: declarationPayload }), round_id]
+    );
+    if (!updated) return;
+
+    for (const [uid, pts] of Object.entries(scores)) {
+      const n = normId(uid);
+      if (!spectatorMap[n]) {
+        await db.execute(
+          `UPDATE rummy_table_players SET total_points = COALESCE(total_points,0) + $1 WHERE table_id=$2 AND user_id=$3`,
+          [pts, table_id, n]
+        );
+      }
+    }
+
+    await db.execute(`UPDATE rummy_tables SET status='playing', updated_at=now() WHERE id=$1`, [table_id]);
+
+    const dqResult = await applyDisqualificationAndMaybeFinishTable(fakeReq, table_id);
+
+    nspEmit(fakeReq, table_id, "game_update", { table_id });
+    nspEmit(fakeReq, table_id, "round.declare", {
+      declared_by: sub,
+      result: {
+        valid: true,
+        scores: scoresForDb,
+        table_finished: dqResult.table_finished,
+        champion_user_id: dqResult.champion_user_id,
+        disqualified_user_ids: dqResult.disqualified_user_ids,
+      },
+    });
+  } catch (e) {
+    console.error("finalizeStrictDeclareRound", e);
+  }
+}
+
 // POST /declare
 router.post("/declare", requireAuth, async (req, res) => {
   try {
@@ -1256,11 +1549,14 @@ router.post("/declare", requireAuth, async (req, res) => {
 
     // Basic table & round fetch + membership check
     const rnd = await db.fetchrow(
-      `SELECT id, number, hands, discard, wild_joker_rank, players_with_first_sequence, ace_value, face_card_mode, game_mode, meld_snapshots
+      `SELECT id, number, hands, discard, wild_joker_rank, players_with_first_sequence, ace_value, face_card_mode, game_mode, meld_snapshots, post_declare_pending, finished_at
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
     if (!rnd) return res.status(404).json({ error: "No active round" });
+    if (parsePostDeclarePending(rnd.post_declare_pending)) {
+      return res.status(400).json({ error: "This round is waiting for losers to arrange melds (strict mode)." });
+    }
 
     // ensure requester is active player (optional)
     const table = await db.fetchrow(`SELECT status, loser_deadwood_mode FROM rummy_tables WHERE id=$1`, [table_id]);
@@ -1318,7 +1614,7 @@ router.post("/declare", requireAuth, async (req, res) => {
     // Validate groups if provided
     let isValidDeclaration = false;
     let validationReason = "";
-    const scores = {};
+    let scores = {};
 
     const tablePlayers = await db.fetch(
       `SELECT user_id, is_spectator FROM rummy_table_players WHERE table_id=$1 ORDER BY seat ASC`,
@@ -1358,45 +1654,7 @@ router.post("/declare", requireAuth, async (req, res) => {
       isValidDeclaration = !!validation.valid;
       validationReason = validation?.reason || "";
 
-      if (isValidDeclaration) {
-        scores[sub] = 0;
-        for (const p of tablePlayers) {
-          const uid = normId(p.user_id);
-          if (uid === sub) continue;
-          if (spectatorMap[uid]) {
-            // Eliminated/spectator users should not keep receiving penalty scores in later rounds.
-            scores[uid] = 0;
-          } else {
-            const oppHand = hands[uid] || [];
-            let pts = 0;
-            const oppWildRevealed = wildMode.isWildJokerRevealedForPlayer(
-              rnd.game_mode,
-              wild_joker_rank,
-              rnd.players_with_first_sequence,
-              uid
-            );
-            if (scoring && typeof scoring.calculateLoserDeadwoodPoints === "function") {
-              const snapUid = meld_snapshots[normId(uid)] || null;
-              pts = scoring.calculateLoserDeadwoodPoints(
-                oppHand,
-                loserDeadwoodMode,
-                snapUid,
-                wild_joker_rank,
-                oppWildRevealed,
-                ace_value,
-                face_card_mode
-              );
-            } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
-              pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
-            } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
-              pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
-            } else {
-              pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value, face_card_mode), 0);
-            }
-            scores[uid] = Math.min(pts, 80);
-          }
-        }
-      } else {
+      if (!isValidDeclaration) {
         const declarer_pts = INVALID_DECLARE_PENALTY;
         for (const p of tablePlayers) {
           const uid = normId(p.user_id);
@@ -1415,6 +1673,145 @@ router.post("/declare", requireAuth, async (req, res) => {
       isValidDeclaration = false;
     }
 
+    let declarationPayload;
+    let scoresForDb = {};
+
+    if (isValidDeclaration) {
+      const core = await finishValidDeclaredRoundCore(
+        table_id,
+        rnd,
+        sub,
+        hands,
+        tablePlayers,
+        spectatorMap,
+        meld_snapshots,
+        groups,
+        loserDeadwoodMode
+      );
+      scores = core.scores;
+      scoresForDb = core.scoresForDb;
+      declarationPayload = core.declarationPayload;
+
+      if (
+        loserMode.isStrictLoserMode(loserDeadwoodMode) &&
+        tablePlayers.some((p) => {
+          const uid = normId(p.user_id);
+          return !spectatorMap[uid] && uid !== sub;
+        })
+      ) {
+        const loser_user_ids = tablePlayers
+          .filter((p) => !spectatorMap[normId(p.user_id)] && normId(p.user_id) !== sub)
+          .map((p) => normId(p.user_id));
+        const deadlineMs = Date.now() + STRICT_DECLARE_ARRANGE_MS;
+        const pending = {
+          declarer_user_id: sub,
+          declaration_groups: groups,
+          loser_user_ids,
+          done_user_ids: [],
+          deadline_ms: deadlineMs,
+        };
+        await db.execute(`UPDATE rummy_rounds SET post_declare_pending=$1::jsonb, updated_at=now() WHERE id=$2`, [
+          JSON.stringify(pending),
+          rnd.id,
+        ]);
+
+        const decRow = await db.fetchrow(
+          `SELECT display_name FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+          [table_id, sub]
+        );
+        const declarer_name = decRow?.display_name || "Player";
+
+        const dqEmpty = { disqualified_user_ids: [], table_finished: false, champion_user_id: null };
+        const responseData = {
+          table_id,
+          round_number: rnd.number,
+          declared_by: sub,
+          valid: true,
+          status: "valid",
+          arrangement_pending: true,
+          expires_at: new Date(deadlineMs).toISOString(),
+          loser_user_ids,
+          declarer_name,
+          message: `${declarer_name} declared. Losers have ${STRICT_DECLARE_ARRANGE_MS / 1000} seconds to arrange melds for scoring.`,
+          scores: {},
+          disqualified_user_ids: dqEmpty.disqualified_user_ids,
+          table_finished: dqEmpty.table_finished,
+          champion_user_id: dqEmpty.champion_user_id,
+        };
+
+        res.json(responseData);
+        nspEmit(req, table_id, "game_update", { table_id });
+        nspEmit(req, table_id, "declare.arrangement_started", {
+          table_id,
+          round_number: rnd.number,
+          declarer_user_id: sub,
+          declarer_name,
+          expires_at: responseData.expires_at,
+          loser_user_ids,
+        });
+        const app = req.app;
+        setTimeout(() => {
+          finalizeStrictDeclareRound(app, table_id, rnd.id).catch((err) => console.error(err));
+        }, STRICT_DECLARE_ARRANGE_MS);
+        return;
+      }
+    } else {
+      const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
+      const organizedMelds = {};
+      for (const p of tablePlayers) {
+        const uid = normId(p.user_id);
+        if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+        const uidWild = wildMode.isWildJokerRevealedForPlayer(
+          rnd.game_mode,
+          wild_joker_rank,
+          rnd.players_with_first_sequence,
+          uid
+        );
+        organizedMelds[uid] = buildOrganizedScoreboardForUser({
+          userId: uid,
+          declarerUserId: sub,
+          hand: hands[uid] || [],
+          declarationGroups,
+          isSpectator: !!spectatorMap[uid],
+          wildJokerRank: wild_joker_rank,
+          wildJokerRevealed: wild_joker_revealed,
+          wildJokerRevealedForLayout: uidWild,
+          snapshot: meld_snapshots[uid] || null,
+          loserDeadwoodMode,
+        });
+      }
+      for (const uid of Object.keys(hands)) {
+        const n = normId(uid);
+        if (organizedMelds[n]) continue;
+        const uidWild = wildMode.isWildJokerRevealedForPlayer(
+          rnd.game_mode,
+          wild_joker_rank,
+          rnd.players_with_first_sequence,
+          n
+        );
+        organizedMelds[n] = buildOrganizedScoreboardForUser({
+          userId: n,
+          declarerUserId: sub,
+          hand: hands[n] || [],
+          declarationGroups,
+          isSpectator: !!spectatorMap[n],
+          wildJokerRank: wild_joker_rank,
+          wildJokerRevealed: wild_joker_revealed,
+          wildJokerRevealedForLayout: uidWild,
+          snapshot: meld_snapshots[n] || null,
+          loserDeadwoodMode,
+        });
+      }
+
+      declarationPayload = {
+        groups: declarationGroups,
+        valid: false,
+        revealed_hands: hands,
+        organized_melds: organizedMelds,
+      };
+      for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
+    }
+
     // Persist round points for seated players (skip spectators / dropped)
     for (const [uid, pts] of Object.entries(scores)) {
       const n = normId(uid);
@@ -1425,47 +1822,6 @@ router.post("/declare", requireAuth, async (req, res) => {
         );
       }
     }
-
-    const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
-    const organizedMelds = {};
-    for (const p of tablePlayers) {
-      const uid = normId(p.user_id);
-      if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
-      organizedMelds[uid] = buildOrganizedScoreboardForUser({
-        userId: uid,
-        declarerUserId: sub,
-        hand: hands[uid] || [],
-        declarationGroups,
-        isSpectator: !!spectatorMap[uid],
-        wildJokerRank: wild_joker_rank,
-        wildJokerRevealed: wild_joker_revealed,
-        snapshot: meld_snapshots[uid] || null,
-      });
-    }
-    for (const uid of Object.keys(hands)) {
-      const n = normId(uid);
-      if (organizedMelds[n]) continue;
-      organizedMelds[n] = buildOrganizedScoreboardForUser({
-        userId: n,
-        declarerUserId: sub,
-        hand: hands[n] || [],
-        declarationGroups,
-        isSpectator: !!spectatorMap[n],
-        wildJokerRank: wild_joker_rank,
-        wildJokerRevealed: wild_joker_revealed,
-        snapshot: meld_snapshots[n] || null,
-      });
-    }
-
-    const declarationPayload = {
-      groups: declarationGroups,
-      valid: isValidDeclaration,
-      revealed_hands: hands,
-      organized_melds: organizedMelds
-    };
-
-    const scoresForDb = {};
-    for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
 
     await db.execute(
       `UPDATE rummy_rounds SET winner_user_id=$1, scores=$2::jsonb, declarations = COALESCE(declarations, '{}'::jsonb) || $3::jsonb, finished_at=now(), updated_at=now(), points_accumulated = true
@@ -1514,6 +1870,47 @@ router.post("/declare", requireAuth, async (req, res) => {
   }
 });
 
+// POST /round/strict-arrange-done — losers tap Done during strict-mode post-declare window
+router.post("/round/strict-arrange-done", requireAuth, async (req, res) => {
+  try {
+    const { table_id } = req.body || {};
+    if (!table_id) return res.status(400).json({ error: "table_id required" });
+
+    const rnd = await db.fetchrow(
+      `SELECT id, post_declare_pending FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
+      [table_id]
+    );
+    if (!rnd) return res.status(404).json({ error: "No round" });
+    const pending = parsePostDeclarePending(rnd.post_declare_pending);
+    if (!pending) return res.status(400).json({ error: "No active arrangement window" });
+
+    const me = normId(req.user.sub);
+    const losers = (pending.loser_user_ids || []).map(normId);
+    if (!losers.includes(me)) return res.status(403).json({ error: "Only losers can confirm Done during this window" });
+
+    let done = (pending.done_user_ids || []).map(normId);
+    if (!done.includes(me)) done.push(me);
+    pending.done_user_ids = done;
+
+    await db.execute(`UPDATE rummy_rounds SET post_declare_pending=$1::jsonb, updated_at=now() WHERE id=$2`, [
+      JSON.stringify(pending),
+      rnd.id,
+    ]);
+
+    nspEmit(req, table_id, "game_update", { table_id });
+
+    const allDone = losers.length > 0 && losers.every((id) => done.includes(id));
+    if (allDone) {
+      await finalizeStrictDeclareRound(req.app, table_id, rnd.id);
+    }
+
+    res.json({ ok: true, done_user_ids: done, all_done: allDone });
+  } catch (e) {
+    console.error("strict-arrange-done", e);
+    res.status(500).json({ error: "Failed to record Done" });
+  }
+});
+
 // GET /round/revealed-hands
 router.get("/round/revealed-hands", requireAuth, async (req, res) => {
   try {
@@ -1534,6 +1931,9 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
       );
     if (!rnd) return res.status(404).json({ error: "No round found" });
     if (!rnd.finished_at) return res.status(400).json({ error: "Round not finished" });
+
+    const tblRow = await db.fetchrow(`SELECT loser_deadwood_mode FROM rummy_tables WHERE id=$1`, [table_id]);
+    const loserDeadwoodMode = loserMode.normalizeLoserMode(tblRow && tblRow.loser_deadwood_mode);
 
     // Seat order: stable scoreboard rows + names + spectator flag
     const seatRows = await db.fetch(
@@ -1577,6 +1977,12 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
     for (const row of seatRows) {
       const uid = normId(row.user_id);
       if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+      const uidWild = wildMode.isWildJokerRevealedForPlayer(
+        rnd.game_mode,
+        wildJokerRank,
+        rnd.players_with_first_sequence,
+        uid
+      );
       organized_melds[uid] = buildOrganizedScoreboardForUser({
         userId: uid,
         declarerUserId: declared_by,
@@ -1585,12 +1991,20 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
         isSpectator: spectatorByUser[uid],
         wildJokerRank,
         wildJokerRevealed: wild_joker_revealed,
+        wildJokerRevealedForLayout: uidWild,
         snapshot: meldSnapshots[uid] || null,
+        loserDeadwoodMode,
       });
     }
     for (const uid of Object.keys(hands)) {
       const n = normId(uid);
       if (organized_melds[n]) continue;
+      const uidWild = wildMode.isWildJokerRevealedForPlayer(
+        rnd.game_mode,
+        wildJokerRank,
+        rnd.players_with_first_sequence,
+        n
+      );
       organized_melds[n] = buildOrganizedScoreboardForUser({
         userId: n,
         declarerUserId: declared_by,
@@ -1599,7 +2013,9 @@ router.get("/round/revealed-hands", requireAuth, async (req, res) => {
         isSpectator: !!spectatorByUser[n],
         wildJokerRank,
         wildJokerRevealed: wild_joker_revealed,
+        wildJokerRevealedForLayout: uidWild,
         snapshot: meldSnapshots[n] || null,
+        loserDeadwoodMode,
       });
     }
 
@@ -2024,49 +2440,76 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
     );
     if (!pending) return res.status(404).json({ error: "No spectate request found" });
 
-    // Step 1: host/admin approval
-    if (req.user.sub === table.host_user_id) {
-      await db.execute(
-        `UPDATE spectate_permissions SET admin_approved=$1, granted=CASE WHEN $1 THEN granted ELSE false END
-         WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`,
-        [!!granted, table_id, spectator_id, pending.player_id]
-      );
+    // Host approval: when host clicks Allow, finish spectate in one step so the spectator
+    // immediately gets the target's hand in GET /round/me (which only checks granted=true).
+    if (normId(req.user.sub) === normId(table.host_user_id)) {
+      const specId = normId(spectator_id);
+      const targetPid = normId(pending.player_id);
+      if (granted) {
+        await db.execute(
+          `UPDATE spectate_permissions SET admin_approved=true, granted=true
+           WHERE table_id=$1 AND spectator_id=$2 AND player_id=$3`,
+          [table_id, specId, targetPid]
+        );
+        await db.execute(
+          `UPDATE rummy_table_players
+           SET spectator_allowed = COALESCE(spectator_allowed, '[]'::jsonb) || $1::jsonb
+           WHERE table_id=$2 AND user_id=$3`,
+          [JSON.stringify([specId]), table_id, targetPid]
+        );
+      } else {
+        await db.execute(
+          `UPDATE spectate_permissions SET admin_approved=false, granted=false
+           WHERE table_id=$1 AND spectator_id=$2 AND player_id=$3`,
+          [table_id, specId, targetPid]
+        );
+      }
       nspEmit(req, table_id, "spectate.granted", {
-        spectator_id: normId(spectator_id),
-        player_id: normId(pending.player_id),
+        spectator_id: specId,
+        player_id: targetPid,
         granted: !!granted,
-        stage: "admin",
+        stage: "host",
       });
-      return res.json({ success: true, stage: "admin", admin_approved: !!granted });
+      nspEmit(req, table_id, "game_update", { table_id });
+      return res.json({
+        success: true,
+        stage: "host",
+        admin_approved: !!granted,
+        granted: !!granted,
+      });
     }
 
-    // Step 2: target player approval (only after admin approved)
-    if (req.user.sub !== pending.player_id) {
+    // Optional second step: target player can still grant/deny if row exists (e.g. legacy rows);
+    // host path above already sets granted when host allows.
+    if (normId(req.user.sub) !== normId(pending.player_id)) {
       return res.status(403).json({ error: "Only host or target player can update spectate request" });
     }
     if (!pending.admin_approved) {
       return res.status(400).json({ error: "Host approval required before player permission" });
     }
 
+    const specId = normId(spectator_id);
+    const targetPid = normId(pending.player_id);
     await db.execute(
       `UPDATE spectate_permissions SET granted=$1
        WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`,
-      [!!granted, table_id, spectator_id, pending.player_id]
+      [!!granted, table_id, specId, targetPid]
     );
     if (granted) {
       await db.execute(
         `UPDATE rummy_table_players
-         SET spectator_allowed = COALESCE(spectator_allowed, '[]'::jsonb) || $1
+         SET spectator_allowed = COALESCE(spectator_allowed, '[]'::jsonb) || $1::jsonb
          WHERE table_id=$2 AND user_id=$3`,
-        [JSON.stringify([spectator_id]), table_id, pending.player_id]
+        [JSON.stringify([specId]), table_id, targetPid]
       );
     }
     nspEmit(req, table_id, "spectate.granted", {
-      spectator_id: normId(spectator_id),
-      player_id: normId(pending.player_id),
+      spectator_id: specId,
+      player_id: targetPid,
       granted: !!granted,
       stage: "player",
     });
+    nspEmit(req, table_id, "game_update", { table_id });
     return res.json({ success: true, stage: "player", granted: !!granted });
   } catch (e) {
     console.error("grant-spectate error", e);

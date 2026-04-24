@@ -91,6 +91,12 @@ export const onDeclareUpdate = (callback) => {
   });
 };
 
+export const onDeclareArrangementStarted = (callback) => {
+  socket.on("declare.arrangement_started", (data) => {
+    callback(data);
+  });
+};
+
 export const onCardDiscarded = (callback) => {
   socket.on("card.discarded", (data) => {
     callback(data);
