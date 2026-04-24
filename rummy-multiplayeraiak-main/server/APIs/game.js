@@ -758,7 +758,28 @@ router.get("/round/me", requireAuth, async (req, res) => {
     }
 
     const hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
-    const myHand = hands[req.user.sub] || [];
+    const myPlayer = await db.fetchrow(
+      `SELECT is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+      [table_id, req.user.sub]
+    );
+
+    let effectiveUserId = req.user.sub;
+    let spectating_user_id = null;
+    if (myPlayer?.is_spectator) {
+      const allowed = await db.fetchrow(
+        `SELECT player_id
+         FROM spectate_permissions
+         WHERE table_id=$1 AND spectator_id=$2 AND granted=true
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [table_id, req.user.sub]
+      );
+      if (allowed?.player_id) {
+        effectiveUserId = allowed.player_id;
+        spectating_user_id = allowed.player_id;
+      }
+    }
+    const myHand = hands[effectiveUserId] || [];
 
     const stock = typeof rnd.stock === "string" ? JSON.parse(rnd.stock) : (rnd.stock || []);
     const discard = typeof rnd.discard === "string" ? JSON.parse(rnd.discard) : (rnd.discard || []);
@@ -794,6 +815,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
       wild_joker_revealed,
       wild_joker_rank: rnd.wild_joker_rank || null,
       players_with_first_sequence,
+      spectating_user_id,
       finished_at: rnd.finished_at ? new Date(rnd.finished_at).toISOString() : null,
       active_user_id: rnd.active_user_id || null,
     });

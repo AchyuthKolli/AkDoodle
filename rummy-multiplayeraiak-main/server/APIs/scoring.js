@@ -97,7 +97,7 @@ function isSequence(cards = [], wildRank = null, revealed = false) {
       else nonJokers.push(optionalWilds[i]);
     }
 
-    if (nonJokers.length < 2) continue;
+    if (nonJokers.length < 1) continue;
 
     const suits = nonJokers.map((c) => _getAttr(c, "suit"));
     if (suits.length > 0 && new Set(suits).size > 1) continue;
@@ -148,7 +148,7 @@ function isSet(cards = [], wildRank = null, revealed = false) {
     }
 
     if (jokerCount + nonJokers.length !== cards.length) continue;
-    if (nonJokers.length < 2) continue;
+    if (nonJokers.length < 1) continue;
 
     const ranks = [...new Set(nonJokers.map((c) => _getAttr(c, "rank")))];
     if (ranks.length !== 1) continue;

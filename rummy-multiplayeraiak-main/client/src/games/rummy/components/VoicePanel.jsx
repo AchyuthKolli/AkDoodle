@@ -193,11 +193,11 @@ export default function VoicePanel({
 
               {/* OTHERS */}
               {playersList.map((player) => {
-                if (player.user_id === currentUserId) return null; // Skip self
+                if (String(player.user_id) === String(currentUserId)) return null; // Skip self
 
                 // Check connection presence (socket) AND audio stream (participants)
-                const isConnected = (connectedUsers || []).includes(player.user_id);
-                const hasAudio = participants.find(p => p.userId === player.user_id);
+                const isConnected = (connectedUsers || []).some((id) => String(id) === String(player.user_id));
+                const hasAudio = participants.find((p) => String(p.userId) === String(player.user_id));
 
                 // If they have audio, they are definitely connected
                 const showConnected = isConnected || !!hasAudio;

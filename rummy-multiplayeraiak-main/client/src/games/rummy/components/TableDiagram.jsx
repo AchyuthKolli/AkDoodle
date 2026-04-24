@@ -23,8 +23,11 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
   return (
     <div className="relative w-full h-full">
       {/* Player positions around the table */}
-      {players.map((player) => {
-        const { x, y } = getSeatPosition(player.seat, totalSeats || 1);
+      {[...(players || [])]
+        .sort((a, b) => (a?.seat || 0) - (b?.seat || 0))
+        .map((player, idx) => {
+        // Use contiguous visual position index so gaps in seat numbers (after kick/drop) do not overlap avatars.
+        const { x, y } = getSeatPosition(idx + 1, totalSeats || 1);
         const isActive = player.user_id === activeUserId;
         const isCurrent = player.user_id === currentUserId;
 

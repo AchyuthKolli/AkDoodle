@@ -1874,6 +1874,11 @@ export default function Table() {
               {mySpectatorReason === "disqualified" && "You were disqualified and moved to spectator mode. You can request to spectate active players."}
               {mySpectatorReason === "round_drop" && "You dropped this round (20 penalty). You will rejoin active play in the next round."}
               {!mySpectatorReason && "You are currently in spectator mode. Request host/player permissions to spectate specific hands."}
+              {myRound?.spectating_user_id && (
+                <span className="block mt-1 text-cyan-200/90">
+                  Spectating: {info?.players?.find((p) => p.user_id === myRound.spectating_user_id)?.display_name || myRound.spectating_user_id.slice(0, 8)}
+                </span>
+              )}
             </div>
           )}
 
@@ -2121,7 +2126,7 @@ export default function Table() {
                               >
                                 Declare
                               </Button>
-                              {roundHistory.length > 0 && user?.id === info?.host_user_id && !showScoreboardModal && (
+                              {roundHistory.length > 0 && user?.id === info?.host_user_id && !showScoreboardModal && !!myRound?.finished_at && (
                                 <Button
                                   size="sm"
                                   disabled={starting}
@@ -2271,10 +2276,10 @@ export default function Table() {
                     faceCardMode={info?.face_card_mode}
                     wildJokerMode={info?.wild_joker_mode}
                     disqualifyScore={info?.disqualify_score}
-                    onNextRound={() => {
+                    onNextRound={myRound?.finished_at ? (() => {
                       setShowScoreboardModal(false);
                       return onNextRound();
-                    }}
+                    }) : null}
                   />
 
                   <AllRoundsResultsModal

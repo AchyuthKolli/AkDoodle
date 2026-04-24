@@ -80,7 +80,7 @@ export const useVoice = (tableId, userId) => {
         };
 
         const handleUserJoined = async ({ user_id }) => {
-            if (user_id === userId) return; // Ignore self
+            if (String(user_id) === String(userId)) return; // Ignore self
             console.log("User joined voice:", user_id);
             setConnectedUsers(prev => [...new Set([...prev, user_id])]);
             createPeer(user_id, true); // Initiator
@@ -100,10 +100,13 @@ export const useVoice = (tableId, userId) => {
         const handleExistingUsers = ({ users }) => {
             console.log("Existing voice users:", users);
             // users is array of userIds
-            const others = users.filter(id => id !== userId);
+            const others = users.filter(id => String(id) !== String(userId));
             setConnectedUsers(others);
-            // Important: existing members will initiate to newcomer via "voice.joined".
-            // Avoid dual-offer glare by not initiating from both ends.
+            // Deterministic initiator fallback to reduce missed peer setup races.
+            others.forEach((id) => {
+                const iAmInitiator = String(userId) > String(id);
+                if (iAmInitiator) createPeer(id, true);
+            });
         };
         const handleForceMuted = ({ user_id }) => {
             if (String(user_id) !== String(userId)) return;
