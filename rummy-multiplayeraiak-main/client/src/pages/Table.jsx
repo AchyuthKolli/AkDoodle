@@ -895,7 +895,7 @@ export default function Table() {
   useEffect(() => {
     if (!tableId) return;
     const spectating = !!myRound?.spectating_user_id;
-    const ms = spectating ? 2500 : 12000;
+    const ms = spectating ? 1500 : 12000;
     const interval = setInterval(() => {
       refresh();
     }, ms);
@@ -1347,10 +1347,17 @@ export default function Table() {
     }
   };
 
-  const serializeCardsForSnapshot = (arr) =>
-    (arr || [])
-      .filter((c) => c != null && typeof c === "object" && c.rank)
-      .map((c) => ({ rank: c.rank, suit: c.suit || null, joker: !!c.joker }));
+  /** Preserve empty slots so spectators see cards in the correct meld positions. */
+  const serializeMeldSlotArrayForSnapshot = (arr, capacity) => {
+    const src = Array.isArray(arr) ? arr : [];
+    const out = [];
+    for (let i = 0; i < capacity; i++) {
+      const c = src[i];
+      if (!c || typeof c !== "object" || !c.rank) out.push(null);
+      else out.push({ rank: c.rank, suit: c.suit || null, joker: !!c.joker });
+    }
+    return out;
+  };
 
   useEffect(() => {
     if (!tableId || !info || info.status !== "playing" || !myRound || myRound.finished_at) return;
@@ -1361,11 +1368,11 @@ export default function Table() {
         try {
           const body = {
             table_id: tableId,
-            meld1: serializeCardsForSnapshot(meld1),
-            meld2: serializeCardsForSnapshot(meld2),
-            meld3: serializeCardsForSnapshot(meld3),
-            meld4: serializeCardsForSnapshot(meld4),
-            leftover: serializeCardsForSnapshot(leftover),
+            meld1: serializeMeldSlotArrayForSnapshot(meld1, 3),
+            meld2: serializeMeldSlotArrayForSnapshot(meld2, 3),
+            meld3: serializeMeldSlotArrayForSnapshot(meld3, 3),
+            meld4: serializeMeldSlotArrayForSnapshot(meld4, 4),
+            leftover: serializeMeldSlotArrayForSnapshot(leftover, 1),
           };
           const res = await apiclient.meld_snapshot(body);
           if (!res.ok && res.status !== 400) {
@@ -1735,7 +1742,13 @@ export default function Table() {
         setLastDrawnCard(null);
 
         if (data.arrangement_pending) {
-          toast.info(data.message || "Losers have 30 seconds to arrange melds (strict mode).", { duration: 6500 });
+          toast.info(
+            data.message ||
+              (data.valid === false
+                ? "Declaration invalid — other players still have 30 seconds to arrange melds (strict mode)."
+                : "Losers have 30 seconds to arrange melds (strict mode)."),
+            { duration: 7000 }
+          );
         } else if (data.valid) {
           toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
           await fetchRevealedHands();
@@ -1799,8 +1812,19 @@ export default function Table() {
         <div className="fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 pointer-events-none">
           <div className="pointer-events-auto w-full max-w-4xl rounded-xl border border-amber-500/50 bg-amber-950/95 px-4 py-3 shadow-xl backdrop-blur-md">
             <p className="text-center text-sm text-amber-50 font-medium">
-              <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>{" "}
-              declared (strict mode). Losers: arrange your meld board to reduce points.
+              <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>
+              {myRound.strict_declare_arrangement.invalid_declaration ? (
+                <>
+                  {" "}
+                  declared a hand that does not validate (strict mode). Other players: use the countdown to arrange your
+                  meld board and reduce deadwood — you still score from your layout even though the declare was invalid.
+                </>
+              ) : (
+                <>
+                  {" "}
+                  declared (strict mode). Losers: arrange your meld board to reduce points.
+                </>
+              )}
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
               <div className="text-3xl font-mono font-bold tabular-nums text-white bg-black/30 px-4 py-1 rounded-lg border border-amber-600/40">

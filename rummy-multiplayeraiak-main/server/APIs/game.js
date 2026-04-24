@@ -340,11 +340,13 @@ function pickDeclarerUserId(declarations, winnerUserId) {
   return normId(best);
 }
 
+/** Preserve slot indices (null holes) so spectators see cards in the correct meld slots. */
 function sanitizeMeldSlotForSnapshot(arr) {
   if (!Array.isArray(arr)) return [];
-  return arr
-    .filter((c) => c && typeof c === "object" && c.rank)
-    .map((c) => ({ rank: String(c.rank), suit: c.suit || null, joker: !!c.joker }));
+  return arr.map((c) => {
+    if (!c || typeof c !== "object" || !c.rank) return null;
+    return { rank: String(c.rank), suit: c.suit || null, joker: !!c.joker };
+  });
 }
 
 function cardsEqualForSnapshot(a, b) {
@@ -360,6 +362,7 @@ function cardsEqualForSnapshot(a, b) {
 function removeSnapshotCardsFromHand(hand, cards) {
   const src = Array.isArray(hand) ? hand.slice() : [];
   for (const c of cards || []) {
+    if (c == null) continue;
     const idx = src.findIndex((h) => cardsEqualForSnapshot(h, c));
     if (idx === -1) return { ok: false, remaining: Array.isArray(hand) ? hand.slice() : [] };
     src.splice(idx, 1);
@@ -373,7 +376,8 @@ function buildFromSnapshotLayout(hand, snap, wildJokerRank, wildJokerRevealed) {
 
   const slots = ["meld1", "meld2", "meld3", "meld4"].map((k) => sanitizeMeldSlotForSnapshot(snap[k]));
   const leftover = sanitizeMeldSlotForSnapshot(snap.leftover);
-  const anyPlaced = slots.some((s) => s.length > 0) || leftover.length > 0;
+  const anyPlaced =
+    slots.some((s) => s.some((c) => c && c.rank)) || leftover.some((c) => c && c.rank);
   if (!anyPlaced) return null;
 
   let remaining = baseHand.slice();
@@ -386,11 +390,12 @@ function buildFromSnapshotLayout(hand, snap, wildJokerRank, wildJokerRevealed) {
   if (!outLeft.ok) return null;
   remaining = outLeft.remaining;
 
-  const slot_kind = slots.map((g) =>
-    g.length ? classifySingleGroup(g, wildJokerRank, wildJokerRevealed) : null
-  );
+  const slot_kind = slots.map((g) => {
+    const cards = g.filter((c) => c && c.rank);
+    return cards.length ? classifySingleGroup(cards, wildJokerRank, wildJokerRevealed) : null;
+  });
   const classified = classifyDeclaredGroups(
-    slots.filter((g) => g.length > 0),
+    slots.map((g) => g.filter((c) => c && c.rank)).filter((g) => g.length > 0),
     wildJokerRank,
     wildJokerRevealed
   );
@@ -874,6 +879,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
         expires_at: new Date(pendingMe.deadline_ms).toISOString(),
         loser_user_ids: (pendingMe.loser_user_ids || []).map(normId),
         done_user_ids: (pendingMe.done_user_ids || []).map(normId),
+        invalid_declaration: pendingMe.declare_valid === false,
       };
     }
 
@@ -1015,7 +1021,7 @@ router.post("/round/meld-snapshot", requireAuth, async (req, res) => {
     const s4 = sanitizeMeldSlotForSnapshot(meld4);
     const slo = sanitizeMeldSlotForSnapshot(leftover);
 
-    const placed = [...s1, ...s2, ...s3, ...s4, ...slo];
+    const placed = [...s1, ...s2, ...s3, ...s4, ...slo].filter(Boolean);
     const handCopy = myHand.slice();
     for (const c of placed) {
       const idx = handCopy.findIndex(
@@ -1479,6 +1485,126 @@ async function finishValidDeclaredRoundCore(
   return { scores, scoresForDb, declarationPayload };
 }
 
+/** After strict-mode arrangement when the original declare was invalid (declarer already penalized). */
+async function finishInvalidStrictDeclaredRoundCore(
+  table_id,
+  rnd,
+  sub,
+  hands,
+  tablePlayers,
+  spectatorMap,
+  meld_snapshots,
+  groups,
+  loserDeadwoodMode
+) {
+  const wild_joker_rank = rnd.wild_joker_rank || null;
+  const ace_value = rnd.ace_value || 10;
+  const face_card_mode = String(rnd.face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
+
+  const scores = {};
+  scores[sub] = INVALID_DECLARE_PENALTY;
+  for (const p of tablePlayers) {
+    const uid = normId(p.user_id);
+    if (uid === sub) continue;
+    if (spectatorMap[uid]) {
+      scores[uid] = 0;
+    } else {
+      const oppHand = hands[uid] || [];
+      let pts = 0;
+      const oppWildRevealed = wildMode.isWildJokerRevealedForPlayer(
+        rnd.game_mode,
+        wild_joker_rank,
+        rnd.players_with_first_sequence,
+        uid
+      );
+      if (scoring && typeof scoring.calculateLoserDeadwoodPoints === "function") {
+        const snapUid = meld_snapshots[uid] || null;
+        pts = scoring.calculateLoserDeadwoodPoints(
+          oppHand,
+          loserDeadwoodMode,
+          snapUid,
+          wild_joker_rank,
+          oppWildRevealed,
+          ace_value,
+          face_card_mode
+        );
+      } else if (scoring && typeof scoring.calculateUngroupedDeadwoodPoints === "function") {
+        pts = scoring.calculateUngroupedDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
+      } else if (scoring && typeof scoring.calculateDeadwoodPoints === "function") {
+        pts = scoring.calculateDeadwoodPoints(oppHand, wild_joker_rank, oppWildRevealed, ace_value, face_card_mode);
+      } else {
+        pts = oppHand.reduce((s, c) => s + cardValueForScoring(c, ace_value, face_card_mode), 0);
+      }
+      scores[uid] = Math.min(pts, 80);
+    }
+  }
+
+  const wild_joker_revealed = wildMode.isWildJokerRevealedGlobally(
+    rnd.game_mode,
+    wild_joker_rank,
+    rnd.players_with_first_sequence
+  );
+
+  const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
+  const organizedMelds = {};
+  for (const p of tablePlayers) {
+    const uid = normId(p.user_id);
+    if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+    const uidWild = wildMode.isWildJokerRevealedForPlayer(
+      rnd.game_mode,
+      wild_joker_rank,
+      rnd.players_with_first_sequence,
+      uid
+    );
+    organizedMelds[uid] = buildOrganizedScoreboardForUser({
+      userId: uid,
+      declarerUserId: sub,
+      hand: hands[uid] || [],
+      declarationGroups,
+      isSpectator: !!spectatorMap[uid],
+      wildJokerRank: wild_joker_rank,
+      wildJokerRevealed: wild_joker_revealed,
+      wildJokerRevealedForLayout: uidWild,
+      snapshot: meld_snapshots[uid] || null,
+      loserDeadwoodMode,
+    });
+  }
+  for (const uid of Object.keys(hands)) {
+    const n = normId(uid);
+    if (organizedMelds[n]) continue;
+    const uidWild = wildMode.isWildJokerRevealedForPlayer(
+      rnd.game_mode,
+      wild_joker_rank,
+      rnd.players_with_first_sequence,
+      n
+    );
+    organizedMelds[n] = buildOrganizedScoreboardForUser({
+      userId: n,
+      declarerUserId: sub,
+      hand: hands[n] || [],
+      declarationGroups,
+      isSpectator: !!spectatorMap[n],
+      wildJokerRank: wild_joker_rank,
+      wildJokerRevealed: wild_joker_revealed,
+      wildJokerRevealedForLayout: uidWild,
+      snapshot: meld_snapshots[n] || null,
+      loserDeadwoodMode,
+    });
+  }
+
+  const declarationPayload = {
+    groups: declarationGroups,
+    valid: false,
+    revealed_hands: hands,
+    organized_melds: organizedMelds,
+  };
+
+  const scoresForDb = {};
+  for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
+
+  return { scores, scoresForDb, declarationPayload };
+}
+
 async function finalizeStrictDeclareRound(app, table_id, round_id) {
   const fakeReq = { app };
   try {
@@ -1517,24 +1643,38 @@ async function finalizeStrictDeclareRound(app, table_id, round_id) {
     const spectatorMap = {};
     for (const p of tablePlayers) spectatorMap[normId(p.user_id)] = p.is_spectator;
 
-    const { scores, scoresForDb, declarationPayload } = await finishValidDeclaredRoundCore(
-      table_id,
-      rnd,
-      sub,
-      hands,
-      tablePlayers,
-      spectatorMap,
-      meld_snapshots,
-      groups,
-      loserDeadwoodMode
-    );
+    const declareValid = pending.declare_valid !== false;
+    const pack = declareValid
+      ? await finishValidDeclaredRoundCore(
+          table_id,
+          rnd,
+          sub,
+          hands,
+          tablePlayers,
+          spectatorMap,
+          meld_snapshots,
+          groups,
+          loserDeadwoodMode
+        )
+      : await finishInvalidStrictDeclaredRoundCore(
+          table_id,
+          rnd,
+          sub,
+          hands,
+          tablePlayers,
+          spectatorMap,
+          meld_snapshots,
+          groups,
+          loserDeadwoodMode
+        );
+    const { scores, scoresForDb, declarationPayload } = pack;
 
     const updated = await db.fetchrow(
       `UPDATE rummy_rounds SET post_declare_pending=NULL, winner_user_id=$1, scores=$2::jsonb,
          declarations = COALESCE(declarations, '{}'::jsonb) || $3::jsonb, finished_at=now(), updated_at=now(), points_accumulated = true
        WHERE id=$4 AND post_declare_pending IS NOT NULL
        RETURNING id`,
-      [sub, JSON.stringify(scoresForDb), JSON.stringify({ [sub]: declarationPayload }), round_id]
+      [declareValid ? sub : null, JSON.stringify(scoresForDb), JSON.stringify({ [sub]: declarationPayload }), round_id]
     );
     if (!updated) return;
 
@@ -1556,7 +1696,7 @@ async function finalizeStrictDeclareRound(app, table_id, round_id) {
     nspEmit(fakeReq, table_id, "round.declare", {
       declared_by: sub,
       result: {
-        valid: true,
+        valid: declareValid,
         scores: scoresForDb,
         table_finished: dqResult.table_finished,
         champion_user_id: dqResult.champion_user_id,
@@ -1783,6 +1923,68 @@ router.post("/declare", requireAuth, async (req, res) => {
         return;
       }
     } else {
+      const loser_user_ids_invalid = tablePlayers
+        .filter((p) => !spectatorMap[normId(p.user_id)] && normId(p.user_id) !== sub)
+        .map((p) => normId(p.user_id));
+
+      if (loserMode.isStrictLoserMode(loserDeadwoodMode) && loser_user_ids_invalid.length > 0) {
+        const declarationGroupsPending = Array.isArray(groups) && groups.length > 0 ? groups : [];
+        const deadlineMs = Date.now() + STRICT_DECLARE_ARRANGE_MS;
+        const pendingInvalid = {
+          declarer_user_id: sub,
+          declaration_groups: declarationGroupsPending,
+          loser_user_ids: loser_user_ids_invalid,
+          done_user_ids: [],
+          deadline_ms: deadlineMs,
+          declare_valid: false,
+        };
+        await db.execute(`UPDATE rummy_rounds SET post_declare_pending=$1::jsonb, updated_at=now() WHERE id=$2`, [
+          JSON.stringify(pendingInvalid),
+          rnd.id,
+        ]);
+
+        const decRowInv = await db.fetchrow(
+          `SELECT display_name FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
+          [table_id, sub]
+        );
+        const declarer_name_inv = decRowInv?.display_name || "Player";
+
+        const dqEmptyInv = { disqualified_user_ids: [], table_finished: false, champion_user_id: null };
+        const responseDataInv = {
+          table_id,
+          round_number: rnd.number,
+          declared_by: sub,
+          valid: false,
+          status: "invalid_arrangement_pending",
+          arrangement_pending: true,
+          expires_at: new Date(deadlineMs).toISOString(),
+          loser_user_ids: loser_user_ids_invalid,
+          declarer_name: declarer_name_inv,
+          message: `That declaration is not valid. Other players still have ${STRICT_DECLARE_ARRANGE_MS / 1000} seconds to arrange melds and reduce deadwood (strict mode).`,
+          scores: {},
+          disqualified_user_ids: dqEmptyInv.disqualified_user_ids,
+          table_finished: dqEmptyInv.table_finished,
+          champion_user_id: dqEmptyInv.champion_user_id,
+        };
+
+        res.json(responseDataInv);
+        nspEmit(req, table_id, "game_update", { table_id });
+        nspEmit(req, table_id, "declare.arrangement_started", {
+          table_id,
+          round_number: rnd.number,
+          declarer_user_id: sub,
+          declarer_name: declarer_name_inv,
+          expires_at: responseDataInv.expires_at,
+          loser_user_ids: loser_user_ids_invalid,
+          invalid_declaration: true,
+        });
+        const appInv = req.app;
+        setTimeout(() => {
+          finalizeStrictDeclareRound(appInv, table_id, rnd.id).catch((err) => console.error(err));
+        }, STRICT_DECLARE_ARRANGE_MS);
+        return;
+      }
+
       const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
       const organizedMelds = {};
       for (const p of tablePlayers) {
