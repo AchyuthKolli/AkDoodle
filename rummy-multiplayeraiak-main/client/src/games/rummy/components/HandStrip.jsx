@@ -10,6 +10,7 @@ export const HandStrip = ({
   draggedIndexExternal,
   setDraggedIndexExternal,
   onExternalDrop,
+  readOnly = false,
 }) => {
   const [draggedIndexLocal, setDraggedIndexLocal] = useState(null);
   const transparentDragImageRef = React.useRef(null);
@@ -36,6 +37,7 @@ export const HandStrip = ({
   // DESKTOP DRAG
   // -------------------------
   const handleDragStart = (e, index) => {
+    if (readOnly) return;
     setDraggedIndex(index);
 
     const card = hand[index];
@@ -139,6 +141,7 @@ export const HandStrip = ({
   }, [stopAutoScroll]);
 
   const handleTouchStart = (e, index) => {
+    if (readOnly) return;
     const t = e.touches[0];
     touchStartRef.current = {
       index,
@@ -152,6 +155,7 @@ export const HandStrip = ({
 
   /** Touch on strip only: gaps allow native horizontal scroll without card touch handlers blocking. */
   const handleStripTouchStart = (e) => {
+    if (readOnly) return;
     if (!e.touches?.length) return;
     const el = e.target;
     if (!(el instanceof Element)) {
@@ -296,7 +300,7 @@ export const HandStrip = ({
           <div
             key={cardRenderKeys[idx] || `${card.rank}-${card.suit}-${idx}`}
             data-card-index={idx}
-            draggable={!!(onReorder || onExternalDrop)}
+            draggable={!readOnly && !!(onReorder || onExternalDrop)}
             onDragStart={(e) => handleDragStart(e, idx)}
             onDragOver={(e) => handleDragOver(e, idx)}
             onDrop={(e) => handleDrop(e, idx)}
@@ -312,7 +316,7 @@ export const HandStrip = ({
               selected={selectedIndex === idx}
               draggable={false} // Disable inner drag so wrapper div handles it
               className="mobile-hand-card"
-              onClick={onCardClick ? () => onCardClick(card, idx) : undefined}
+              onClick={readOnly ? undefined : onCardClick ? () => onCardClick(card, idx) : undefined}
             />
 
             {/* last drawn card highlight */}

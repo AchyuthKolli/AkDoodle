@@ -771,7 +771,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
 
     // Get latest round
     const rnd = await db.fetchrow(
-      `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence, post_declare_pending
+      `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence, post_declare_pending, meld_snapshots
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
     );
@@ -795,6 +795,16 @@ router.get("/round/me", requireAuth, async (req, res) => {
       [table_id, req.user.sub]
     );
 
+    let meld_snapshots_raw = rnd.meld_snapshots;
+    if (typeof meld_snapshots_raw === "string") {
+      try {
+        meld_snapshots_raw = JSON.parse(meld_snapshots_raw);
+      } catch {
+        meld_snapshots_raw = {};
+      }
+    }
+    const meld_snapshots = normalizeKeyedJson(meld_snapshots_raw || {});
+
     let effectiveUserId = req.user.sub;
     let spectating_user_id = null;
     if (myPlayer?.is_spectator) {
@@ -812,6 +822,18 @@ router.get("/round/me", requireAuth, async (req, res) => {
       }
     }
     const myHand = hands[effectiveUserId] || [];
+
+    let followed_meld_snapshot = null;
+    let spectate_all_snapshots = null;
+    if (myPlayer?.is_spectator && spectating_user_id) {
+      const sid = normId(spectating_user_id);
+      followed_meld_snapshot = meld_snapshots[sid] || null;
+      spectate_all_snapshots = {};
+      for (const uid of Object.keys(hands)) {
+        const n = normId(uid);
+        spectate_all_snapshots[n] = meld_snapshots[n] || null;
+      }
+    }
 
     const stock = typeof rnd.stock === "string" ? JSON.parse(rnd.stock) : (rnd.stock || []);
     const discard = typeof rnd.discard === "string" ? JSON.parse(rnd.discard) : (rnd.discard || []);
@@ -865,6 +887,8 @@ router.get("/round/me", requireAuth, async (req, res) => {
       wild_joker_rank: rnd.wild_joker_rank || null,
       players_with_first_sequence,
       spectating_user_id,
+      followed_meld_snapshot,
+      spectate_all_snapshots,
       finished_at: rnd.finished_at ? new Date(rnd.finished_at).toISOString() : null,
       active_user_id: rnd.active_user_id || null,
       strict_declare_arrangement,
@@ -957,10 +981,13 @@ router.post("/round/meld-snapshot", requireAuth, async (req, res) => {
     if (!table_id) return res.status(400).json({ error: "table_id required" });
 
     const membership = await db.fetchrow(
-      `SELECT 1 FROM rummy_table_players WHERE table_id=$1 AND user_id=$2 AND is_spectator=false`,
+      `SELECT is_spectator FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
       [table_id, req.user.sub]
     );
-    if (!membership) return res.status(403).json({ error: "Not an active player at this table" });
+    if (!membership) return res.status(403).json({ error: "Not a member of this table" });
+    if (membership.is_spectator) {
+      return res.status(403).json({ error: "Spectators are view-only; meld snapshots are saved by active players." });
+    }
 
     const rnd = await db.fetchrow(
       `SELECT id, hands, finished_at, meld_snapshots, post_declare_pending FROM rummy_rounds WHERE table_id=$1 AND finished_at IS NULL ORDER BY number DESC LIMIT 1`,
@@ -2447,6 +2474,11 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
       const targetPid = normId(pending.player_id);
       if (granted) {
         await db.execute(
+          `UPDATE spectate_permissions SET granted=false, admin_approved=false
+           WHERE table_id=$1 AND spectator_id=$2 AND granted=true AND player_id<>$3`,
+          [table_id, specId, targetPid]
+        );
+        await db.execute(
           `UPDATE spectate_permissions SET admin_approved=true, granted=true
            WHERE table_id=$1 AND spectator_id=$2 AND player_id=$3`,
           [table_id, specId, targetPid]
@@ -2490,6 +2522,13 @@ router.post("/game/grant-spectate", requireAuth, async (req, res) => {
 
     const specId = normId(spectator_id);
     const targetPid = normId(pending.player_id);
+    if (granted) {
+      await db.execute(
+        `UPDATE spectate_permissions SET granted=false, admin_approved=false
+         WHERE table_id=$1 AND spectator_id=$2 AND granted=true AND player_id<>$3`,
+        [table_id, specId, targetPid]
+      );
+    }
     await db.execute(
       `UPDATE spectate_permissions SET granted=$1
        WHERE table_id=$2 AND spectator_id=$3 AND player_id=$4`,

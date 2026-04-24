@@ -65,6 +65,46 @@ import { initCursorSpark } from "../utils/cursor-spark"; // sparkles
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "../auth/AuthContext";
 
+/** Stable user id compare (JWT / Google sub string vs number). */
+function uidEq(a, b) {
+  return String(a == null ? "" : a) === String(b == null ? "" : b);
+}
+
+/** Map server meld snapshot to padded slot arrays for the table UI. */
+function snapshotSlotsToMeldState(snap) {
+  if (!snap || typeof snap !== "object") return null;
+  const normCard = (c) => {
+    if (!c || typeof c !== "object" || !c.rank) return null;
+    const joker = !!c.joker;
+    const rank = c.rank;
+    const suit = c.suit || null;
+    const code = joker && rank === "JOKER" ? "JOKER" : `${rank}${suit || ""}`;
+    return { rank, suit, joker, code };
+  };
+  const padSlots = (arr, len) => {
+    const src = Array.isArray(arr) ? arr : [];
+    const out = [];
+    for (let i = 0; i < len; i++) out.push(i < src.length ? normCard(src[i]) : null);
+    return out;
+  };
+  return {
+    meld1: padSlots(snap.meld1, 3),
+    meld2: padSlots(snap.meld2, 3),
+    meld3: padSlots(snap.meld3, 3),
+    meld4: padSlots(snap.meld4, 4),
+    leftover: padSlots(snap.leftover, 1),
+  };
+}
+
+function countCardsInSnapshot(snap) {
+  if (!snap || typeof snap !== "object") return 0;
+  let n = 0;
+  for (const k of ["meld1", "meld2", "meld3", "meld4", "leftover"]) {
+    if (Array.isArray(snap[k])) n += snap[k].filter(Boolean).length;
+  }
+  return n;
+}
+
 // Simple CardBack
 const CardBack = ({ className = "" }) => (
   <img
@@ -95,10 +135,12 @@ const MeldSlotBox = ({
   capacity = 3,
   boxIndex, // New prop
   onWildReveal,
+  readOnly = false,
 }) => {
   const [locking, setLocking] = useState(false);
 
   const handleSlotDrop = (slotIndex, cardData) => {
+    if (readOnly) return;
     if (!myRound || isLocked) {
       if (isLocked) toast.error("Unlock meld first to modify");
       return;
@@ -120,6 +162,7 @@ const MeldSlotBox = ({
   };
 
   const handleSlotClick = (slotIndex) => {
+    if (readOnly) return;
     if (!myRound || slots[slotIndex] === null || isLocked) {
       if (isLocked) toast.error("Unlock meld first to modify");
       return;
@@ -131,6 +174,7 @@ const MeldSlotBox = ({
   };
 
   const handleLockSequence = async () => {
+    if (readOnly) return;
     const cards = slots.filter((s) => s !== null);
     if (cards.length < 3 || cards.length > 4) {
       toast.error("Use a pure sequence of 3 or 4 cards to reveal wildcard");
@@ -166,12 +210,12 @@ const MeldSlotBox = ({
     <>
       <div
         data-drop-zone={`meld-${boxIndex}`} // ADDED: For mobile drag detection by HandStrip
-        className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-purple-500/30 bg-purple-900/10"}`}
+        className={`border border-dashed rounded p-2 ${readOnly ? "opacity-90 pointer-events-none" : ""} ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-purple-500/30 bg-purple-900/10"}`}
       >
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] text-purple-400">{title} ({capacity} cards)</p>
           <div className="flex items-center gap-1">
-            {isClosedJoker && (
+            {isClosedJoker && !readOnly && (
               <button
                 onClick={handleLockSequence}
                 disabled={locking}
@@ -181,7 +225,7 @@ const MeldSlotBox = ({
                 {locking ? "..." : "🔒 Lock & Reveal"}
               </button>
             )}
-            {onToggleLock && (
+            {onToggleLock && !readOnly && (
               <button
                 onClick={onToggleLock}
                 className={`text-[10px] px-1.5 py-0.5 rounded ${isLocked ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"}`}
@@ -197,6 +241,7 @@ const MeldSlotBox = ({
               key={i}
               data-drop-zone={`meld-${boxIndex}-slot-${i}`}
               onDragOver={(e) => {
+                if (readOnly) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
                 e.currentTarget.classList.add("ring-2", "ring-purple-400");
@@ -205,6 +250,7 @@ const MeldSlotBox = ({
                 e.currentTarget.classList.remove("ring-2", "ring-purple-400");
               }}
               onDrop={(e) => {
+                if (readOnly) return;
                 e.preventDefault();
                 e.currentTarget.classList.remove("ring-2", "ring-purple-400");
                 const cardData = e.dataTransfer.getData("card");
@@ -213,7 +259,7 @@ const MeldSlotBox = ({
               onClick={() => {
                 handleSlotClick(i);
               }}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-purple-400/50 transition-all shadow-inner"
+              className={`w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center transition-all shadow-inner ${readOnly ? "cursor-default" : "cursor-pointer hover:border-purple-400/50"}`}
             >
               {card ? (
                 <div className="w-full h-full p-1">
@@ -242,10 +288,12 @@ const LeftoverSlotBox = ({
   onRefresh,
   gameMode,
   capacity = 3,
+  readOnly = false,
 }) => {
   const [locking, setLocking] = useState(false);
 
   const handleSlotDrop = (slotIndex, cardData) => {
+    if (readOnly) return;
     if (!myRound || isLocked) return;
     try {
       const card = JSON.parse(cardData);
@@ -263,6 +311,7 @@ const LeftoverSlotBox = ({
   };
 
   const handleSlotClick = (slotIndex) => {
+    if (readOnly) return;
     if (!myRound || slots[slotIndex] === null) return;
     const newSlots = [...slots];
     newSlots[slotIndex] = null;
@@ -281,13 +330,13 @@ const LeftoverSlotBox = ({
     <>
       <div
         data-drop-zone="deadwood" // For mobile drag detection
-        className={`border border-dashed rounded p-2 ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}
+        className={`border border-dashed rounded p-2 ${readOnly ? "opacity-90 pointer-events-none" : ""} ${isLocked ? "border-amber-500/50 bg-amber-900/20" : "border-blue-500/30 bg-blue-900/10"}`}
       >
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] text-blue-400">Discard / Deadwood (14th Card)</p>
           <div className="flex items-center gap-1">
             {/* Removed Lock button for Deadwood */}
-            {onToggleLock && (
+            {onToggleLock && !readOnly && (
               <button
                 onClick={onToggleLock}
                 className={`text-[10px] px-1.5 py-0.5 rounded ${isLocked ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" : "bg-gray-500/20 text-gray-400 hover:bg-gray-500/30"}`}
@@ -303,6 +352,7 @@ const LeftoverSlotBox = ({
               key={i}
               data-drop-zone={`deadwood-slot-${i}`}
               onDragOver={(e) => {
+                if (readOnly) return;
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
                 e.currentTarget.classList.add("ring-2", "ring-cyan-400");
@@ -311,6 +361,7 @@ const LeftoverSlotBox = ({
                 e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
               }}
               onDrop={(e) => {
+                if (readOnly) return;
                 e.preventDefault();
                 e.currentTarget.classList.remove("ring-2", "ring-cyan-400");
                 const cardData = e.dataTransfer.getData("card");
@@ -319,7 +370,7 @@ const LeftoverSlotBox = ({
               onClick={() => {
                 handleSlotClick(i);
               }}
-              className="w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center cursor-pointer hover:border-cyan-400/50 transition-all shadow-inner"
+              className={`w-[84px] h-[116px] border border-dashed border-slate-700 rounded bg-slate-900/80 flex items-center justify-center transition-all shadow-inner ${readOnly ? "cursor-default" : "cursor-pointer hover:border-cyan-400/50"}`}
             >
               {card ? (
                 <div className="w-full h-full p-1">
@@ -422,7 +473,8 @@ export default function Table() {
   const [voiceMuted, setVoiceMuted] = useState(false);
 
   const [droppingGame, setDroppingGame] = useState(false);
-  const [spectateRequested, setSpectateRequested] = useState(false);
+  /** Which player_id a spectate request is in flight for (null = idle). */
+  const [spectateRequestingPlayerId, setSpectateRequestingPlayerId] = useState(null);
   const [spectateRequests, setSpectateRequests] = useState([]);
   const [hostSpectateRequests, setHostSpectateRequests] = useState([]);
   const [playerSpectateRequests, setPlayerSpectateRequests] = useState([]);
@@ -470,6 +522,7 @@ export default function Table() {
   const refreshInFlightRef = useRef(false);
   const refreshPendingRef = useRef(false);
   const prevIsMyTurnRef = useRef(false);
+  const lastFollowedSnapshotKeyRef = useRef("");
 
   // Table Info box state (closed by default when entering / starting game)
   const [tableInfoVisible, setTableInfoVisible] = useState(false);
@@ -496,9 +549,11 @@ export default function Table() {
     leftover: false,
   });
 
-  // Load locked melds from localStorage on mount
+  // Load locked melds from localStorage when you are an active player (not spectating another hand).
   useEffect(() => {
-    if (!tableId) return;
+    if (!tableId || !user || !info?.players) return;
+    const me = info.players.find((p) => uidEq(p.user_id, user.id));
+    if (me?.is_spectator) return;
     const storageKey = `rummy_melds_${tableId}`;
     const saved = localStorage.getItem(storageKey);
     if (saved) {
@@ -515,15 +570,18 @@ export default function Table() {
         console.error("Failed to load melds from localStorage:", e);
       }
     }
-  }, [tableId]);
+  }, [tableId, user, info?.players]);
 
-  // Save locked melds to localStorage whenever they change
+  // Save locked melds to localStorage whenever they change (not while spectating — avoids overwriting host view cache).
   useEffect(() => {
     if (!tableId) return;
+    if (myRound?.spectating_user_id) return;
+    const me = info?.players?.find((p) => uidEq(p.user_id, user?.id));
+    if (me?.is_spectator) return;
     const storageKey = `rummy_melds_${tableId}`;
     const data = { meld1, meld2, meld3, meld4, leftover, locks: meldLocks };
     localStorage.setItem(storageKey, JSON.stringify(data));
-  }, [tableId, meld1, meld2, meld3, meld4, leftover, meldLocks]);
+  }, [tableId, meld1, meld2, meld3, meld4, leftover, meldLocks, myRound?.spectating_user_id, info?.players, user?.id]);
 
   const toggleMeldLock = (meldName) => {
     setMeldLocks((prev) => ({ ...prev, [meldName]: !prev[meldName] }));
@@ -833,14 +891,16 @@ export default function Table() {
     }
   };
 
-  // Poll fallback (still keep occasional refresh in case sockets miss something)
+  // Poll fallback (faster while spectating so followed player's meld board stays in sync)
   useEffect(() => {
     if (!tableId) return;
+    const spectating = !!myRound?.spectating_user_id;
+    const ms = spectating ? 2500 : 12000;
     const interval = setInterval(() => {
       refresh();
-    }, 15000);
+    }, ms);
     return () => clearInterval(interval);
-  }, [tableId]);
+  }, [tableId, myRound?.spectating_user_id]);
 
   useEffect(() => {
     if (!tableId) return;
@@ -901,6 +961,49 @@ export default function Table() {
     if (allow.includes("__round_drop__")) return "round_drop";
     return "kicked";
   }, [myPlayerState]);
+
+  const spectatorMeldReadOnly = useMemo(
+    () => !!myRound?.spectating_user_id || !!isSpectatorMe,
+    [myRound?.spectating_user_id, isSpectatorMe]
+  );
+
+  const strictArrangementActive = useMemo(
+    () => info?.status === "playing" && !!myRound && !myRound.finished_at && !!myRound.strict_declare_arrangement,
+    [info?.status, myRound]
+  );
+
+  /** player_id -> truthy if this spectator has a non-granted spectate row for that target */
+  const spectatePendingByPlayerId = useMemo(() => {
+    const m = new Map();
+    for (const r of mySpectateRequests || []) {
+      if (r.granted) continue;
+      const pid = r.player_id != null ? String(r.player_id) : "";
+      if (pid) m.set(pid, true);
+    }
+    return m;
+  }, [mySpectateRequests]);
+
+  useEffect(() => {
+    if (!myRound?.spectating_user_id) {
+      lastFollowedSnapshotKeyRef.current = "";
+    }
+  }, [myRound?.spectating_user_id]);
+
+  useEffect(() => {
+    if (!myRound?.spectating_user_id || !myRound.followed_meld_snapshot) return;
+    const snap = myRound.followed_meld_snapshot;
+    const key = JSON.stringify(snap);
+    if (key === lastFollowedSnapshotKeyRef.current) return;
+    lastFollowedSnapshotKeyRef.current = key;
+    const state = snapshotSlotsToMeldState(snap);
+    if (!state) return;
+    setMeld1(state.meld1);
+    setMeld2(state.meld2);
+    setMeld3(state.meld3);
+    setMeld4(state.meld4);
+    setLeftover(state.leftover);
+  }, [myRound?.spectating_user_id, myRound?.followed_meld_snapshot]);
+
   const isHostUser = useMemo(() => {
     if (!user || !info) return false;
     return user.id === info.host_user_id;
@@ -1251,6 +1354,8 @@ export default function Table() {
 
   useEffect(() => {
     if (!tableId || !info || info.status !== "playing" || !myRound || myRound.finished_at) return;
+    const meRow = info.players?.find((p) => uidEq(p.user_id, user?.id));
+    if (myRound?.spectating_user_id || meRow?.is_spectator) return;
     const timer = setTimeout(() => {
       (async () => {
         try {
@@ -1272,7 +1377,7 @@ export default function Table() {
       })();
     }, 900);
     return () => clearTimeout(timer);
-  }, [tableId, info?.status, myRound?.finished_at, meld1, meld2, meld3, meld4, leftover, myRound]);
+  }, [tableId, info?.status, info?.players, user?.id, myRound?.finished_at, myRound?.spectating_user_id, meld1, meld2, meld3, meld4, leftover, myRound]);
 
   const handleKickPlayer = async (targetUserId) => {
     if (!tableId || !info || user.id !== info.host_user_id) return;
@@ -1331,22 +1436,34 @@ export default function Table() {
 
   // Spectate handlers
   const requestSpectate = async (playerId) => {
-    if (!tableId || spectateRequested || !playerId) return;
-    setSpectateRequested(true);
+    if (!tableId || !playerId) return;
+    if (spectateRequestingPlayerId) return;
+    if (myRound?.spectating_user_id && uidEq(playerId, myRound.spectating_user_id)) {
+      toast.info("You are already spectating this player’s hand.");
+      return;
+    }
+    setSpectateRequestingPlayerId(String(playerId));
     try {
       const body = { table_id: tableId, player_id: playerId };
       const resp = await apiclient.request_spectate(body);
       if (!resp.ok) {
-        const txt = await resp.text().catch(() => "Failed to request spectate");
+        let txt = await resp.text().catch(() => "Failed to request spectate");
+        try {
+          const j = JSON.parse(txt);
+          if (j.error) txt = j.error;
+        } catch {
+          /* keep txt */
+        }
         toast.error(txt);
         return;
       }
-      toast.success("Spectate request sent");
+      toast.success("Spectate request sent — wait for host / player approval.");
       await fetchSpectateRequests();
+      await refresh();
     } catch (e) {
       toast.error(e?.message || "Failed to request spectate");
     } finally {
-      setSpectateRequested(false);
+      setSpectateRequestingPlayerId(null);
     }
   };
 
@@ -1677,30 +1794,23 @@ export default function Table() {
 
   /* ------------------------------- Render ------------------------------- */
   return (
-    <div className={`rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 ${info?.status === "playing" ? "rummy-playing-layout" : ""}`}>
-      <div className="relative">
-        {rulesPanelVisible && (
-          <GameRules
-            defaultOpen={true}
-            hideToggleButton={true}
-            onClose={() => setRulesPanelVisible(false)}
-          />
-        )}
-
-        {info?.status === "playing" && myRound && !myRound.finished_at && myRound.strict_declare_arrangement && (
-          <div className="sticky top-0 z-[70] mx-auto max-w-4xl px-3 pt-2">
-            <div className="rounded-xl border border-amber-500/50 bg-amber-950/90 px-4 py-3 shadow-lg backdrop-blur">
-              <p className="text-center text-sm text-amber-50 font-medium">
-                <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>{" "}
-                declared (strict mode). Losers: arrange your meld board to reduce points.
-              </p>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-                <div className="text-3xl font-mono font-bold tabular-nums text-white bg-black/30 px-4 py-1 rounded-lg border border-amber-600/40">
-                  {strictArrangeSecondsLeft}
-                </div>
-                {myRound.strict_declare_arrangement.loser_user_ids?.includes(user?.id) && (
+    <>
+      {strictArrangementActive && myRound?.strict_declare_arrangement && (
+        <div className="fixed inset-x-0 top-0 z-[100] flex justify-center px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 pointer-events-none">
+          <div className="pointer-events-auto w-full max-w-4xl rounded-xl border border-amber-500/50 bg-amber-950/95 px-4 py-3 shadow-xl backdrop-blur-md">
+            <p className="text-center text-sm text-amber-50 font-medium">
+              <span className="text-amber-200">{myRound.strict_declare_arrangement.declarer_name || "Player"}</span>{" "}
+              declared (strict mode). Losers: arrange your meld board to reduce points.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+              <div className="text-3xl font-mono font-bold tabular-nums text-white bg-black/30 px-4 py-1 rounded-lg border border-amber-600/40">
+                {strictArrangeSecondsLeft}
+              </div>
+              {Array.isArray(myRound.strict_declare_arrangement.loser_user_ids) &&
+                myRound.strict_declare_arrangement.loser_user_ids.some((id) => uidEq(id, user?.id)) && (
                   <>
-                    {myRound.strict_declare_arrangement.done_user_ids?.includes(user?.id) ? (
+                    {Array.isArray(myRound.strict_declare_arrangement.done_user_ids) &&
+                    myRound.strict_declare_arrangement.done_user_ids.some((id) => uidEq(id, user?.id)) ? (
                       <span className="text-xs text-emerald-300">You tapped Done — waiting for other losers…</span>
                     ) : (
                       <button
@@ -1714,9 +1824,20 @@ export default function Table() {
                     )}
                   </>
                 )}
-              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      <div className={`rummy-play-shell min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 ${info?.status === "playing" ? "rummy-playing-layout" : ""}`}>
+      <div className="relative">
+        {strictArrangementActive && <div className="h-[92px] shrink-0 max-md:h-[112px]" aria-hidden />}
+        {rulesPanelVisible && (
+          <GameRules
+            defaultOpen={true}
+            hideToggleButton={true}
+            onClose={() => setRulesPanelVisible(false)}
+          />
         )}
 
         <div className="rummy-mobile-dock fixed right-2 md:right-3 z-[75] flex flex-col gap-2 md:top-1/2 md:-translate-y-1/2 max-md:top-auto max-md:bottom-52">
@@ -1969,9 +2090,62 @@ export default function Table() {
               {!mySpectatorReason && "You are currently in spectator mode. Request host/player permissions to spectate specific hands."}
               {myRound?.spectating_user_id && (
                 <span className="block mt-1 text-cyan-200/90">
-                  Spectating: {info?.players?.find((p) => p.user_id === myRound.spectating_user_id)?.display_name || myRound.spectating_user_id.slice(0, 8)}
+                  Spectating: {info?.players?.find((p) => uidEq(p.user_id, myRound.spectating_user_id))?.display_name || String(myRound.spectating_user_id).slice(0, 8)}
                 </span>
               )}
+            </div>
+          )}
+
+          {isSpectatorMe && myRound?.spectate_all_snapshots && typeof myRound.spectate_all_snapshots === "object" && (
+            <div className="mb-3 rounded-lg border border-slate-600/50 bg-slate-900/40 px-3 py-2 text-slate-200 text-xs">
+              <p className="font-medium text-slate-300 mb-1.5">Other players (meld board snapshot)</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(myRound.spectate_all_snapshots).map(([uid, snap]) => {
+                  if (myRound.spectating_user_id && uidEq(uid, myRound.spectating_user_id)) return null;
+                  if (user && uidEq(uid, user.id)) return null;
+                  const pl = info?.players?.find((p) => uidEq(p.user_id, uid));
+                  const isCompetitor = activePlayers.some((p) => uidEq(p.user_id, uid));
+                  const name = pl?.display_name || String(uid).slice(0, 8);
+                  const n = countCardsInSnapshot(snap);
+                  const uidKey = String(uid);
+                  const pending = spectatePendingByPlayerId.has(uidKey);
+                  const loading = spectateRequestingPlayerId === uidKey;
+                  if (!isCompetitor) {
+                    return (
+                      <span
+                        key={uid}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-slate-700/60 bg-slate-800/50 px-2 py-1 opacity-80"
+                        title="Not an active competitor this round"
+                      >
+                        <span className="truncate max-w-[140px] font-medium text-slate-300">{name}</span>
+                        <span className="text-slate-500 tabular-nums">{n} on board</span>
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={uid}
+                      type="button"
+                      disabled={!!spectateRequestingPlayerId && spectateRequestingPlayerId !== uidKey}
+                      onClick={() => requestSpectate(uid)}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-cyan-700/50 bg-slate-800/90 px-2 py-1 text-left transition-colors hover:bg-cyan-950/50 hover:border-cyan-500/60 disabled:opacity-50 disabled:pointer-events-none"
+                      title="Tap to request spectating this player’s hand (host / player may need to approve)"
+                    >
+                      <span className="truncate max-w-[140px] font-medium text-slate-100">{name}</span>
+                      <span className="text-cyan-300 tabular-nums">{n} on board</span>
+                      {pending && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-300/95">Pending</span>
+                      )}
+                      {loading && (
+                        <span className="text-[10px] text-slate-400">…</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-[10px] text-slate-500">
+                Tap a player to request their hand. After approval, the main meld row follows them. Snapshots refresh while you spectate.
+              </p>
             </div>
           )}
 
@@ -2120,6 +2294,7 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             capacity={3}
                             boxIndex={0}
+                            readOnly={spectatorMeldReadOnly}
                             onWildReveal={(rank) => {
                               setRevealedWildJoker(rank);
                               setShowWildJokerReveal(true);
@@ -2137,6 +2312,7 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             capacity={3}
                             boxIndex={1}
+                            readOnly={spectatorMeldReadOnly}
                             onWildReveal={(rank) => {
                               setRevealedWildJoker(rank);
                               setShowWildJokerReveal(true);
@@ -2154,6 +2330,7 @@ export default function Table() {
                             gameMode={info.wild_joker_mode}
                             capacity={3}
                             boxIndex={2}
+                            readOnly={spectatorMeldReadOnly}
                             onWildReveal={(rank) => {
                               setRevealedWildJoker(rank);
                               setShowWildJokerReveal(true);
@@ -2171,6 +2348,7 @@ export default function Table() {
                             capacity={4}
                             boxIndex={3}
                             gameMode={info.wild_joker_mode}
+                            readOnly={spectatorMeldReadOnly}
                             onWildReveal={(rank) => {
                               setRevealedWildJoker(rank);
                               setShowWildJokerReveal(true);
@@ -2186,17 +2364,25 @@ export default function Table() {
                             onRefresh={refresh}
                             gameMode={info.wild_joker_mode}
                             boxIndex={4}
+                            readOnly={spectatorMeldReadOnly}
                           />
                         </div>
 
                         {/* Hand Strip Panel */}
-                        <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
+                        <div className={`hand-strip-container p-4 rounded-xl border transition-colors ${isMyTurn && !spectatorMeldReadOnly ? "bg-black/40 border-amber-500/30 shadow-lg shadow-amber-900/20" : "bg-black/20 border-white/5"}`}>
                           <div className="rummy-hand-header flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-white/90 flex items-center gap-2">
-                              Your Hand
-                              {isMyTurn && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
+                              {spectatorMeldReadOnly && myRound?.spectating_user_id
+                                ? `Spectating hand (${info?.players?.find((p) => uidEq(p.user_id, myRound.spectating_user_id))?.display_name || "player"})`
+                                : "Your Hand"}
+                              {isMyTurn && !spectatorMeldReadOnly && <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded animate-pulse">Your Turn</span>}
                             </h3>
 
+                            {spectatorMeldReadOnly ? (
+                              <p className="text-[11px] text-cyan-200/90 max-w-[min(100%,220px)] text-right">
+                                View only. Melds refresh from the player you follow; other players’ board counts are below.
+                              </p>
+                            ) : (
                             <div className="rummy-hand-actions flex items-center gap-3">
                               <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white" onClick={onClearMelds}>
                                 Reset Melds
@@ -2230,10 +2416,12 @@ export default function Table() {
                                 </Button>
                               )}
                             </div>
+                            )}
                           </div>
 
                           <HandStrip
                             hand={availableHand}
+                            readOnly={spectatorMeldReadOnly}
                             onCardClick={onCardSelect}
                             selectedIndex={selectedCardIndex}
                             highlightIndex={-1}
@@ -2502,7 +2690,8 @@ export default function Table() {
         </div>
 
       </div>
-    </div >
+    </div>
+    </>
   );
 }
 
