@@ -484,6 +484,7 @@ export default function Table() {
   const [chatPanelOpen, setChatPanelOpen] = useState(false);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [inCallActive, setInCallActive] = useState(false);
+  const [showWildSeenInfo, setShowWildSeenInfo] = useState(false);
 
   // Meld lock state
   const [meldLocks, setMeldLocks] = useState({
@@ -850,6 +851,14 @@ export default function Table() {
   const spectatorPlayers = useMemo(() => {
     return (info?.players || []).filter((p) => p.is_spectator);
   }, [info]);
+  const wildcardSeenUserIds = useMemo(() => {
+    const list = myRound?.players_with_first_sequence;
+    return Array.isArray(list) ? list : [];
+  }, [myRound]);
+  const wildcardSeenPlayers = useMemo(() => {
+    const map = new Map((info?.players || []).map((p) => [String(p.user_id), p]));
+    return wildcardSeenUserIds.map((uid) => map.get(String(uid))).filter(Boolean);
+  }, [wildcardSeenUserIds, info]);
 
   const hostTransferCandidates = useMemo(() => {
     return (info?.players || []).filter((p) => p.user_id !== info?.host_user_id);
@@ -869,6 +878,18 @@ export default function Table() {
     if (!user || !info?.players) return false;
     return info.players.find(p => p.user_id === user.id)?.disqualified || false;
   }, [info, user]);
+  const myPlayerState = useMemo(() => {
+    if (!user || !info?.players) return null;
+    return info.players.find((p) => p.user_id === user.id) || null;
+  }, [info, user]);
+  const isSpectatorMe = !!myPlayerState?.is_spectator;
+  const mySpectatorReason = useMemo(() => {
+    if (!myPlayerState?.is_spectator) return null;
+    if (myPlayerState?.disqualified) return "disqualified";
+    const allow = Array.isArray(myPlayerState?.spectator_allowed) ? myPlayerState.spectator_allowed : [];
+    if (allow.includes("__round_drop__")) return "round_drop";
+    return "kicked";
+  }, [myPlayerState]);
   const isHostUser = useMemo(() => {
     if (!user || !info) return false;
     return user.id === info.host_user_id;
@@ -1673,7 +1694,7 @@ export default function Table() {
             <button type="button" onClick={() => { openAllRoundsResults(); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">3. All round scoreboard</button>
             <button type="button" onClick={() => { setRulesPanelVisible((v) => !v); setQuickPanelOpen(false); }} className="text-left px-3 py-2 rounded-md text-sm text-slate-100 hover:bg-slate-800">4. Game rules (toggle)</button>
 
-            {isDisqualified && (
+            {isSpectatorMe && (
               <button
                 type="button"
                 onClick={() => {
@@ -1826,10 +1847,10 @@ export default function Table() {
               {info?.status === "playing" && !isDisqualified && !info.players.find(p => p.user_id === user.id)?.is_spectator && (
                 <button
                   onClick={onDropGame}
-                  disabled={droppingGame || !isMyTurn || hasDrawn || info.players.length < 3}
+                  disabled={droppingGame || !isMyTurn || hasDrawn || activePlayers.length < 3}
                   className="inline-flex items-center gap-2 px-3 py-2 bg-orange-700 hover:bg-orange-600 text-white rounded-lg font-medium shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   title={
-                    info.players.length < 3 ? "Drop allowed for 3+ players only" :
+                    activePlayers.length < 3 ? "Drop allowed for 3+ active players only" :
                       hasDrawn ? "Cannot drop after drawing" :
                         !isMyTurn ? "Wait for your turn to drop" :
                           "Drop game (20pt penalty)"
@@ -1846,6 +1867,15 @@ export default function Table() {
               </button>
             </div>
           </div>
+
+          {isSpectatorMe && (
+            <div className="mb-3 rounded-lg border border-cyan-700/60 bg-cyan-950/30 px-3 py-2 text-cyan-100 text-sm">
+              {mySpectatorReason === "kicked" && "You were kicked from active play. You are now in spectator mode for this table."}
+              {mySpectatorReason === "disqualified" && "You were disqualified and moved to spectator mode. You can request to spectate active players."}
+              {mySpectatorReason === "round_drop" && "You dropped this round (20 penalty). You will rejoin active play in the next round."}
+              {!mySpectatorReason && "You are currently in spectator mode. Request host/player permissions to spectate specific hands."}
+            </div>
+          )}
 
           {!loading && info?.status === "finished" && (
             <div className="mb-4 rounded-lg border border-amber-600/50 bg-amber-950/50 px-4 py-3 text-amber-100 text-sm">
@@ -1959,6 +1989,16 @@ export default function Table() {
                                   <div className="center-pile-label absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-emerald-100 bg-black/60 px-3 py-1 rounded-full border border-white/10 whitespace-nowrap">
                                     {label}
                                   </div>
+                                  {mode === "closed_joker" && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowWildSeenInfo(true)}
+                                      className="absolute -bottom-16 left-1/2 -translate-x-1/2 text-[10px] font-semibold text-cyan-100 bg-cyan-900/70 border border-cyan-600/40 px-2 py-1 rounded-full hover:bg-cyan-800/80"
+                                      title="See who has revealed/seen wildcard"
+                                    >
+                                      Seen By ({wildcardSeenUserIds.length})
+                                    </button>
+                                  )}
                                 </div>
                               );
                             })()}
@@ -2249,6 +2289,43 @@ export default function Table() {
                     wildJokerMode={info?.wild_joker_mode}
                     onViewRoundDetail={(n) => openRoundScoreboardForRound(n, { closeAllRoundsModal: true })}
                   />
+
+                  {showWildSeenInfo && (
+                    <div className="fixed inset-0 z-[76]">
+                      <button
+                        type="button"
+                        aria-label="Close seen wildcard info"
+                        onClick={() => setShowWildSeenInfo(false)}
+                        className="absolute inset-0 bg-black/60"
+                      />
+                      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-sm rounded-xl border border-cyan-700/60 bg-slate-900 shadow-2xl p-4">
+                        <h4 className="text-cyan-200 font-semibold mb-2">Closed Wildcard Visibility</h4>
+                        <p className="text-sm text-slate-300 mb-3">
+                          Players who revealed/seen wildcard: <span className="font-bold text-cyan-300">{wildcardSeenUserIds.length}</span>
+                        </p>
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {wildcardSeenPlayers.length > 0 ? (
+                            wildcardSeenPlayers.map((p) => (
+                              <div key={`seen-wild-${p.user_id}`} className="text-sm text-slate-200 px-2 py-1 rounded bg-slate-800/70">
+                                {p.display_name || p.user_id.slice(0, 8)}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-slate-400">No player has revealed/seen wildcard yet.</p>
+                          )}
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setShowWildSeenInfo(false)}
+                            className="px-3 py-1.5 rounded bg-cyan-700 hover:bg-cyan-600 text-white text-sm"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 </div>
                 {/* Desktop/Mobile Popup - Table Info */}

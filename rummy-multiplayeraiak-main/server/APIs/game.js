@@ -104,7 +104,9 @@ async function applyDisqualificationAndMaybeFinishTable(req, table_id) {
     if (total >= limit) {
       const uid = normId(p.user_id);
       await db.execute(
-        `UPDATE rummy_table_players SET disqualified = true, is_spectator = true, eliminated_at = COALESCE(eliminated_at, now()) WHERE table_id=$1 AND user_id=$2`,
+        `UPDATE rummy_table_players
+         SET disqualified = true, is_spectator = true, spectator_allowed='[]'::jsonb, eliminated_at = COALESCE(eliminated_at, now())
+         WHERE table_id=$1 AND user_id=$2`,
         [table_id, uid]
       );
       newlyDisqualified.push(uid);
@@ -396,7 +398,7 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 
     // Get players with profile images
     const players = await db.fetch(
-      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, p.total_points, p.disqualified, rp.avatar_url as profile_image_url 
+      `SELECT p.user_id, p.display_name, p.seat, p.is_spectator, p.spectator_allowed, p.total_points, p.disqualified, rp.avatar_url as profile_image_url 
        FROM rummy_table_players p
        LEFT JOIN rummy_profiles rp ON p.user_id = rp.id
        WHERE p.table_id=$1 
@@ -781,6 +783,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
       rnd.players_with_first_sequence,
       req.user.sub
     );
+    const players_with_first_sequence = wildMode.parseSequenceList(rnd.players_with_first_sequence);
 
     return res.json({
       table_id,
@@ -790,6 +793,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
       discard_top,
       wild_joker_revealed,
       wild_joker_rank: rnd.wild_joker_rank || null,
+      players_with_first_sequence,
       finished_at: rnd.finished_at ? new Date(rnd.finished_at).toISOString() : null,
       active_user_id: rnd.active_user_id || null,
     });
@@ -1669,6 +1673,14 @@ router.post("/round/next", requireAuth, async (req, res) => {
       });
     }
 
+    // Round-drop spectators return next round; kicked/disqualified spectators remain spectators.
+    await db.execute(
+      `UPDATE rummy_table_players
+       SET is_spectator=false, spectator_allowed='[]'::jsonb
+       WHERE table_id=$1 AND disqualified=false AND is_spectator=true AND spectator_allowed @> '["__round_drop__"]'::jsonb`,
+      [table_id]
+    );
+
     const activeRows = await db.fetch(
       `SELECT user_id FROM rummy_table_players WHERE table_id=$1 AND disqualified = false AND is_spectator = false ORDER BY seat ASC`,
       [table_id]
@@ -1820,7 +1832,12 @@ router.post("/game/drop", requireAuth, async (req, res) => {
     if (myHand.length !== 13) return res.status(400).json({ error: "Can only drop before drawing first card" });
 
     // mark player spectator & apply penalty
-    await db.execute(`UPDATE rummy_table_players SET is_spectator=true, total_points = COALESCE(total_points,0) + 20, eliminated_at=now() WHERE table_id=$1 AND user_id=$2`, [table_id, req.user.sub]);
+    await db.execute(
+      `UPDATE rummy_table_players
+       SET is_spectator=true, spectator_allowed='["__round_drop__"]'::jsonb, total_points = COALESCE(total_points,0) + 20, eliminated_at=now()
+       WHERE table_id=$1 AND user_id=$2`,
+      [table_id, req.user.sub]
+    );
 
     const dqDrop = await applyDisqualificationAndMaybeFinishTable(req, table_id);
     const responseData = {
@@ -1913,7 +1930,9 @@ router.post("/game/kick-player", requireAuth, async (req, res) => {
     );
 
     await db.execute(
-      `UPDATE rummy_table_players SET is_spectator=true, total_points=COALESCE(total_points,0)+20, eliminated_at=now() WHERE table_id=$1 AND user_id=$2`,
+      `UPDATE rummy_table_players
+       SET is_spectator=true, spectator_allowed='[]'::jsonb, total_points=COALESCE(total_points,0)+20, eliminated_at=now()
+       WHERE table_id=$1 AND user_id=$2`,
       [table_id, target]
     );
 

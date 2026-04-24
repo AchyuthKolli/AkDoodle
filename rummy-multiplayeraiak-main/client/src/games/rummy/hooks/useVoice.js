@@ -34,6 +34,13 @@ export const useVoice = (tableId, userId) => {
 
     // Track socket-connected users (presence) vs stream-connected users (audio)
     const [connectedUsers, setConnectedUsers] = useState([]);
+    const applyMuteState = useCallback((mute) => {
+        if (!localStreamRef.current) return;
+        const track = localStreamRef.current.getAudioTracks()[0];
+        if (!track) return;
+        track.enabled = !mute;
+        setIsMuted(!!mute);
+    }, []);
 
     // Handle incoming signals
     useEffect(() => {
@@ -98,19 +105,33 @@ export const useVoice = (tableId, userId) => {
             // Important: existing members will initiate to newcomer via "voice.joined".
             // Avoid dual-offer glare by not initiating from both ends.
         };
+        const handleForceMuted = ({ user_id }) => {
+            if (String(user_id) !== String(userId)) return;
+            applyMuteState(true);
+            toast.info("Host muted your mic");
+        };
+        const handleForceUnmuted = ({ user_id }) => {
+            if (String(user_id) !== String(userId)) return;
+            applyMuteState(false);
+            toast.info("Host unmuted your mic");
+        };
 
         socket.on("voice.signal", handleSignal);
         socket.on("voice.joined", handleUserJoined);
         socket.on("voice.left", handleUserLeft);
         socket.on("voice.existing_users", handleExistingUsers); // Server needs to emit this on join!
+        socket.on("voice.force-muted", handleForceMuted);
+        socket.on("voice.force-unmuted", handleForceUnmuted);
 
         return () => {
             socket.off("voice.signal");
             socket.off("voice.joined");
             socket.off("voice.left");
             socket.off("voice.existing_users");
+            socket.off("voice.force-muted", handleForceMuted);
+            socket.off("voice.force-unmuted", handleForceUnmuted);
         };
-    }, [inCall, tableId, userId]);
+    }, [inCall, tableId, userId, applyMuteState]);
 
     const createPeer = (targetId, initiator) => {
         if (peersRef.current[targetId]) return peersRef.current[targetId];
@@ -195,14 +216,7 @@ export const useVoice = (tableId, userId) => {
         }
     };
 
-    const toggleMute = () => {
-        if (localStreamRef.current) {
-            const track = localStreamRef.current.getAudioTracks()[0];
-            if (!track) return;
-            track.enabled = !track.enabled;
-            setIsMuted(!track.enabled);
-        }
-    };
+    const toggleMute = () => applyMuteState(!isMuted);
 
     return { joinCall, leaveCall, toggleMute, isMuted, inCall, participants, connectedUsers };
 };

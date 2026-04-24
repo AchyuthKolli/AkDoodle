@@ -505,15 +505,29 @@ module.exports = function (io) {
 
     socket.on("voice.mute", (data = {}, ack) => {
       const tableId = data.table_id || socket.tableId;
-      const userId = (socket.user && socket.user.user_id) || data.user_id;
-      io.to(tableId).emit("voice.muted", { user_id: userId });
+      if (!tableId || !tables[tableId]) return ack && ack({ ok: false, message: "No table" });
+      const t = tables[tableId];
+      const actorUserId = t.userIdBySocket[socket.id] || socket.userId || (socket.user && socket.user.user_id);
+      const targetUserId = data.target_user_id || data.user_id || actorUserId;
+      const targetSocketId = t.socketByUserId[targetUserId];
+      io.to(tableId).emit("voice.muted", { user_id: targetUserId, by_user_id: actorUserId });
+      if (targetSocketId) io.to(targetSocketId).emit("voice.force-muted", { user_id: targetUserId, by_user_id: actorUserId });
       if (ack) ack({ ok: true });
     });
 
     socket.on("voice.unmute", (data = {}, ack) => {
       const tableId = data.table_id || socket.tableId;
-      const userId = (socket.user && socket.user.user_id) || data.user_id;
-      io.to(tableId).emit("voice.unmuted", { user_id: userId });
+      if (!tableId || !tables[tableId]) return ack && ack({ ok: false, message: "No table" });
+      const t = tables[tableId];
+      const actorUserId = t.userIdBySocket[socket.id] || socket.userId || (socket.user && socket.user.user_id);
+      const targetUserId = data.target_user_id || data.user_id || actorUserId;
+      // Privacy rule: host/admin cannot remotely unmute others.
+      if (String(targetUserId) !== String(actorUserId)) {
+        return ack && ack({ ok: false, message: "Remote unmute is not allowed. User must unmute themselves." });
+      }
+      const targetSocketId = t.socketByUserId[targetUserId];
+      io.to(tableId).emit("voice.unmuted", { user_id: targetUserId, by_user_id: actorUserId });
+      if (targetSocketId) io.to(targetSocketId).emit("voice.force-unmuted", { user_id: targetUserId, by_user_id: actorUserId });
       if (ack) ack({ ok: true });
     });
 

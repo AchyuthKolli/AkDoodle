@@ -98,6 +98,7 @@ ADD COLUMN IF NOT EXISTS meld_snapshots JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE rummy_rounds
 ADD COLUMN IF NOT EXISTS face_card_mode VARCHAR(16) DEFAULT 'ten';
 
+
 -- 6. Chat Messages
 CREATE TABLE IF NOT EXISTS chat_messages (
   id SERIAL PRIMARY KEY,

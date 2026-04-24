@@ -66,16 +66,10 @@ export default function VoicePanel({
   /* ---------------------------
      HOST — MUTE ANY PLAYER
   ----------------------------*/
-  const mutePlayer = (id, muted) => {
+  const mutePlayer = (id) => {
     if (!isHost) return;
-    // Tell server to broadcast a mute command to that user
-    // The server should emit "voice.muted" to everyone for UI updates, and "voice.force-mute" to the target?
-    // For now, consistent with previous code:
-    if (!muted) {
-      socket.emit("voice.mute", { table_id: tableId, user_id: id });
-    } else {
-      socket.emit("voice.unmute", { table_id: tableId, user_id: id });
-    }
+    // Privacy rule: host can force mute only. Only the player can unmute themselves.
+    socket.emit("voice.mute", { table_id: tableId, target_user_id: id });
   };
 
   /* ---------------------------
@@ -85,7 +79,7 @@ export default function VoicePanel({
     if (!isHost) return;
     participants.forEach((p) => {
       // Ideally send one bulk command
-      socket.emit("voice.mute", { table_id: tableId, user_id: p.userId });
+      socket.emit("voice.mute", { table_id: tableId, target_user_id: p.userId });
     });
     // Fallback if participants list in useVoice doesn't include everyone in the room (it only includes connected peers)
     // The original code used socket list.
@@ -226,7 +220,7 @@ export default function VoicePanel({
                       </div>
                     </div>
                     {isHost && isConnected && (
-                      <button onClick={() => mutePlayer(player.user_id, false)} className="text-xs text-slate-500 hover:text-red-400">
+                      <button onClick={() => mutePlayer(player.user_id)} className="text-xs text-slate-500 hover:text-red-400">
                         Mute
                       </button>
                     )}
