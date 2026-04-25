@@ -869,6 +869,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
     const pendingMe = parsePostDeclarePending(rnd.post_declare_pending);
     let strict_declare_arrangement = null;
     if (pendingMe && !rnd.finished_at) {
+      const deadlineMs = getPendingDeadlineMs(pendingMe);
       const decRow = await db.fetchrow(
         `SELECT display_name FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
         [table_id, pendingMe.declarer_user_id]
@@ -876,7 +877,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
       strict_declare_arrangement = {
         declarer_user_id: normId(pendingMe.declarer_user_id),
         declarer_name: decRow?.display_name || "Player",
-        expires_at: new Date(pendingMe.deadline_ms).toISOString(),
+        expires_at: Number.isFinite(deadlineMs) ? new Date(deadlineMs).toISOString() : null,
         loser_user_ids: (pendingMe.loser_user_ids || []).map(normId),
         done_user_ids: (pendingMe.done_user_ids || []).map(normId),
         invalid_declaration: pendingMe.declare_valid === false,
@@ -1367,6 +1368,14 @@ function parsePostDeclarePending(raw) {
   if (!o || typeof o !== "object" || Array.isArray(o)) return null;
   if (!o.declarer_user_id) return null;
   return o;
+}
+
+function getPendingDeadlineMs(pending) {
+  const direct = Number(pending?.deadline_ms);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const fromIso = Date.parse(pending?.expires_at || "");
+  if (Number.isFinite(fromIso) && fromIso > 0) return fromIso;
+  return NaN;
 }
 
 async function finishValidDeclaredRoundCore(
@@ -2089,8 +2098,14 @@ router.post("/round/strict-finalize-if-due", requireAuth, async (req, res) => {
     const pending = parsePostDeclarePending(rnd.post_declare_pending);
     if (!pending) return res.json({ ok: true, finalized: false, reason: "no_pending" });
 
-    const deadline = Number(pending.deadline_ms);
-    if (!Number.isFinite(deadline) || Date.now() < deadline) {
+    const deadline = getPendingDeadlineMs(pending);
+    if (!Number.isFinite(deadline)) {
+      // Malformed/legacy pending payload: finalize immediately instead of leaving the table stuck.
+      await finalizeStrictDeclareRound(req.app, table_id, rnd.id);
+      nspEmit(req, table_id, "game_update", { table_id });
+      return res.json({ ok: true, finalized: true, reason: "deadline_missing" });
+    }
+    if (Date.now() < deadline) {
       return res.json({ ok: true, finalized: false, reason: "not_due", deadline_ms: deadline });
     }
 
