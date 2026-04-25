@@ -260,7 +260,7 @@ export default function Home() {
         Choose Your Game
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6 pb-20 cursor-magnet-zone" role="list">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-6 pb-20 cursor-magnet-zone max-w-6xl mx-auto" role="list">
         {games.map((game, idx) => (
           <div
             key={game.id}
@@ -268,20 +268,20 @@ export default function Home() {
             tabIndex={0}
             onClick={() => goTo(game.to)}
             onKeyDown={(e) => e.key === "Enter" && goTo(game.to)}
-            className={`relative group-card entry-card ${idx < 6 ? 'show' : ''} bg-white/5 border border-white/10 rounded-2xl p-5 transition-all cursor-pointer backdrop-blur-sm`}
+            className={`relative group-card entry-card ${idx < 6 ? 'show' : ''} bg-white/5 border border-white/10 rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-sm max-w-[320px] w-full mx-auto`}
             style={{ overflow: 'hidden' }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-30 bg-gradient-to-br from-green-400 to-blue-400 rounded-2xl blur-xl transition-all" />
 
-            <div className="w-full h-40 rounded-lg mb-4 flex items-center justify-center overflow-hidden relative">
-              <img src={game.image} alt={game.name} className="card-img object-contain w-32 transition-all" />
+            <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
+              <img src={game.image} alt={game.name} className="card-img object-contain w-24 transition-all" />
 
               {/* subtle floating */}
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
             </div>
 
-            <h3 className="text-xl font-semibold mb-1 drop-shadow-md">{game.name}</h3>
-            <p className="text-sm text-white/70 mb-3">{game.description}</p>
+            <h3 className="text-lg font-semibold mb-1 drop-shadow-md">{game.name}</h3>
+            <p className="text-xs text-white/70 mb-2">{game.description}</p>
 
             <div className="flex items-center text-green-400 font-medium drop-shadow">Play Now <ChevronRight className="w-4 h-4 ml-1" /></div>
           </div>

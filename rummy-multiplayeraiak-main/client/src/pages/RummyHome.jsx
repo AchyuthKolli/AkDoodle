@@ -83,7 +83,6 @@ export default function Home() {
 
 
   const [roomCode, setRoomCode] = useState("");
-  const [playerName, setPlayerName] = useState("");
   const [joining, setJoining] = useState(false);
 
   // -----------------------------
@@ -102,8 +101,8 @@ export default function Home() {
       return;
     }
 
-    if (!playerName.trim() || roomCode.trim().length !== 6) {
-      toast.error("Enter your name and a valid 6-letter code");
+    if (roomCode.trim().length !== 6) {
+      toast.error("Enter a valid 6-letter code");
       return;
     }
 
@@ -219,30 +218,30 @@ export default function Home() {
 
       {/* Game Cards */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {gameVariants.map((variant) => (
             <Card
               key={variant.id}
-              className="group relative overflow-hidden bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-all duration-300 hover:scale-105 cursor-pointer"
+              className="group relative overflow-hidden bg-slate-800/50 border border-slate-700 hover:border-slate-600 transition-all duration-300 hover:scale-105 cursor-pointer max-w-[340px] w-full mx-auto"
               onClick={() => handleSelectVariant(variant.id)}
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${variant.color} opacity-10 group-hover:opacity-20`} />
 
-              <div className="relative p-8">
+              <div className="relative p-6">
 
                 {/* Icon */}
                 <div
-                  className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${variant.color} flex items-center justify-center text-white mb-6`}
+                  className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${variant.color} flex items-center justify-center text-white mb-4`}
                 >
                   {variant.icon}
                 </div>
 
-                <h2 className="text-2xl font-bold text-white mb-3">{variant.title}</h2>
+                <h2 className="text-xl font-bold text-white mb-2">{variant.title}</h2>
 
-                <p className="text-slate-400 mb-6">{variant.description}</p>
+                <p className="text-slate-400 text-sm mb-4">{variant.description}</p>
 
                 {/* Features */}
-                <ul className="space-y-2 mb-8">
+                <ul className="space-y-1.5 mb-5">
                   {variant.features.map((feature, idx) => (
                     <li key={idx} className="flex items-center text-sm text-slate-300">
                       <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${variant.color} mr-3`} />
@@ -284,19 +283,6 @@ export default function Home() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Your Name
-                </label>
-                <Input
-                  type="text"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
                   Room Code
                 </label>
                 <Input
@@ -311,7 +297,7 @@ export default function Home() {
 
               <Button
                 onClick={handleJoinRoom}
-                disabled={!user || joining || !playerName.trim() || roomCode.length !== 6}
+                disabled={!user || joining || roomCode.length !== 6}
                 className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white font-semibold py-6 text-lg"
               >
                 {joining ? "Joining..." : "Join Game"}
