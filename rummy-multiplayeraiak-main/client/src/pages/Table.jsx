@@ -1822,7 +1822,7 @@ export default function Table() {
         let errorMessage = "Failed to declare";
         try {
           const errorData = await res.json();
-          errorMessage = errorData.detail || errorData.message || errorMessage;
+          errorMessage = errorData.error || errorData.detail || errorData.message || errorMessage;
         } catch {
           const errorText = await res.text();
           errorMessage = errorText || errorMessage;

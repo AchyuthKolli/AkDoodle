@@ -1522,7 +1522,7 @@ async function finishInvalidStrictDeclaredRoundCore(
   spectatorMap,
   meld_snapshots,
   groups,
-  _loserDeadwoodMode
+  loserDeadwoodMode
 ) {
   const wild_joker_rank = rnd.wild_joker_rank || null;
 
