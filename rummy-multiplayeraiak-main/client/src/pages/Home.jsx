@@ -23,7 +23,9 @@ function AnimatedBrandLogo() {
         <span className="ak-live-eye-o">
           <span className="ak-live-eye-dot" />
         </span>
-        <span className="ak-live-eye-o" />
+        <span className="ak-live-eye-o ak-live-eye-o-second">
+          <span className="ak-live-eye-dot" />
+        </span>
         dle
       </span>
       <span className="ak-live-gamepad" aria-hidden>
@@ -289,19 +291,24 @@ export default function Home() {
           animation: float-soft 3.6s ease-in-out infinite;
         }
         .ak-live-eye-o {
-          width: 0.82em;
-          height: 0.82em;
+          width: 0.56em;
+          height: 0.56em;
           border-radius: 999px;
-          border: 3px solid rgba(248, 250, 252, 0.97);
+          border: 2px solid rgba(248, 250, 252, 0.98);
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          margin: 0 1px;
-          transform: translateY(-0.02em);
+          margin: 0 0.5px;
+          transform: translateY(-0.03em);
+          animation: eye-blink 4s ease-in-out infinite;
+          transform-origin: center center;
+        }
+        .ak-live-eye-o-second {
+          animation-delay: 180ms;
         }
         .ak-live-eye-dot {
-          width: 0.28em;
-          height: 0.28em;
+          width: 0.17em;
+          height: 0.17em;
           border-radius: 999px;
           background: #f8fafc;
           animation: eye-look 2.8s ease-in-out infinite;
@@ -340,9 +347,13 @@ export default function Home() {
         @keyframes bob { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-3px)} }
         @keyframes eye-look {
           0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-2px); }
-          50% { transform: translateX(2px); }
+          25% { transform: translateX(-1px); }
+          50% { transform: translateX(1px); }
           75% { transform: translateX(0); }
+        }
+        @keyframes eye-blink {
+          0%, 44%, 48%, 100% { transform: translateY(-0.03em) scaleY(1); }
+          46% { transform: translateY(-0.03em) scaleY(0.12); }
         }
         @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
 
