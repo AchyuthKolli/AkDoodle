@@ -18,9 +18,16 @@ function AnimatedBrandLogo() {
   return (
     <div className="ak-live-logo animate-logo-pop" aria-label="AK doodle">
       <span className="ak-live-ak">AK</span>
-      <span className="ak-live-doodle">doodle</span>
+      <span className="ak-live-doodle" aria-hidden>
+        d
+        <span className="ak-live-eye-o">
+          <span className="ak-live-eye-dot" />
+        </span>
+        <span className="ak-live-eye-o" />
+        dle
+      </span>
       <span className="ak-live-gamepad" aria-hidden>
-        🎮
+        <span className="ak-live-pad-body">🎮</span>
       </span>
     </div>
   );
@@ -256,7 +263,7 @@ export default function Home() {
         .group-card:hover { box-shadow: 0 8px 30px rgba(65,255,139,0.06); }
 
         /* live logo */
-        .ak-live-logo { position: relative; display:flex; align-items:center; gap:10px; }
+        .ak-live-logo { position: relative; display:flex; align-items:flex-end; gap:10px; }
         .ak-live-ak {
           font-size: 2.4rem;
           font-weight: 900;
@@ -269,6 +276,10 @@ export default function Home() {
           animation: hue-shift 8s linear infinite;
         }
         .ak-live-doodle {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          gap: 1px;
           font-size: 2.4rem;
           font-weight: 900;
           line-height: 1;
@@ -277,10 +288,35 @@ export default function Home() {
           text-shadow: 0 0 10px rgba(255,255,255,.16);
           animation: float-soft 3.6s ease-in-out infinite;
         }
+        .ak-live-eye-o {
+          width: 0.82em;
+          height: 0.82em;
+          border-radius: 999px;
+          border: 3px solid rgba(248, 250, 252, 0.97);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 1px;
+          transform: translateY(-0.02em);
+        }
+        .ak-live-eye-dot {
+          width: 0.28em;
+          height: 0.28em;
+          border-radius: 999px;
+          background: #f8fafc;
+          animation: eye-look 2.8s ease-in-out infinite;
+        }
         .ak-live-gamepad {
-          font-size: 1.35rem;
-          filter: drop-shadow(0 0 8px rgba(255,255,255,.18));
+          position: absolute;
+          right: -0.38rem;
+          top: -0.52rem;
+          font-size: 1.05rem;
+          filter: drop-shadow(0 0 8px rgba(255,255,255,.2));
           animation: bob 2s ease-in-out infinite;
+        }
+        .ak-live-pad-body {
+          display: inline-block;
+          transform: rotate(-6deg);
         }
 
         /* live game word in cards */
@@ -302,6 +338,12 @@ export default function Home() {
         @keyframes hue-shift { from { filter: hue-rotate(0deg) drop-shadow(0 0 12px rgba(57,240,255,.25)); } to { filter: hue-rotate(360deg) drop-shadow(0 0 12px rgba(57,240,255,.25)); } }
         @keyframes float-soft { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-2px)} }
         @keyframes bob { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-3px)} }
+        @keyframes eye-look {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-2px); }
+          50% { transform: translateX(2px); }
+          75% { transform: translateX(0); }
+        }
         @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
 
         /* responsive tweaks */
