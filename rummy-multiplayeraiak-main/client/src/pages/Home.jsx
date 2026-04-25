@@ -20,7 +20,7 @@ function AnimatedBrandLogo() {
       <span className="ak-live-ak">AK</span>
       <span className="ak-live-doodle" aria-hidden>
         d
-        <span className="ak-live-eye-o">
+        <span className="ak-live-eye-o ak-live-eye-o-first">
           <span className="ak-live-eye-dot" />
         </span>
         <span className="ak-live-eye-o ak-live-eye-o-second">
@@ -280,7 +280,7 @@ export default function Home() {
         .ak-live-doodle {
           position: relative;
           display: inline-flex;
-          align-items: center;
+          align-items: flex-end;
           gap: 1px;
           font-size: 2.4rem;
           font-weight: 900;
@@ -299,12 +299,15 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           margin: 0 0.5px;
-          transform: translateY(-0.03em);
-          animation: eye-blink 4s ease-in-out infinite;
+          transform: translateY(0.08em);
           transform-origin: center center;
         }
+        .ak-live-eye-o-first {
+          animation: eye-wink-left 3.6s ease-in-out infinite;
+        }
         .ak-live-eye-o-second {
-          animation-delay: 180ms;
+          animation: eye-blink-right 5.8s ease-in-out infinite;
+          animation-delay: 220ms;
         }
         .ak-live-eye-dot {
           width: 0.17em;
@@ -351,9 +354,13 @@ export default function Home() {
           50% { transform: translateX(1px); }
           75% { transform: translateX(0); }
         }
-        @keyframes eye-blink {
-          0%, 44%, 48%, 100% { transform: translateY(-0.03em) scaleY(1); }
-          46% { transform: translateY(-0.03em) scaleY(0.12); }
+        @keyframes eye-wink-left {
+          0%, 38%, 44%, 72%, 100% { transform: translateY(0.08em) scaleY(1); }
+          41% { transform: translateY(0.08em) scaleY(0.08); }
+        }
+        @keyframes eye-blink-right {
+          0%, 58%, 62%, 100% { transform: translateY(0.08em) scaleY(1); }
+          60% { transform: translateY(0.08em) scaleY(0.14); }
         }
         @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
 
