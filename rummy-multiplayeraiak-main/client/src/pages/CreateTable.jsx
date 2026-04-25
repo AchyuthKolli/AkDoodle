@@ -450,9 +450,9 @@ export default function CreateTable() {
                     onChange={() => setLoserDeadwoodMode("submit_or_full")}
                   />
                   <div>
-                    <div className="text-slate-200 text-sm font-medium">Strict — default (30s arrange + full unplaced)</div>
+                    <div className="text-slate-200 text-sm font-medium">Strict — default (60s arrange + full unplaced)</div>
                     <p className="text-xs text-slate-500 mt-1">
-                      After a valid declare, losers get 30 seconds on-screen to arrange melds; tap Done when ready.
+                      After a valid declare, losers get 60 seconds on-screen to arrange melds; tap Done when ready.
                       Valid meld slots reduce points; unplaced cards pay full value (no auto-melds). No synced layout
                       means the whole hand counts.
                     </p>

@@ -690,8 +690,8 @@ export default function Table() {
 
     const onArrangementStarted = (data) => {
       toast.info(
-        `${data?.declarer_name || "A player"} declared. Losers: arrange your melds on the board (30s countdown).`,
-        { duration: 5500 }
+        `${data?.declarer_name || "A player"} declared. Losers: arrange your melds on the board (60s countdown).`,
+        { duration: 2200, id: "strict-arrangement" }
       );
       refresh().catch(() => {});
     };
@@ -1833,9 +1833,9 @@ export default function Table() {
           toast.info(
             data.message ||
               (data.valid === false
-                ? "Declaration invalid — other players still have 30 seconds to arrange melds (strict mode)."
-                : "Losers have 30 seconds to arrange melds (strict mode)."),
-            { duration: 7000 }
+                ? "Declaration invalid — other players still have 60 seconds to arrange melds (strict mode)."
+                : "Losers have 60 seconds to arrange melds (strict mode)."),
+            { duration: 2200, id: "strict-arrangement" }
           );
           await refresh();
         } else if (!strictMode) {

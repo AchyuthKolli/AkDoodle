@@ -73,9 +73,9 @@ export function LoserScoringRulesHelp({ currentMode, aceValue, faceCardMode }) {
         <h4 className="font-semibold text-sky-300 mb-1.5">Strict — submit or full hand (submit_or_full, default)</h4>
         <ol className="list-decimal list-inside space-y-1.5 text-slate-400 text-xs sm:text-sm">
           <li>
-            After a valid declare, each loser gets <strong className="text-slate-300">30 seconds</strong> to arrange cards on
+            After a valid declare, each loser gets <strong className="text-slate-300">60 seconds</strong> to arrange cards on
             the meld board. A countdown runs on screen; tap <strong className="text-slate-300">Done</strong> when finished.
-            When every loser has Done, scoring runs immediately (you do not have to wait the full 30 seconds).
+            When every loser has Done, scoring runs immediately (you do not have to wait the full 60 seconds).
           </li>
           <li>Same slot rules: valid meld slots → 0; invalid slots → all cards in those slots count.</li>
           <li>

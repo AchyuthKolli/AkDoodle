@@ -13,7 +13,7 @@ const scoring = require("./scoring");
 const wildMode = require("./wildJokerMode");
 const loserMode = require("./loserScoringMode");
 const INVALID_DECLARE_PENALTY = 20;
-const STRICT_DECLARE_ARRANGE_MS = 30000;
+const STRICT_DECLARE_ARRANGE_MS = 60000;
 
 /* ---------------------------
     Helpers
