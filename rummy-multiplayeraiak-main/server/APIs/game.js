@@ -303,6 +303,26 @@ function buildOrganizedScoreboardForUser({
   const snapLayout = buildFromSnapshotLayout(hand || [], snapshot, wildJokerRank, layoutReveal);
   if (snapLayout) return snapLayout;
 
+  // Strict mode: if a loser has no saved meld snapshot, do NOT auto-arrange cards.
+  // Show full hand as deadwood so strict rules remain visible in scoreboard.
+  if (!isDeclarer && !isSpectator && normLoserMode === "submit_or_full") {
+    const h = hand || [];
+    return {
+      pure_sequences: [],
+      impure_sequences: [],
+      sets: [],
+      invalid_groups: [],
+      meld1: [],
+      meld2: [],
+      meld3: [],
+      meld4: [],
+      deadwood: h,
+      hand_remainder: [],
+      ungrouped: [],
+      slot_kind: [null, null, null, null],
+    };
+  }
+
   const auto = scoring.organizeHandByMelds(hand || [], wildJokerRank, layoutReveal);
   const { meld1, meld2, meld3, meld4, remainder, slot_kind } = splitAutoMeldsIntoSlots(auto);
   return {

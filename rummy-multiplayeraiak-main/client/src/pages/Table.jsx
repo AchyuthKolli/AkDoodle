@@ -5,6 +5,7 @@
 import {
   socket,
   joinRoom,
+  leaveRoom,
   onGameUpdate,
   onChatMessage,
   onVoiceStatus,
@@ -702,6 +703,7 @@ export default function Table() {
 
     return () => {
       console.log("🔴 Leaving room:", tableId);
+      leaveRoom(tableId);
       socket.off("declare.arrangement_started", onArrangementStarted);
       socket.off("game_update");
       socket.off("round.state");
@@ -1247,6 +1249,16 @@ export default function Table() {
       }
     }
     return null;
+  };
+
+  const openAutoScoreboardAfterDeclare = (roundNumber) => {
+    void (async () => {
+      const scoreboard = await fetchRevealedHandsWithRetry(roundNumber, { attempts: 18, waitMs: 250 });
+      if (!scoreboard) {
+        await refresh();
+        toast.error("Scoreboard still loading. Tap Round Results once and retry in a second.");
+      }
+    })();
   };
 
   const openRoundResults = async () => {
@@ -1835,14 +1847,7 @@ export default function Table() {
           }
           // Don't block scoreboard on full refresh latency; fetch scoreboard first, refresh in background.
           void refresh();
-          const scoreboard = await fetchRevealedHandsWithRetry(
-            hasDeclaredRoundNumber ? declaredRoundNumber : null,
-            { attempts: 18, waitMs: 250 }
-          );
-          if (!scoreboard) {
-            await refresh();
-            toast.error("Scoreboard still loading. Tap Round Results once and retry in a second.");
-          }
+          openAutoScoreboardAfterDeclare(hasDeclaredRoundNumber ? declaredRoundNumber : null);
         } else {
           if (data.valid) {
             toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ""} with 0 points!`);

@@ -35,6 +35,11 @@ export const joinRoom = (tableId, userId, displayName, profileImage) => {
   socket.emit("join_table", payload);
 };
 
+export const leaveRoom = (tableId) => {
+  if (!tableId) return;
+  socket.emit("leave_table", { table_id: tableId });
+};
+
 // ====== LISTENERS ======
 export const onGameUpdate = (callback) => {
   // Server: io.to(tableId).emit("table.state", { table })
