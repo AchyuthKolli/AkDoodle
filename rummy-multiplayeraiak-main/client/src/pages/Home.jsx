@@ -14,24 +14,88 @@ import { useAuth } from "../auth/AuthContext";
  *   5) page-entry zoom + fade animation for logo & cards
  */
 
+function LogoConfetti() {
+  const pieces = [
+    { t: 6, l: 4, rot: -12, c: "#fde047", del: "0s" },
+    { t: 2, l: 48, rot: 22, c: "#f472b6", del: "0.2s" },
+    { t: 78, l: 8, rot: 8, c: "#22d3ee", del: "0.4s" },
+    { t: 70, l: 92, rot: -18, c: "#fde047", del: "0.1s" },
+    { t: 40, l: -2, rot: 35, c: "#a78bfa", del: "0.55s" },
+    { t: 12, l: 88, rot: -25, c: "#22d3ee", del: "0.3s" },
+    { t: 88, l: 72, rot: 14, c: "#f472b6", del: "0.65s" },
+    { t: 52, l: 96, rot: -8, c: "#4ade80", del: "0.5s" },
+    { t: 24, l: 22, rot: 40, c: "#fde047", del: "0.75s" },
+    { t: 62, l: 40, rot: -32, c: "#22d3ee", del: "0.15s" },
+  ];
+  return (
+    <div className="ak-live-confetti" aria-hidden>
+      {pieces.map((p, i) => (
+        <span
+          key={`cf-${i}`}
+          className="ak-confetti-wrap"
+          style={{
+            top: `${p.t}%`,
+            left: `${p.l}%`,
+            transform: `rotate(${p.rot}deg)`,
+          }}
+        >
+          <span className="ak-confetti-piece" style={{ background: p.c, animationDelay: p.del }} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Stylized pad + cord (closer to brand art than emoji). */
+function BrandGamepadIcon() {
+  return (
+    <svg className="ak-live-gamepad-svg" viewBox="0 0 52 44" aria-hidden>
+      <path
+        className="ak-pad-cord"
+        d="M44 2 Q52 6 46 14 Q40 22 38 28"
+        fill="none"
+        stroke="rgba(248,250,252,0.85)"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <g className="ak-pad-body" transform="translate(4,14)">
+        <rect x="0" y="4" width="40" height="24" rx="10" fill="#f8fafc" stroke="rgba(15,23,42,0.12)" strokeWidth="1" />
+        <rect x="6" y="12" width="11" height="8" rx="2" fill="#cbd5e1" />
+        <line x1="8.5" y1="14" x2="8.5" y2="18" stroke="#64748b" strokeWidth="1.2" />
+        <line x1="11.5" y1="16" x2="15.5" y2="16" stroke="#64748b" strokeWidth="1.2" />
+        <circle cx="30" cy="14" r="2.2" fill="#facc15" />
+        <circle cx="34" cy="18" r="2.2" fill="#22d3ee" />
+        <circle cx="26" cy="18" r="2.2" fill="#f87171" />
+        <circle cx="30" cy="22" r="2.2" fill="#4ade80" />
+        <circle cx="20" cy="22" r="2.5" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="0.6" />
+        <path d="M18.5 20.5 Q20 22 21.5 20.5" fill="none" stroke="#64748b" strokeWidth="0.9" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
 function AnimatedBrandLogo() {
   return (
     <div className="ak-live-logo" aria-label="AK doodle">
+      <LogoConfetti />
       <div className="ak-live-mark animate-logo-pop">
-        <span className="ak-live-ak">AK</span>
+        <span className="ak-live-ak" aria-hidden>
+          <span className="ak-live-ak-a">A</span>
+          <span className="ak-live-ak-k">K</span>
+        </span>
         <span className="ak-live-doodle" aria-hidden>
           <span className="ak-live-d-stem">d</span>
           <span className="ak-live-eye-o ak-live-eye-o-first">
             <span className="ak-live-eye-dot" />
           </span>
-          <span className="ak-live-eye-o ak-live-eye-o-second">
-            <span className="ak-live-eye-dot" />
+          <span className="ak-live-eye-o ak-live-eye-o-second ak-live-eye-squint">
+            <span className="ak-live-eye-wink-line" />
           </span>
           <span className="ak-live-d-stem">d</span>
           le
         </span>
         <span className="ak-live-gamepad" aria-hidden>
-          <span className="ak-live-pad-body">🎮</span>
+          <BrandGamepadIcon />
         </span>
       </div>
     </div>
@@ -349,10 +413,37 @@ export default function Home() {
         /* neon border pulse */
         .group-card:hover { box-shadow: 0 8px 30px rgba(65,255,139,0.06); }
 
-        /* live logo — AK + doodle as one attached mark */
+        /* live logo — AK + doodle as one attached mark (+ confetti like brand art) */
         .ak-live-logo { position: relative; display: inline-block; }
+        .ak-live-confetti {
+          pointer-events: none;
+          position: absolute;
+          inset: -10px -18px -12px -18px;
+          z-index: 0;
+        }
+        .ak-confetti-wrap {
+          position: absolute;
+          width: 4px;
+          height: 11px;
+          transform-origin: center center;
+        }
+        .ak-confetti-piece {
+          display: block;
+          width: 3px;
+          height: 9px;
+          margin: 0 auto;
+          border-radius: 1px;
+          opacity: 0.88;
+          animation: ak-confetti-drift 3.8s ease-in-out infinite;
+          box-shadow: 0 0 6px rgba(255,255,255,0.25);
+        }
+        @keyframes ak-confetti-drift {
+          0%, 100% { transform: translateY(0); opacity: 0.72; }
+          50% { transform: translateY(-5px); opacity: 1; }
+        }
         .ak-live-mark {
           position: relative;
+          z-index: 1;
           display: inline-flex;
           align-items: flex-end;
           gap: 3px;
@@ -367,17 +458,28 @@ export default function Home() {
           backdrop-filter: blur(12px);
         }
         .ak-live-ak {
+          display: inline-flex;
+          align-items: flex-end;
+          gap: 0.02em;
+          line-height: 1;
+          letter-spacing: 0.02em;
+          filter: drop-shadow(0 0 10px rgba(57,240,255,.22));
+          animation: hue-shift 8s linear infinite;
+        }
+        .ak-live-ak-a, .ak-live-ak-k {
           font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
           font-size: 2.55rem;
           font-weight: 900;
           line-height: 1;
-          letter-spacing: 0.02em;
-          background: linear-gradient(90deg, #ff2ea6 0%, #ffd54a 35%, #6eff58 70%, #26f5ff 100%);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 0 10px rgba(57,240,255,.22));
-          animation: hue-shift 8s linear infinite;
+        }
+        .ak-live-ak-a {
+          background: linear-gradient(165deg, #fbcfe8 0%, #e879f9 38%, #22d3ee 88%);
+        }
+        .ak-live-ak-k {
+          background: linear-gradient(165deg, #fde047 0%, #86efac 42%, #2dd4bf 90%);
         }
         .ak-live-doodle {
           --eye-nudge: -0.08em;
@@ -426,9 +528,11 @@ export default function Home() {
         .ak-live-eye-o-first {
           animation: eye-wink-left 3.6s ease-in-out infinite;
         }
-        .ak-live-eye-o-second {
-          animation: eye-blink-right 5.8s ease-in-out infinite;
-          animation-delay: 220ms;
+        .ak-live-eye-squint {
+          align-items: flex-end;
+          justify-content: center;
+          animation: eye-squint-breathe 5.5s ease-in-out infinite;
+          animation-delay: 200ms;
         }
         .ak-live-eye-dot {
           width: 0.17em;
@@ -437,19 +541,32 @@ export default function Home() {
           background: #f8fafc;
           animation: eye-look 2.8s ease-in-out infinite;
         }
+        .ak-live-eye-wink-line {
+          display: block;
+          width: 62%;
+          height: 0.2em;
+          min-height: 3px;
+          border-radius: 999px;
+          background: #0f172a;
+          margin-bottom: 0.14em;
+          transform: rotate(-5deg);
+          box-shadow: 0 1px 0 rgba(255,255,255,0.25);
+        }
         .ak-live-gamepad {
           position: absolute;
-          right: -0.2rem;
-          top: -0.48rem;
-          font-size: 1.05rem;
-          filter: drop-shadow(0 0 8px rgba(255,255,255,.2));
+          right: -0.55rem;
+          top: -0.62rem;
+          width: 2.05rem;
+          height: 1.72rem;
+          filter: drop-shadow(0 2px 10px rgba(0,0,0,0.45)) drop-shadow(0 0 8px rgba(255,255,255,.18));
           animation: bob 2s ease-in-out infinite;
         }
-        .ak-live-pad-body {
-          display: inline-block;
-          transform: rotate(-6deg);
+        .ak-live-gamepad-svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+          transform: rotate(-8deg);
         }
-
         /* first “d” optically aligned with eye row */
         .ak-live-doodle > .ak-live-d-stem:first-of-type {
           transform: translateY(0.04em);
@@ -460,9 +577,10 @@ export default function Home() {
         .ak-card-hero {
           position: relative;
           width: 100%;
-          height: 8rem;
+          min-height: 8.25rem;
+          padding: 0.45rem 0.75rem 0.55rem;
           border-radius: 0.6rem;
-          overflow: hidden;
+          overflow: visible;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -473,17 +591,21 @@ export default function Home() {
           inset: 0;
           pointer-events: none;
           overflow: hidden;
+          border-radius: inherit;
         }
         .ak-card-hero-title {
           position: relative;
           z-index: 2;
+          display: inline-block;
+          max-width: 100%;
           font-family: "Nunito", "Baloo 2", "Segoe UI", sans-serif;
           font-size: 1.85rem;
           font-weight: 900;
-          letter-spacing: 0.03em;
-          line-height: 1.05;
+          letter-spacing: 0.04em;
+          line-height: 1.22;
           text-align: center;
-          padding: 0 0.5rem;
+          padding: 0.12em 1.15rem 0.22em 1rem;
+          box-sizing: border-box;
           text-shadow: 0 2px 24px rgba(0,0,0,0.55), 0 0 40px rgba(255,255,255,0.12);
         }
         .ak-card-hero-title--rummy {
@@ -492,7 +614,11 @@ export default function Home() {
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 0 14px rgba(56,189,248,0.35));
+          /* filter + clip:text can clip descenders (e.g. “y” in Rummy); use shadow glow instead */
+          text-shadow:
+            0 2px 20px rgba(0,0,0,0.65),
+            0 0 28px rgba(56,189,248,0.45),
+            0 0 2px rgba(125,211,252,0.35);
         }
         .ak-card-hero-title--uno {
           color: #fef08a;
@@ -500,7 +626,9 @@ export default function Home() {
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 0 16px rgba(250,204,21,0.45));
+          text-shadow:
+            0 2px 20px rgba(0,0,0,0.6),
+            0 0 26px rgba(250,204,21,0.5);
         }
         .ak-card-hero-title--teenpatti {
           color: #ffedd5;
@@ -508,7 +636,9 @@ export default function Home() {
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 0 18px rgba(251,146,60,0.4));
+          text-shadow:
+            0 2px 20px rgba(0,0,0,0.6),
+            0 0 28px rgba(251,146,60,0.45);
         }
         .ak-card-hero--rummy .ak-card-hero-bg {
           background: radial-gradient(circle at 30% 20%, rgba(34,197,94,0.12), transparent 45%),
@@ -645,20 +775,22 @@ export default function Home() {
           0%, 38%, 44%, 72%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
           41% { transform: translateY(var(--eye-nudge)) scaleY(0.08); }
         }
-        @keyframes eye-blink-right {
-          0%, 58%, 62%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
-          60% { transform: translateY(var(--eye-nudge)) scaleY(0.14); }
+        @keyframes eye-squint-breathe {
+          0%, 100% { transform: translateY(var(--eye-nudge)) scale(1); }
+          48% { transform: translateY(var(--eye-nudge)) scale(1, 0.92); }
+          52% { transform: translateY(var(--eye-nudge)) scale(1); }
         }
         /* responsive tweaks */
         @media (max-width:768px){ .group-card { margin: 6px 0 } }
         @media (max-width:640px){
-          .ak-live-ak, .ak-live-doodle { font-size: 2.08rem; }
+          .ak-live-ak-a, .ak-live-ak-k, .ak-live-doodle { font-size: 2.08rem; }
           .ak-live-doodle { --eye-nudge: -0.06em; }
-          .ak-card-hero { height: 7.25rem; }
-          .ak-card-hero-title { font-size: 1.55rem; }
+          .ak-card-hero { min-height: 7.35rem; padding: 0.35rem 0.5rem 0.5rem; }
+          .ak-card-hero-title { font-size: 1.55rem; padding: 0.1em 0.85rem 0.2em 0.75rem; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .ak-card-suit, .ak-card-uno-orb, .ak-card-particle, .ak-card-uno-wild, .ak-card-spark, .ak-card-tp-glow, .ak-card-tp-fan {
+          .ak-card-suit, .ak-card-uno-orb, .ak-card-particle, .ak-card-uno-wild, .ak-card-spark, .ak-card-tp-glow, .ak-card-tp-fan,
+          .ak-confetti-piece {
             animation: none !important;
           }
         }
@@ -689,9 +821,11 @@ export default function Home() {
         </div>
       </div>
 
-      <h2 className="text-2xl sm:text-3xl font-bold px-6 mb-3 flex items-center gap-2.5 drop-shadow-lg tracking-tight relative z-10">
-        <Gamepad2 className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 shrink-0" strokeWidth={2.25} />
-        Choose Your Game
+      <h2 className="text-2xl sm:text-3xl font-bold px-6 mb-3 flex items-center gap-2.5 tracking-tight relative z-10 text-white">
+        <Gamepad2 className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 shrink-0 drop-shadow-[0_0_12px_rgba(52,211,153,0.45)]" strokeWidth={2.25} />
+        <span className="bg-gradient-to-b from-white via-white to-white/75 bg-clip-text text-transparent drop-shadow-[0_2px_16px_rgba(0,0,0,0.35)]">
+          Choose Your Game
+        </span>
       </h2>
       <div className="max-w-6xl mx-auto px-6 mb-6 relative z-10" aria-hidden>
         <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -706,11 +840,11 @@ export default function Home() {
             onClick={() => goTo(game.to)}
             onKeyDown={(e) => e.key === "Enter" && goTo(game.to)}
             className={`relative group-card entry-card ${idx < 6 ? 'show' : ''} bg-white/[0.07] border border-white/15 hover:border-white/25 rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-md max-w-[320px] w-full mx-auto shadow-lg shadow-black/20`}
-            style={{ overflow: 'hidden', transitionDelay: `${idx * 70}ms` }}
+            style={{ overflow: 'visible', transitionDelay: `${idx * 70}ms` }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-30 bg-gradient-to-br from-green-400 to-blue-400 rounded-2xl blur-xl transition-all" />
 
-            <div className="w-full rounded-lg mb-3 overflow-hidden relative ring-1 ring-white/10">
+            <div className="w-full rounded-lg mb-3 overflow-visible relative ring-1 ring-white/10 shadow-inner shadow-black/20">
               <GameCardHero gameId={game.id} title={game.name} />
             </div>
 
