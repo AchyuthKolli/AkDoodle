@@ -1304,7 +1304,9 @@ export default function Table() {
         const res = await apiclient.strict_finalize_if_due({ table_id: tableId });
         if (!res.ok) return;
         const data = await res.json().catch(() => ({}));
-        if (data.finalized) await refreshRef.current();
+        if (data.finalized || data.reason === "already_finished") {
+          await refreshRef.current();
+        }
       } catch {
         /* ignore */
       }
