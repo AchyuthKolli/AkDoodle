@@ -2,6 +2,8 @@ import React from "react";
 import { User2 } from "lucide-react";
 
 export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
+  const normId = (v) => String(v == null ? "" : v);
+
   // Position players around the table perimeter in a circular pattern
   const getSeatPosition = (seat, totalSeats) => {
     // Calculate angle for circular positioning
@@ -17,19 +19,22 @@ export const TableDiagram = ({ players, activeUserId, currentUserId }) => {
     return { x, y, angle };
   };
 
-  const totalSeats = players?.length || 0;
+  const sortedPlayers = [...(players || [])].sort((a, b) => (a?.seat || 0) - (b?.seat || 0));
+  const meIdx = sortedPlayers.findIndex((p) => normId(p?.user_id) === normId(currentUserId));
+  const displayPlayers =
+    meIdx >= 0 ? [...sortedPlayers.slice(meIdx + 1), ...sortedPlayers.slice(0, meIdx + 1)] : sortedPlayers;
+
+  const totalSeats = displayPlayers.length || 0;
   const compactSeats = totalSeats >= 4;
 
   return (
     <div className="relative w-full h-full">
       {/* Player positions around the table */}
-      {[...(players || [])]
-        .sort((a, b) => (a?.seat || 0) - (b?.seat || 0))
-        .map((player, idx) => {
+      {displayPlayers.map((player, idx) => {
         // Use contiguous visual position index so gaps in seat numbers (after kick/drop) do not overlap avatars.
         const { x, y } = getSeatPosition(idx + 1, totalSeats || 1);
-        const isActive = player.user_id === activeUserId;
-        const isCurrent = player.user_id === currentUserId;
+        const isActive = normId(player.user_id) === normId(activeUserId);
+        const isCurrent = normId(player.user_id) === normId(currentUserId);
 
         return (
           <div
