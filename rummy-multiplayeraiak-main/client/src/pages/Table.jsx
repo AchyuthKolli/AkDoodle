@@ -1802,6 +1802,10 @@ export default function Table() {
         setHasDrawn(false);
         setLastDrawnCard(null);
 
+        const strictMode = String(info?.loser_deadwood_mode || "auto_optimal").toLowerCase() === "submit_or_full";
+        const declaredRoundNumber = Number(data?.round_number);
+        const hasDeclaredRoundNumber = Number.isFinite(declaredRoundNumber) && declaredRoundNumber > 0;
+
         if (data.arrangement_pending) {
           toast.info(
             data.message ||
@@ -1810,14 +1814,26 @@ export default function Table() {
                 : "Losers have 30 seconds to arrange melds (strict mode)."),
             { duration: 7000 }
           );
-        } else if (data.valid) {
-          toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ''} with 0 points!`);
-          await fetchRevealedHands();
+          await refresh();
+        } else if (!strictMode) {
+          // AUTO mode only: force-refresh first, then fetch this round by number to avoid latest-round races.
+          if (data.valid) {
+            toast.success(`🏆 Valid declaration!`);
+          } else {
+            toast.error(`⚠️ Invalid declaration! ${data.message || "Penalty applied."}`);
+          }
+          await refresh();
+          await fetchRevealedHands(hasDeclaredRoundNumber ? declaredRoundNumber : null);
         } else {
-          toast.error(`⚠️ Invalid declaration! ${data.message || 'Penalty applied.'}`);
-          await fetchRevealedHands();
+          if (data.valid) {
+            toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ""} with 0 points!`);
+            await fetchRevealedHands();
+          } else {
+            toast.error(`⚠️ Invalid declaration! ${data.message || "Penalty applied."}`);
+            await fetchRevealedHands();
+          }
+          await refresh();
         }
-        await refresh();
       } else {
         let errorMessage = "Failed to declare";
         try {
