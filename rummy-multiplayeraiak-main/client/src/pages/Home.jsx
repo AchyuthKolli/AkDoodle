@@ -88,8 +88,8 @@ function AnimatedBrandLogo() {
           <span className="ak-live-eye-o ak-live-eye-o-first">
             <span className="ak-live-eye-dot" />
           </span>
-          <span className="ak-live-eye-o ak-live-eye-o-second ak-live-eye-squint">
-            <span className="ak-live-eye-wink-line" />
+          <span className="ak-live-eye-o ak-live-eye-o-second">
+            <span className="ak-live-eye-dot ak-live-eye-dot-second" />
           </span>
           <span className="ak-live-d-stem">d</span>
           le
@@ -473,7 +473,9 @@ export default function Home() {
           line-height: 1;
           -webkit-background-clip: text;
           background-clip: text;
-          color: transparent;
+          /* fallback so AK stays visible even if text-clip fails */
+          color: #f8fafc;
+          -webkit-text-fill-color: transparent;
         }
         .ak-live-ak-a {
           background: linear-gradient(165deg, #fbcfe8 0%, #e879f9 38%, #22d3ee 88%);
@@ -528,11 +530,9 @@ export default function Home() {
         .ak-live-eye-o-first {
           animation: eye-wink-left 3.6s ease-in-out infinite;
         }
-        .ak-live-eye-squint {
-          align-items: flex-end;
-          justify-content: center;
-          animation: eye-squint-breathe 5.5s ease-in-out infinite;
-          animation-delay: 200ms;
+        .ak-live-eye-o-second {
+          animation: eye-blink-right 5.8s ease-in-out infinite;
+          animation-delay: 220ms;
         }
         .ak-live-eye-dot {
           width: 0.17em;
@@ -541,16 +541,11 @@ export default function Home() {
           background: #f8fafc;
           animation: eye-look 2.8s ease-in-out infinite;
         }
-        .ak-live-eye-wink-line {
-          display: block;
-          width: 62%;
-          height: 0.2em;
-          min-height: 3px;
-          border-radius: 999px;
+        .ak-live-eye-dot-second {
+          width: 0.15em;
+          height: 0.15em;
           background: #0f172a;
-          margin-bottom: 0.14em;
-          transform: rotate(-5deg);
-          box-shadow: 0 1px 0 rgba(255,255,255,0.25);
+          box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.55);
         }
         .ak-live-gamepad {
           position: absolute;
@@ -775,10 +770,9 @@ export default function Home() {
           0%, 38%, 44%, 72%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
           41% { transform: translateY(var(--eye-nudge)) scaleY(0.08); }
         }
-        @keyframes eye-squint-breathe {
-          0%, 100% { transform: translateY(var(--eye-nudge)) scale(1); }
-          48% { transform: translateY(var(--eye-nudge)) scale(1, 0.92); }
-          52% { transform: translateY(var(--eye-nudge)) scale(1); }
+        @keyframes eye-blink-right {
+          0%, 58%, 62%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
+          60% { transform: translateY(var(--eye-nudge)) scaleY(0.14); }
         }
         /* responsive tweaks */
         @media (max-width:768px){ .group-card { margin: 6px 0 } }
