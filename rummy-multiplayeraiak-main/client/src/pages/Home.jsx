@@ -14,6 +14,35 @@ import { useAuth } from "../auth/AuthContext";
  *   5) page-entry zoom + fade animation for logo & cards
  */
 
+function AnimatedBrandLogo() {
+  return (
+    <div className="ak-live-logo animate-logo-pop" aria-label="AK doodle">
+      <span className="ak-live-ak">AK</span>
+      <span className="ak-live-doodle">doodle</span>
+      <span className="ak-live-gamepad" aria-hidden>
+        🎮
+      </span>
+    </div>
+  );
+}
+
+function AnimatedGameWord({ label }) {
+  const chars = String(label || "").split("");
+  return (
+    <div className="ak-game-word" aria-label={label}>
+      {chars.map((ch, i) => (
+        <span
+          key={`${label}-${i}-${ch}`}
+          className="ak-game-word-char"
+          style={{ animationDelay: `${i * 90}ms` }}
+        >
+          {ch}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export default function Home() {
   const { user, login } = useAuth();
   const canvasRef = useRef(null);
@@ -226,14 +255,67 @@ export default function Home() {
         /* neon border pulse */
         .group-card:hover { box-shadow: 0 8px 30px rgba(65,255,139,0.06); }
 
+        /* live logo */
+        .ak-live-logo { position: relative; display:flex; align-items:center; gap:10px; }
+        .ak-live-ak {
+          font-size: 2.4rem;
+          font-weight: 900;
+          line-height: 1;
+          background: linear-gradient(90deg, #ff2ea6 0%, #ffd54a 35%, #6eff58 70%, #26f5ff 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          filter: drop-shadow(0 0 12px rgba(57,240,255,.25));
+          animation: hue-shift 8s linear infinite;
+        }
+        .ak-live-doodle {
+          font-size: 2.4rem;
+          font-weight: 900;
+          line-height: 1;
+          color: #f8fafc;
+          letter-spacing: .3px;
+          text-shadow: 0 0 10px rgba(255,255,255,.16);
+          animation: float-soft 3.6s ease-in-out infinite;
+        }
+        .ak-live-gamepad {
+          font-size: 1.35rem;
+          filter: drop-shadow(0 0 8px rgba(255,255,255,.18));
+          animation: bob 2s ease-in-out infinite;
+        }
+
+        /* live game word in cards */
+        .ak-game-word { display:flex; align-items:center; justify-content:center; gap:2px; user-select:none; }
+        .ak-game-word-char {
+          display:inline-block;
+          font-size: 2rem;
+          font-weight: 900;
+          line-height: 1;
+          letter-spacing: .4px;
+          background: linear-gradient(180deg, #7cf9ff 0%, #5ea5ff 35%, #e879f9 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          text-shadow: 0 0 12px rgba(126, 249, 255, 0.18);
+          animation: char-pop 2.4s ease-in-out infinite;
+        }
+
+        @keyframes hue-shift { from { filter: hue-rotate(0deg) drop-shadow(0 0 12px rgba(57,240,255,.25)); } to { filter: hue-rotate(360deg) drop-shadow(0 0 12px rgba(57,240,255,.25)); } }
+        @keyframes float-soft { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-2px)} }
+        @keyframes bob { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-3px)} }
+        @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
+
         /* responsive tweaks */
         @media (max-width:768px){ .group-card { margin: 6px 0 } }
+        @media (max-width:640px){
+          .ak-live-ak, .ak-live-doodle { font-size: 2rem; }
+          .ak-game-word-char { font-size: 1.7rem; }
+        }
       `}</style>
 
       {/* HEADER */}
       <div className="flex items-center justify-between px-6 pt-6 mb-10">
         <div className="flex items-center gap-3 text-4xl sm:text-5xl font-black select-none relative">
-          <img src="/assets/logo.png" alt="Akadoodle Logo" className="w-28 h-14 object-contain animate-logo-pop drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
+          <AnimatedBrandLogo />
         </div>
 
         <div className="flex items-center gap-3">
@@ -274,7 +356,7 @@ export default function Home() {
             <div className="absolute inset-0 opacity-0 group-hover:opacity-30 bg-gradient-to-br from-green-400 to-blue-400 rounded-2xl blur-xl transition-all" />
 
             <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
-              <img src={game.image} alt={game.name} className="card-img object-contain w-24 transition-all" />
+              <AnimatedGameWord label={game.name} />
 
               {/* subtle floating */}
               <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
