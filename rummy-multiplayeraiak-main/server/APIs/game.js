@@ -1924,116 +1924,76 @@ router.post("/declare", requireAuth, async (req, res) => {
 
       if (loserMode.isStrictLoserMode(loserDeadwoodMode) && loser_user_ids_invalid.length > 0) {
         const declarationGroupsPending = Array.isArray(groups) && groups.length > 0 ? groups : [];
-        const deadlineMs = Date.now() + STRICT_DECLARE_ARRANGE_MS;
-        const pendingInvalid = {
-          declarer_user_id: sub,
-          declaration_groups: declarationGroupsPending,
-          loser_user_ids: loser_user_ids_invalid,
-          done_user_ids: [],
-          deadline_ms: deadlineMs,
-          declare_valid: false,
-        };
-        await db.execute(`UPDATE rummy_rounds SET post_declare_pending=$1::jsonb, updated_at=now() WHERE id=$2`, [
-          JSON.stringify(pendingInvalid),
-          rnd.id,
-        ]);
-
-        const decRowInv = await db.fetchrow(
-          `SELECT display_name FROM rummy_table_players WHERE table_id=$1 AND user_id=$2`,
-          [table_id, sub]
-        );
-        const declarer_name_inv = decRowInv?.display_name || "Player";
-
-        const dqEmptyInv = { disqualified_user_ids: [], table_finished: false, champion_user_id: null };
-        const responseDataInv = {
+        const packInv = await finishInvalidStrictDeclaredRoundCore(
           table_id,
-          round_number: rnd.number,
-          declared_by: sub,
+          rnd,
+          sub,
+          hands,
+          tablePlayers,
+          spectatorMap,
+          meld_snapshots,
+          declarationGroupsPending,
+          loserDeadwoodMode
+        );
+        scores = packInv.scores;
+        scoresForDb = packInv.scoresForDb;
+        declarationPayload = packInv.declarationPayload;
+      } else {
+        const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
+        const organizedMelds = {};
+        for (const p of tablePlayers) {
+          const uid = normId(p.user_id);
+          if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
+          const uidWild = wildMode.isWildJokerRevealedForPlayer(
+            rnd.game_mode,
+            wild_joker_rank,
+            rnd.players_with_first_sequence,
+            uid
+          );
+          organizedMelds[uid] = buildOrganizedScoreboardForUser({
+            userId: uid,
+            declarerUserId: sub,
+            hand: hands[uid] || [],
+            declarationGroups,
+            isSpectator: !!spectatorMap[uid],
+            wildJokerRank: wild_joker_rank,
+            wildJokerRevealed: wild_joker_revealed,
+            wildJokerRevealedForLayout: uidWild,
+            snapshot: meld_snapshots[uid] || null,
+            loserDeadwoodMode,
+          });
+        }
+        for (const uid of Object.keys(hands)) {
+          const n = normId(uid);
+          if (organizedMelds[n]) continue;
+          const uidWild = wildMode.isWildJokerRevealedForPlayer(
+            rnd.game_mode,
+            wild_joker_rank,
+            rnd.players_with_first_sequence,
+            n
+          );
+          organizedMelds[n] = buildOrganizedScoreboardForUser({
+            userId: n,
+            declarerUserId: sub,
+            hand: hands[n] || [],
+            declarationGroups,
+            isSpectator: !!spectatorMap[n],
+            wildJokerRank: wild_joker_rank,
+            wildJokerRevealed: wild_joker_revealed,
+            wildJokerRevealedForLayout: uidWild,
+            snapshot: meld_snapshots[n] || null,
+            loserDeadwoodMode,
+          });
+        }
+
+        declarationPayload = {
+          groups: declarationGroups,
           valid: false,
-          status: "invalid_arrangement_pending",
-          arrangement_pending: true,
-          expires_at: new Date(deadlineMs).toISOString(),
-          loser_user_ids: loser_user_ids_invalid,
-          declarer_name: declarer_name_inv,
-          message: `That declaration is not valid. Other players have ${STRICT_DECLARE_ARRANGE_MS / 1000} seconds to confirm (strict mode). They score 0 for this round; only the declarer takes the ${INVALID_DECLARE_PENALTY}-point penalty.`,
-          scores: {},
-          disqualified_user_ids: dqEmptyInv.disqualified_user_ids,
-          table_finished: dqEmptyInv.table_finished,
-          champion_user_id: dqEmptyInv.champion_user_id,
+          revealed_hands: hands,
+          organized_melds: organizedMelds,
         };
-
-        res.json(responseDataInv);
-        nspEmit(req, table_id, "game_update", { table_id });
-        nspEmit(req, table_id, "declare.arrangement_started", {
-          table_id,
-          round_number: rnd.number,
-          declarer_user_id: sub,
-          declarer_name: declarer_name_inv,
-          expires_at: responseDataInv.expires_at,
-          loser_user_ids: loser_user_ids_invalid,
-          invalid_declaration: true,
-        });
-        const appInv = req.app;
-        setTimeout(() => {
-          finalizeStrictDeclareRound(appInv, table_id, rnd.id).catch((err) => console.error(err));
-        }, STRICT_DECLARE_ARRANGE_MS);
-        return;
+        for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
       }
-
-      const declarationGroups = Array.isArray(groups) && groups.length > 0 ? groups : [];
-      const organizedMelds = {};
-      for (const p of tablePlayers) {
-        const uid = normId(p.user_id);
-        if (!Object.prototype.hasOwnProperty.call(hands, uid)) continue;
-        const uidWild = wildMode.isWildJokerRevealedForPlayer(
-          rnd.game_mode,
-          wild_joker_rank,
-          rnd.players_with_first_sequence,
-          uid
-        );
-        organizedMelds[uid] = buildOrganizedScoreboardForUser({
-          userId: uid,
-          declarerUserId: sub,
-          hand: hands[uid] || [],
-          declarationGroups,
-          isSpectator: !!spectatorMap[uid],
-          wildJokerRank: wild_joker_rank,
-          wildJokerRevealed: wild_joker_revealed,
-          wildJokerRevealedForLayout: uidWild,
-          snapshot: meld_snapshots[uid] || null,
-          loserDeadwoodMode,
-        });
-      }
-      for (const uid of Object.keys(hands)) {
-        const n = normId(uid);
-        if (organizedMelds[n]) continue;
-        const uidWild = wildMode.isWildJokerRevealedForPlayer(
-          rnd.game_mode,
-          wild_joker_rank,
-          rnd.players_with_first_sequence,
-          n
-        );
-        organizedMelds[n] = buildOrganizedScoreboardForUser({
-          userId: n,
-          declarerUserId: sub,
-          hand: hands[n] || [],
-          declarationGroups,
-          isSpectator: !!spectatorMap[n],
-          wildJokerRank: wild_joker_rank,
-          wildJokerRevealed: wild_joker_revealed,
-          wildJokerRevealedForLayout: uidWild,
-          snapshot: meld_snapshots[n] || null,
-          loserDeadwoodMode,
-        });
-      }
-
-      declarationPayload = {
-        groups: declarationGroups,
-        valid: false,
-        revealed_hands: hands,
-        organized_melds: organizedMelds,
-      };
-      for (const [k, v] of Object.entries(scores)) scoresForDb[normId(k)] = v;
     }
 
     // Persist round points for seated players (skip spectators / dropped)
