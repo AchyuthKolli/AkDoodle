@@ -267,14 +267,16 @@ export default function Home() {
         /* live logo */
         .ak-live-logo { position: relative; display:flex; align-items:flex-end; gap:10px; }
         .ak-live-ak {
-          font-size: 2.4rem;
+          font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
+          font-size: 2.55rem;
           font-weight: 900;
           line-height: 1;
+          letter-spacing: 0.02em;
           background: linear-gradient(90deg, #ff2ea6 0%, #ffd54a 35%, #6eff58 70%, #26f5ff 100%);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 0 12px rgba(57,240,255,.25));
+          filter: drop-shadow(0 0 10px rgba(57,240,255,.22));
           animation: hue-shift 8s linear infinite;
         }
         .ak-live-doodle {
@@ -282,12 +284,13 @@ export default function Home() {
           display: inline-flex;
           align-items: flex-end;
           gap: 1px;
-          font-size: 2.4rem;
+          font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
+          font-size: 2.55rem;
           font-weight: 900;
           line-height: 1;
           color: #f8fafc;
-          letter-spacing: .3px;
-          text-shadow: 0 0 10px rgba(255,255,255,.16);
+          letter-spacing: 0.01em;
+          text-shadow: 0 0 8px rgba(255,255,255,.14);
           animation: float-soft 3.6s ease-in-out infinite;
         }
         .ak-live-eye-o {
@@ -299,7 +302,7 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           margin: 0 0.5px;
-          transform: translateY(0.08em);
+          transform: translateY(0.02em);
           transform-origin: center center;
         }
         .ak-live-eye-o-first {
@@ -355,19 +358,19 @@ export default function Home() {
           75% { transform: translateX(0); }
         }
         @keyframes eye-wink-left {
-          0%, 38%, 44%, 72%, 100% { transform: translateY(0.08em) scaleY(1); }
-          41% { transform: translateY(0.08em) scaleY(0.08); }
+          0%, 38%, 44%, 72%, 100% { transform: translateY(0.02em) scaleY(1); }
+          41% { transform: translateY(0.02em) scaleY(0.08); }
         }
         @keyframes eye-blink-right {
-          0%, 58%, 62%, 100% { transform: translateY(0.08em) scaleY(1); }
-          60% { transform: translateY(0.08em) scaleY(0.14); }
+          0%, 58%, 62%, 100% { transform: translateY(0.02em) scaleY(1); }
+          60% { transform: translateY(0.02em) scaleY(0.14); }
         }
         @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
 
         /* responsive tweaks */
         @media (max-width:768px){ .group-card { margin: 6px 0 } }
         @media (max-width:640px){
-          .ak-live-ak, .ak-live-doodle { font-size: 2rem; }
+          .ak-live-ak, .ak-live-doodle { font-size: 2.08rem; }
           .ak-game-word-char { font-size: 1.7rem; }
         }
       `}</style>
