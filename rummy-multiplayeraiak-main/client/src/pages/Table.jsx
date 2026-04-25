@@ -1196,7 +1196,7 @@ export default function Table() {
     }
   };
 
-  const fetchRevealedHands = async (roundNumber = null) => {
+  const fetchRevealedHands = async (roundNumber = null, { silent = false } = {}) => {
     console.log("📊 Fetching revealed hands...");
     let lastError = null;
     for (let attempt = 1; attempt <= 6; attempt++) {
@@ -1233,8 +1233,19 @@ export default function Table() {
       }
     }
     const errorMsg = lastError?.message || lastError?.status || "Network error";
-    toast.error(`Failed to load scoreboard: ${errorMsg}`);
+    if (!silent) toast.error(`Failed to load scoreboard: ${errorMsg}`);
     console.error("🚨 Final scoreboard error:", lastError);
+    return null;
+  };
+
+  const fetchRevealedHandsWithRetry = async (roundNumber, { attempts = 12, waitMs = 250 } = {}) => {
+    for (let i = 1; i <= attempts; i++) {
+      const data = await fetchRevealedHands(roundNumber, { silent: true });
+      if (data) return data;
+      if (i < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+    }
     return null;
   };
 
@@ -1822,8 +1833,16 @@ export default function Table() {
           } else {
             toast.error(`⚠️ Invalid declaration! ${data.message || "Penalty applied."}`);
           }
-          await refresh();
-          await fetchRevealedHands(hasDeclaredRoundNumber ? declaredRoundNumber : null);
+          // Don't block scoreboard on full refresh latency; fetch scoreboard first, refresh in background.
+          void refresh();
+          const scoreboard = await fetchRevealedHandsWithRetry(
+            hasDeclaredRoundNumber ? declaredRoundNumber : null,
+            { attempts: 18, waitMs: 250 }
+          );
+          if (!scoreboard) {
+            await refresh();
+            toast.error("Scoreboard still loading. Tap Round Results once and retry in a second.");
+          }
         } else {
           if (data.valid) {
             toast.success(`🏆 Valid declaration! You win round #${data.scores ? Object.keys(data.scores).length : ""} with 0 points!`);

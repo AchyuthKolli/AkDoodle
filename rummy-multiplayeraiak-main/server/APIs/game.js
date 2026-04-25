@@ -483,7 +483,7 @@ router.get("/tables/info", requireAuth, async (req, res) => {
 
 router.post("/tables", requireAuth, async (req, res) => {
   try {
-    const { max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode, face_card_mode } = req.body;
+    const { max_players, disqualify_score, wild_joker_mode, ace_value, loser_deadwood_mode, face_card_mode, player_name } = req.body;
     const loserModeNormalized = loserMode.normalizeLoserMode(loser_deadwood_mode);
     const faceCardMode = String(face_card_mode || "ten").toLowerCase() === "rank" ? "rank" : "ten";
 
@@ -503,9 +503,8 @@ router.post("/tables", requireAuth, async (req, res) => {
       [table_id, code, req.user.sub, max_players, disqualify_score, wild_joker_mode, ace_value, loserModeNormalized, faceCardMode]
     );
 
-    // Fetch host name
-    const profile = await db.fetchrow("SELECT display_name FROM rummy_profiles WHERE id=$1", [req.user.sub]);
-    const hostName = profile?.display_name || req.user.name || "Host";
+    // Prefer client-provided name to avoid extra profile fetch latency.
+    const hostName = String(player_name || req.user.name || "Host").trim() || "Host";
 
     // Add host as seat 1
     await db.execute(

@@ -108,6 +108,7 @@ export default function CreateTable() {
         ace_value: aceValue,
         face_card_mode: faceCardMode,
         loser_deadwood_mode: loserDeadwoodMode,
+        player_name: playerName.trim(),
       };
 
       const res = await apiclient.create_table(body);
