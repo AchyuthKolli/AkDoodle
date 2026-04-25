@@ -19,14 +19,15 @@ function AnimatedBrandLogo() {
     <div className="ak-live-logo animate-logo-pop" aria-label="AK doodle">
       <span className="ak-live-ak">AK</span>
       <span className="ak-live-doodle" aria-hidden>
-        d
+        <span className="ak-live-d-stem">d</span>
         <span className="ak-live-eye-o ak-live-eye-o-first">
           <span className="ak-live-eye-dot" />
         </span>
         <span className="ak-live-eye-o ak-live-eye-o-second">
           <span className="ak-live-eye-dot" />
         </span>
-        dle
+        <span className="ak-live-d-stem">d</span>
+        le
       </span>
       <span className="ak-live-gamepad" aria-hidden>
         <span className="ak-live-pad-body">🎮</span>
@@ -239,6 +240,14 @@ export default function Home() {
   return (
     <div className="relative min-h-screen text-white select-none overflow-hidden">
       <canvas ref={canvasRef} id="ak-galaxy-bg" className="fixed inset-0 -z-10" />
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 h-[min(42vh,420px)] -z-[5] opacity-90"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 85% 70% at 50% -10%, rgba(56,189,248,0.14), transparent 55%), radial-gradient(ellipse 60% 50% at 80% 20%, rgba(168,85,247,0.08), transparent 50%)",
+        }}
+      />
 
       {/* Inline styles for animations & card effects (keeps one-file) */}
       <style>{`
@@ -265,7 +274,7 @@ export default function Home() {
         .group-card:hover { box-shadow: 0 8px 30px rgba(65,255,139,0.06); }
 
         /* live logo */
-        .ak-live-logo { position: relative; display:flex; align-items:flex-end; gap:10px; }
+        .ak-live-logo { position: relative; display:flex; align-items:flex-end; gap:12px; }
         .ak-live-ak {
           font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
           font-size: 2.55rem;
@@ -280,18 +289,35 @@ export default function Home() {
           animation: hue-shift 8s linear infinite;
         }
         .ak-live-doodle {
+          --eye-nudge: -0.08em;
           position: relative;
           display: inline-flex;
           align-items: flex-end;
-          gap: 1px;
+          gap: 0.5px;
           font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
           font-size: 2.55rem;
           font-weight: 900;
-          line-height: 1;
+          line-height: 1.05;
           color: #f8fafc;
           letter-spacing: 0.01em;
           text-shadow: 0 0 8px rgba(255,255,255,.14);
           animation: float-soft 3.6s ease-in-out infinite;
+        }
+        /* small square above each “d” stem (brand doodle) */
+        .ak-live-d-stem {
+          position: relative;
+          display: inline-block;
+        }
+        .ak-live-d-stem::before {
+          content: "";
+          position: absolute;
+          left: 0.08em;
+          top: -0.12em;
+          width: 0.11em;
+          height: 0.11em;
+          background: rgba(248, 250, 252, 0.95);
+          border-radius: 1px;
+          box-shadow: 0 0 6px rgba(255,255,255,0.25);
         }
         .ak-live-eye-o {
           width: 0.56em;
@@ -302,7 +328,8 @@ export default function Home() {
           align-items: center;
           justify-content: center;
           margin: 0 0.5px;
-          transform: translateY(0.02em);
+          /* Nudge up so rings optically line up with “d” bowls (flex-end sits them a hair low) */
+          transform: translateY(var(--eye-nudge));
           transform-origin: center center;
         }
         .ak-live-eye-o-first {
@@ -358,12 +385,12 @@ export default function Home() {
           75% { transform: translateX(0); }
         }
         @keyframes eye-wink-left {
-          0%, 38%, 44%, 72%, 100% { transform: translateY(0.02em) scaleY(1); }
-          41% { transform: translateY(0.02em) scaleY(0.08); }
+          0%, 38%, 44%, 72%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
+          41% { transform: translateY(var(--eye-nudge)) scaleY(0.08); }
         }
         @keyframes eye-blink-right {
-          0%, 58%, 62%, 100% { transform: translateY(0.02em) scaleY(1); }
-          60% { transform: translateY(0.02em) scaleY(0.14); }
+          0%, 58%, 62%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
+          60% { transform: translateY(var(--eye-nudge)) scaleY(0.14); }
         }
         @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
 
@@ -371,13 +398,14 @@ export default function Home() {
         @media (max-width:768px){ .group-card { margin: 6px 0 } }
         @media (max-width:640px){
           .ak-live-ak, .ak-live-doodle { font-size: 2.08rem; }
+          .ak-live-doodle { --eye-nudge: -0.06em; }
           .ak-game-word-char { font-size: 1.7rem; }
         }
       `}</style>
 
       {/* HEADER */}
-      <div className="flex items-center justify-between px-6 pt-6 mb-10">
-        <div className="flex items-center gap-3 text-4xl sm:text-5xl font-black select-none relative">
+      <div className="flex items-center justify-between px-6 pt-6 mb-10 relative z-10">
+        <div className="flex items-center gap-3 text-4xl sm:text-5xl font-black select-none relative drop-shadow-[0_4px_24px_rgba(0,0,0,0.35)]">
           <AnimatedBrandLogo />
         </div>
 
@@ -400,12 +428,15 @@ export default function Home() {
         </div>
       </div>
 
-      <h2 className="text-2xl sm:text-3xl font-bold px-6 mb-4 flex items-center gap-2 drop-shadow-lg">
-        <Gamepad2 className="w-6 h-6 text-green-400" />
+      <h2 className="text-2xl sm:text-3xl font-bold px-6 mb-3 flex items-center gap-2.5 drop-shadow-lg tracking-tight relative z-10">
+        <Gamepad2 className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 shrink-0" strokeWidth={2.25} />
         Choose Your Game
       </h2>
+      <div className="max-w-6xl mx-auto px-6 mb-6 relative z-10" aria-hidden>
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-6 pb-20 cursor-magnet-zone max-w-6xl mx-auto" role="list">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-6 pb-20 cursor-magnet-zone max-w-6xl mx-auto relative z-10" role="list">
         {games.map((game, idx) => (
           <div
             key={game.id}
@@ -413,8 +444,8 @@ export default function Home() {
             tabIndex={0}
             onClick={() => goTo(game.to)}
             onKeyDown={(e) => e.key === "Enter" && goTo(game.to)}
-            className={`relative group-card entry-card ${idx < 6 ? 'show' : ''} bg-white/5 border border-white/10 rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-sm max-w-[320px] w-full mx-auto`}
-            style={{ overflow: 'hidden' }}
+            className={`relative group-card entry-card ${idx < 6 ? 'show' : ''} bg-white/[0.07] border border-white/15 hover:border-white/25 rounded-2xl p-4 transition-all cursor-pointer backdrop-blur-md max-w-[320px] w-full mx-auto shadow-lg shadow-black/20`}
+            style={{ overflow: 'hidden', transitionDelay: `${idx * 70}ms` }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-30 bg-gradient-to-br from-green-400 to-blue-400 rounded-2xl blur-xl transition-all" />
 

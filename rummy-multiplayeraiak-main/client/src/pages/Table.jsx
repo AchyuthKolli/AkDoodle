@@ -923,6 +923,46 @@ export default function Table() {
   const activePlayers = useMemo(() => {
     return (info?.players || []).filter((p) => !p.is_spectator && !p.disqualified);
   }, [info]);
+  const finishedTableSummary = useMemo(() => {
+    if (!info || info.status !== "finished") return { podium: [], others: [] };
+    const players = Array.isArray(info.players) ? info.players : [];
+    const championId = info.champion_user_id != null ? String(info.champion_user_id) : null;
+    const winner =
+      players.find((p) => String(p.user_id) === championId) ||
+      players.find((p) => !p.disqualified && !p.is_spectator) ||
+      null;
+    const eliminatedDesc = players
+      .filter((p) => p.disqualified)
+      .sort((a, b) => {
+        const ta = Date.parse(a?.eliminated_at || "");
+        const tb = Date.parse(b?.eliminated_at || "");
+        if (Number.isFinite(ta) && Number.isFinite(tb)) return tb - ta; // later eliminated => better rank
+        if (Number.isFinite(ta)) return 1;
+        if (Number.isFinite(tb)) return -1;
+        return Number(b?.total_points || 0) - Number(a?.total_points || 0);
+      });
+    const ordered = [...(winner ? [winner] : []), ...eliminatedDesc];
+    const seen = new Set();
+    const fullOrder = ordered.filter((p) => {
+      const id = String(p?.user_id || "");
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    const podium = fullOrder.slice(0, 3).map((p, idx) => ({
+      rank: idx + 1,
+      user_id: p.user_id,
+      display_name: p.display_name || String(p.user_id || "Player"),
+    }));
+    const podiumIds = new Set(podium.map((r) => String(r.user_id)));
+    const others = fullOrder
+      .filter((p) => !podiumIds.has(String(p.user_id)))
+      .map((p) => ({
+        user_id: p.user_id,
+        display_name: p.display_name || String(p.user_id || "Player"),
+      }));
+    return { podium, others };
+  }, [info]);
 
   const spectatorPlayers = useMemo(() => {
     return (info?.players || []).filter((p) => p.is_spectator);
@@ -2295,17 +2335,54 @@ export default function Table() {
           )}
 
           {!loading && info?.status === "finished" && (
-            <div className="mb-4 rounded-lg border border-amber-600/50 bg-amber-950/50 px-4 py-3 text-amber-100 text-sm">
-              <span className="font-semibold">This table has ended</span>
-              {info.champion_user_id ? (
-                <span className="ml-2">
-                  — Winner:{" "}
-                  {info.players?.find((p) => p.user_id === info.champion_user_id)?.display_name ||
-                    info.champion_user_id?.slice(0, 8) ||
-                    "Player"}
-                </span>
+            <div className="mb-4 rounded-xl border border-amber-600/50 bg-amber-950/50 px-4 py-4 text-amber-100">
+              <div className="flex items-center gap-2 font-semibold text-base">
+                <Trophy className="w-5 h-5 text-yellow-300" />
+                <span>This table has ended</span>
+              </div>
+              {finishedTableSummary.podium.length > 0 || finishedTableSummary.others.length > 0 ? (
+                <>
+                  {finishedTableSummary.podium.length > 0 && (
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {finishedTableSummary.podium.map((r) => (
+                        <div
+                          key={`rank-${r.rank}-${r.user_id}`}
+                          className={`rounded-lg border px-3 py-2 text-sm ${
+                            r.rank === 1
+                              ? "border-yellow-500/70 bg-yellow-900/30 text-yellow-100"
+                              : "border-amber-700/60 bg-amber-950/40 text-amber-100"
+                          }`}
+                        >
+                          <div className="text-[11px] uppercase tracking-wide opacity-80">Rank {r.rank}</div>
+                          <div className="font-semibold truncate">{r.display_name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {finishedTableSummary.others.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-amber-800/50 bg-amber-950/30 px-3 py-2 text-sm text-amber-100/95">
+                      <div className="text-[11px] uppercase tracking-wide text-amber-200/80 mb-1.5">Others</div>
+                      <ul className="space-y-1">
+                        {finishedTableSummary.others.map((p) => (
+                          <li key={`other-${p.user_id}`} className="truncate font-medium">
+                            {p.display_name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
               ) : (
-                <span className="ml-2 text-amber-200/90">— No single winner recorded (all disqualified or left).</span>
+                <div className="mt-2 text-sm text-amber-200/90">
+                  No single winner recorded (all disqualified or left).
+                </div>
+              )}
+              {info.champion_user_id && (
+                <div className="mt-2 text-xs text-amber-200/85">
+                  Winner:{" "}
+                  {info.players?.find((p) => String(p.user_id) === String(info.champion_user_id))?.display_name ||
+                    String(info.champion_user_id).slice(0, 8)}
+                </div>
               )}
             </div>
           )}

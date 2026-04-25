@@ -26,7 +26,16 @@ export function AllRoundsResultsModal({
   onViewRoundDetail,
 }) {
   const rounds = roundHistory || [];
-  const disqualifiedOrder = (players || []).filter((p) => p?.disqualified);
+  const disqualifiedOrder = (players || [])
+    .filter((p) => p?.disqualified)
+    .sort((a, b) => {
+      const ta = Date.parse(a?.eliminated_at || "");
+      const tb = Date.parse(b?.eliminated_at || "");
+      if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb; // first eliminated => 1st disqualified
+      if (Number.isFinite(ta)) return -1;
+      if (Number.isFinite(tb)) return 1;
+      return Number(a?.seat || 0) - Number(b?.seat || 0);
+    });
   const disqualifiedRankByUserId = new Map(
     disqualifiedOrder.map((p, idx) => [String(p.user_id), idx + 1])
   );
