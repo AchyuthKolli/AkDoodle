@@ -775,7 +775,7 @@ router.get("/round/me", requireAuth, async (req, res) => {
     if (!member) return res.status(403).json({ error: "Not part of this table" });
 
     // Get latest round
-    const rnd = await db.fetchrow(
+    let rnd = await db.fetchrow(
       `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence, post_declare_pending, meld_snapshots
        FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
       [table_id]
@@ -792,6 +792,21 @@ router.get("/round/me", requireAuth, async (req, res) => {
         wild_joker_rank: null,
         finished_at: null,
       });
+    }
+
+    // Safety net: if strict arrangement deadline already elapsed, finalize now so clients never stay stuck at 0s.
+    const pendingForAutoFinalize = parsePostDeclarePending(rnd.post_declare_pending);
+    if (pendingForAutoFinalize && !rnd.finished_at) {
+      const deadlineMs = getPendingDeadlineMs(pendingForAutoFinalize);
+      if (!Number.isFinite(deadlineMs) || Date.now() >= deadlineMs) {
+        await finalizeStrictDeclareRound(req.app, table_id, rnd.id);
+        const refreshed = await db.fetchrow(
+          `SELECT id, number, printed_joker, wild_joker_rank, stock, discard, hands, active_user_id, finished_at, game_mode, players_with_first_sequence, post_declare_pending, meld_snapshots
+           FROM rummy_rounds WHERE table_id=$1 ORDER BY number DESC LIMIT 1`,
+          [table_id]
+        );
+        if (refreshed) rnd = refreshed;
+      }
     }
 
     const hands = typeof rnd.hands === "string" ? JSON.parse(rnd.hands) : (rnd.hands || {});
