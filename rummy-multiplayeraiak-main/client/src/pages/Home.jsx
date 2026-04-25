@@ -16,39 +16,115 @@ import { useAuth } from "../auth/AuthContext";
 
 function AnimatedBrandLogo() {
   return (
-    <div className="ak-live-logo animate-logo-pop" aria-label="AK doodle">
-      <span className="ak-live-ak">AK</span>
-      <span className="ak-live-doodle" aria-hidden>
-        <span className="ak-live-d-stem">d</span>
-        <span className="ak-live-eye-o ak-live-eye-o-first">
-          <span className="ak-live-eye-dot" />
+    <div className="ak-live-logo" aria-label="AK doodle">
+      <div className="ak-live-mark animate-logo-pop">
+        <span className="ak-live-ak">AK</span>
+        <span className="ak-live-doodle" aria-hidden>
+          <span className="ak-live-d-stem">d</span>
+          <span className="ak-live-eye-o ak-live-eye-o-first">
+            <span className="ak-live-eye-dot" />
+          </span>
+          <span className="ak-live-eye-o ak-live-eye-o-second">
+            <span className="ak-live-eye-dot" />
+          </span>
+          <span className="ak-live-d-stem">d</span>
+          le
         </span>
-        <span className="ak-live-eye-o ak-live-eye-o-second">
-          <span className="ak-live-eye-dot" />
+        <span className="ak-live-gamepad" aria-hidden>
+          <span className="ak-live-pad-body">🎮</span>
         </span>
-        <span className="ak-live-d-stem">d</span>
-        le
-      </span>
-      <span className="ak-live-gamepad" aria-hidden>
-        <span className="ak-live-pad-body">🎮</span>
-      </span>
+      </div>
     </div>
   );
 }
 
-function AnimatedGameWord({ label }) {
-  const chars = String(label || "").split("");
+/** Hero strip inside each game card: lively background + clear title (Home only). */
+function GameCardHero({ gameId, title }) {
+  const safe = String(title || "Game");
+
+  if (gameId === "rummy") {
+    const suits = [
+      { ch: "♠", c: "ak-suit-dark", l: 6, t: 10, delay: "0s", dur: "7s" },
+      { ch: "♥", c: "ak-suit-red", l: 78, t: 8, delay: "0.4s", dur: "8.5s" },
+      { ch: "♦", c: "ak-suit-red", l: 22, t: 62, delay: "1.1s", dur: "6.5s" },
+      { ch: "♣", c: "ak-suit-dark", l: 88, t: 55, delay: "0.2s", dur: "9s" },
+      { ch: "♠", c: "ak-suit-dark", l: 44, t: 22, delay: "0.8s", dur: "7.5s" },
+      { ch: "♥", c: "ak-suit-red", l: 12, t: 48, delay: "1.4s", dur: "8s" },
+      { ch: "♦", c: "ak-suit-red", l: 62, t: 38, delay: "0.6s", dur: "6.8s" },
+      { ch: "♣", c: "ak-suit-dark", l: 34, t: 72, delay: "1.9s", dur: "7.2s" },
+    ];
+    const dust = [12, 28, 55, 70, 85, 40, 92, 18];
+    return (
+      <div className="ak-card-hero ak-card-hero--rummy">
+        <div className="ak-card-hero-bg" aria-hidden>
+          {dust.map((x, i) => (
+            <span
+              key={`dust-${i}`}
+              className="ak-card-particle"
+              style={{ left: `${x}%`, top: `${15 + (i % 4) * 22}%`, animationDelay: `${i * 0.35}s` }}
+            />
+          ))}
+          {suits.map((s, i) => (
+            <span
+              key={`suit-${i}`}
+              className={`ak-card-suit ${s.c}`}
+              style={{ left: `${s.l}%`, top: `${s.t}%`, animationDelay: s.delay, animationDuration: s.dur }}
+            >
+              {s.ch}
+            </span>
+          ))}
+        </div>
+        <div className="ak-card-hero-title ak-card-hero-title--rummy">{safe}</div>
+      </div>
+    );
+  }
+
+  if (gameId === "uno") {
+    const orbs = [
+      { bg: "linear-gradient(135deg,#ef4444,#b91c1c)", l: 10, t: 18, d: "0s" },
+      { bg: "linear-gradient(135deg,#eab308,#ca8a04)", l: 72, t: 12, d: "0.3s" },
+      { bg: "linear-gradient(135deg,#22c55e,#15803d)", l: 18, t: 58, d: "0.6s" },
+      { bg: "linear-gradient(135deg,#3b82f6,#1d4ed8)", l: 80, t: 52, d: "0.9s" },
+      { bg: "linear-gradient(135deg,#a855f7,#6d28d9)", l: 48, t: 8, d: "0.15s" },
+      { bg: "linear-gradient(135deg,#f97316,#c2410c)", l: 52, t: 68, d: "1.1s" },
+    ];
+    return (
+      <div className="ak-card-hero ak-card-hero--uno">
+        <div className="ak-card-hero-bg" aria-hidden>
+          {orbs.map((o, i) => (
+            <span
+              key={`orb-${i}`}
+              className="ak-card-uno-orb"
+              style={{ left: `${o.l}%`, top: `${o.t}%`, background: o.bg, animationDelay: o.d }}
+            />
+          ))}
+          <span className="ak-card-uno-wild" style={{ animationDelay: "0.5s" }} />
+        </div>
+        <div className="ak-card-hero-title ak-card-hero-title--uno">{safe}</div>
+      </div>
+    );
+  }
+
+  if (gameId === "teenpatti") {
+    return (
+      <div className="ak-card-hero ak-card-hero--teenpatti">
+        <div className="ak-card-hero-bg" aria-hidden>
+          <span className="ak-card-tp-glow" />
+          {[0, 1, 2].map((i) => (
+            <span key={`tp-card-${i}`} className={`ak-card-tp-fan ak-card-tp-fan--${i}`} />
+          ))}
+          {[20, 45, 75, 33, 88].map((x, i) => (
+            <span key={`tp-spark-${i}`} className="ak-card-spark" style={{ left: `${x}%`, animationDelay: `${i * 0.4}s` }} />
+          ))}
+        </div>
+        <div className="ak-card-hero-title ak-card-hero-title--teenpatti">{safe}</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="ak-game-word" aria-label={label}>
-      {chars.map((ch, i) => (
-        <span
-          key={`${label}-${i}-${ch}`}
-          className="ak-game-word-char"
-          style={{ animationDelay: `${i * 90}ms` }}
-        >
-          {ch}
-        </span>
-      ))}
+    <div className="ak-card-hero ak-card-hero--rummy">
+      <div className="ak-card-hero-title ak-card-hero-title--rummy">{safe}</div>
     </div>
   );
 }
@@ -273,8 +349,23 @@ export default function Home() {
         /* neon border pulse */
         .group-card:hover { box-shadow: 0 8px 30px rgba(65,255,139,0.06); }
 
-        /* live logo */
-        .ak-live-logo { position: relative; display:flex; align-items:flex-end; gap:12px; }
+        /* live logo — AK + doodle as one attached mark */
+        .ak-live-logo { position: relative; display: inline-block; }
+        .ak-live-mark {
+          position: relative;
+          display: inline-flex;
+          align-items: flex-end;
+          gap: 3px;
+          padding: 4px 18px 9px 14px;
+          border-radius: 18px;
+          background: linear-gradient(155deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 40%, rgba(15,23,42,0.45) 100%);
+          border: 1px solid rgba(255,255,255,0.14);
+          box-shadow:
+            0 0 0 1px rgba(0,0,0,0.25) inset,
+            0 18px 50px rgba(0,0,0,0.4),
+            0 0 40px rgba(34,211,238,0.1);
+          backdrop-filter: blur(12px);
+        }
         .ak-live-ak {
           font-family: "Nunito", "Baloo 2", "Arial Rounded MT Bold", "Segoe UI", sans-serif;
           font-size: 2.55rem;
@@ -348,8 +439,8 @@ export default function Home() {
         }
         .ak-live-gamepad {
           position: absolute;
-          right: -0.38rem;
-          top: -0.52rem;
+          right: -0.2rem;
+          top: -0.48rem;
           font-size: 1.05rem;
           filter: drop-shadow(0 0 8px rgba(255,255,255,.2));
           animation: bob 2s ease-in-out infinite;
@@ -359,20 +450,186 @@ export default function Home() {
           transform: rotate(-6deg);
         }
 
-        /* live game word in cards */
-        .ak-game-word { display:flex; align-items:center; justify-content:center; gap:2px; user-select:none; }
-        .ak-game-word-char {
-          display:inline-block;
-          font-size: 2rem;
+        /* first “d” optically aligned with eye row */
+        .ak-live-doodle > .ak-live-d-stem:first-of-type {
+          transform: translateY(0.04em);
+          display: inline-block;
+        }
+
+        /* —— game card heroes (lively backgrounds) —— */
+        .ak-card-hero {
+          position: relative;
+          width: 100%;
+          height: 8rem;
+          border-radius: 0.6rem;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: radial-gradient(ellipse 90% 80% at 50% 100%, rgba(15,23,42,0.85), rgba(30,41,59,0.4));
+        }
+        .ak-card-hero-bg {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          overflow: hidden;
+        }
+        .ak-card-hero-title {
+          position: relative;
+          z-index: 2;
+          font-family: "Nunito", "Baloo 2", "Segoe UI", sans-serif;
+          font-size: 1.85rem;
           font-weight: 900;
-          line-height: 1;
-          letter-spacing: .4px;
-          background: linear-gradient(180deg, #7cf9ff 0%, #5ea5ff 35%, #e879f9 100%);
+          letter-spacing: 0.03em;
+          line-height: 1.05;
+          text-align: center;
+          padding: 0 0.5rem;
+          text-shadow: 0 2px 24px rgba(0,0,0,0.55), 0 0 40px rgba(255,255,255,0.12);
+        }
+        .ak-card-hero-title--rummy {
+          color: #f8fafc;
+          background: linear-gradient(185deg, #fff 0%, #bae6fd 45%, #7dd3fc 100%);
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          text-shadow: 0 0 12px rgba(126, 249, 255, 0.18);
-          animation: char-pop 2.4s ease-in-out infinite;
+          filter: drop-shadow(0 0 14px rgba(56,189,248,0.35));
+        }
+        .ak-card-hero-title--uno {
+          color: #fef08a;
+          background: linear-gradient(180deg, #fef9c3 0%, #fde047 40%, #facc15 100%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          filter: drop-shadow(0 0 16px rgba(250,204,21,0.45));
+        }
+        .ak-card-hero-title--teenpatti {
+          color: #ffedd5;
+          background: linear-gradient(180deg, #fff7ed 0%, #fdba74 35%, #ea580c 95%);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          filter: drop-shadow(0 0 18px rgba(251,146,60,0.4));
+        }
+        .ak-card-hero--rummy .ak-card-hero-bg {
+          background: radial-gradient(circle at 30% 20%, rgba(34,197,94,0.12), transparent 45%),
+            radial-gradient(circle at 80% 70%, rgba(59,130,246,0.14), transparent 50%);
+        }
+        .ak-card-particle {
+          position: absolute;
+          width: 3px;
+          height: 3px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.5);
+          box-shadow: 0 0 8px rgba(255,255,255,0.4);
+          animation: ak-particle-rise 4.5s ease-in-out infinite;
+        }
+        .ak-card-suit {
+          position: absolute;
+          font-family: Georgia, "Times New Roman", serif;
+          font-size: clamp(1.15rem, 3.8vw, 1.55rem);
+          font-weight: 700;
+          line-height: 1;
+          opacity: 0.32;
+          animation: ak-suit-float 7s ease-in-out infinite;
+          text-shadow: 0 0 12px rgba(0,0,0,0.5);
+        }
+        .ak-suit-red { color: #f87171; }
+        .ak-suit-dark { color: #cbd5e1; }
+        @keyframes ak-suit-float {
+          0%, 100% { transform: translate3d(0,0,0) rotate(-8deg) scale(1); opacity: 0.26; }
+          50% { transform: translate3d(6px,-10px,0) rotate(10deg) scale(1.06); opacity: 0.48; }
+        }
+        @keyframes ak-particle-rise {
+          0%, 100% { transform: translateY(0) scale(1); opacity: 0.12; }
+          50% { transform: translateY(-14px) scale(1.2); opacity: 0.42; }
+        }
+
+        .ak-card-hero--uno .ak-card-hero-bg {
+          background: radial-gradient(circle at 20% 50%, rgba(239,68,68,0.15), transparent 40%),
+            radial-gradient(circle at 85% 30%, rgba(59,130,246,0.15), transparent 42%);
+        }
+        .ak-card-uno-orb {
+          position: absolute;
+          width: clamp(26px, 9vw, 34px);
+          height: clamp(26px, 9vw, 34px);
+          border-radius: 999px;
+          opacity: 0.55;
+          animation: ak-uno-drift 5s ease-in-out infinite;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+        }
+        .ak-card-uno-wild {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 42px;
+          height: 42px;
+          margin: -21px 0 0 -21px;
+          border-radius: 10px;
+          opacity: 0.22;
+          transform: rotate(12deg);
+          background: conic-gradient(from 90deg, #ef4444, #eab308, #22c55e, #3b82f6, #a855f7, #ef4444);
+          animation: ak-wild-spin 14s linear infinite;
+          filter: blur(0.3px);
+        }
+        @keyframes ak-uno-drift {
+          0%, 100% { transform: translate(0,0) scale(1); }
+          50% { transform: translate(-8px, 12px) scale(1.12); }
+        }
+        @keyframes ak-wild-spin {
+          to { transform: rotate(372deg); }
+        }
+
+        .ak-card-hero--teenpatti .ak-card-hero-bg {
+          background: radial-gradient(circle at 50% 0%, rgba(251,191,36,0.2), transparent 55%),
+            radial-gradient(circle at 10% 80%, rgba(234,88,12,0.12), transparent 45%);
+        }
+        .ak-card-tp-glow {
+          position: absolute;
+          inset: 20% 15%;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(251,191,36,0.25), transparent 70%);
+          animation: ak-tp-pulse 3s ease-in-out infinite;
+        }
+        .ak-card-tp-fan {
+          position: absolute;
+          width: 22px;
+          height: 34px;
+          border-radius: 4px;
+          border: 1px solid rgba(255,255,255,0.35);
+          background: linear-gradient(165deg, rgba(255,250,240,0.95), rgba(254,243,199,0.5));
+          box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+          left: 50%;
+          top: 50%;
+          margin-top: -10px;
+          opacity: 0.35;
+          animation: ak-tp-fan-glow 3.2s ease-in-out infinite;
+        }
+        .ak-card-tp-fan--0 { transform: translate(-38px, 4px) rotate(-14deg); animation-delay: 0s; }
+        .ak-card-tp-fan--1 { transform: translate(-11px, -2px) rotate(-2deg); animation-delay: 0.15s; }
+        .ak-card-tp-fan--2 { transform: translate(16px, 4px) rotate(12deg); animation-delay: 0.3s; }
+        .ak-card-spark {
+          position: absolute;
+          bottom: 18%;
+          width: 4px;
+          height: 4px;
+          border-radius: 999px;
+          background: #fde68a;
+          box-shadow: 0 0 10px #fbbf24;
+          animation: ak-spark 2.8s ease-in-out infinite;
+          opacity: 0;
+        }
+        @keyframes ak-tp-pulse {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.85; transform: scale(1.05); }
+        }
+        @keyframes ak-tp-fan-glow {
+          0%, 100% { opacity: 0.3; filter: brightness(1); }
+          50% { opacity: 0.52; filter: brightness(1.15); }
+        }
+        @keyframes ak-spark {
+          0%, 100% { opacity: 0; transform: translateY(0); }
+          30% { opacity: 0.9; }
+          60% { opacity: 0; transform: translateY(-28px); }
         }
 
         @keyframes hue-shift { from { filter: hue-rotate(0deg) drop-shadow(0 0 12px rgba(57,240,255,.25)); } to { filter: hue-rotate(360deg) drop-shadow(0 0 12px rgba(57,240,255,.25)); } }
@@ -392,14 +649,18 @@ export default function Home() {
           0%, 58%, 62%, 100% { transform: translateY(var(--eye-nudge)) scaleY(1); }
           60% { transform: translateY(var(--eye-nudge)) scaleY(0.14); }
         }
-        @keyframes char-pop { 0%,100%{ transform: translateY(0) scale(1)} 25%{ transform: translateY(-3px) scale(1.04)} 50%{ transform: translateY(0) scale(1)} }
-
         /* responsive tweaks */
         @media (max-width:768px){ .group-card { margin: 6px 0 } }
         @media (max-width:640px){
           .ak-live-ak, .ak-live-doodle { font-size: 2.08rem; }
           .ak-live-doodle { --eye-nudge: -0.06em; }
-          .ak-game-word-char { font-size: 1.7rem; }
+          .ak-card-hero { height: 7.25rem; }
+          .ak-card-hero-title { font-size: 1.55rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .ak-card-suit, .ak-card-uno-orb, .ak-card-particle, .ak-card-uno-wild, .ak-card-spark, .ak-card-tp-glow, .ak-card-tp-fan {
+            animation: none !important;
+          }
         }
       `}</style>
 
@@ -449,15 +710,12 @@ export default function Home() {
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-30 bg-gradient-to-br from-green-400 to-blue-400 rounded-2xl blur-xl transition-all" />
 
-            <div className="w-full h-32 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
-              <AnimatedGameWord label={game.name} />
-
-              {/* subtle floating */}
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />
+            <div className="w-full rounded-lg mb-3 overflow-hidden relative ring-1 ring-white/10">
+              <GameCardHero gameId={game.id} title={game.name} />
             </div>
 
-            <h3 className="text-lg font-semibold mb-1 drop-shadow-md">{game.name}</h3>
-            <p className="text-xs text-white/70 mb-2">{game.description}</p>
+            <h3 className="sr-only">{game.name}</h3>
+            <p className="text-xs text-white/70 mb-2 leading-relaxed">{game.description}</p>
 
             <div className="flex items-center text-green-400 font-medium drop-shadow">Play Now <ChevronRight className="w-4 h-4 ml-1" /></div>
           </div>
