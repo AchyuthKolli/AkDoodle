@@ -323,6 +323,14 @@ export default function Home() {
     if (typeof window !== "undefined") window.location.href = to;
   }
 
+  function scrollToGames() {
+    if (typeof document === "undefined") return;
+    const el = document.getElementById("games-section");
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   // magnet + hover effects
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -471,17 +479,16 @@ export default function Home() {
           font-size: 2.55rem;
           font-weight: 900;
           line-height: 1;
-          -webkit-background-clip: text;
-          background-clip: text;
-          /* fallback so AK stays visible even if text-clip fails */
+          /* Use solid high-contrast colors so AK is always visible across renderers */
           color: #f8fafc;
-          -webkit-text-fill-color: transparent;
+          text-shadow: 0 0 14px rgba(255,255,255,0.18);
         }
         .ak-live-ak-a {
-          background: linear-gradient(165deg, #fbcfe8 0%, #e879f9 38%, #22d3ee 88%);
+          color: #22d3ee;
         }
         .ak-live-ak-k {
-          background: linear-gradient(165deg, #fde047 0%, #86efac 42%, #2dd4bf 90%);
+          color: #86efac;
+          margin-left: 0.01em;
         }
         .ak-live-doodle {
           --eye-nudge: -0.08em;
@@ -542,10 +549,10 @@ export default function Home() {
           animation: eye-look 2.8s ease-in-out infinite;
         }
         .ak-live-eye-dot-second {
-          width: 0.15em;
-          height: 0.15em;
+          width: 0.18em;
+          height: 0.18em;
           background: #0f172a;
-          box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.55);
+          box-shadow: 0 0 0 1px rgba(248, 250, 252, 0.7);
         }
         .ak-live-gamepad {
           position: absolute;
@@ -815,6 +822,38 @@ export default function Home() {
         </div>
       </div>
 
+      <section className="max-w-6xl mx-auto px-6 mb-8 relative z-10">
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-r from-indigo-950/35 via-blue-950/20 to-violet-950/35 backdrop-blur-sm px-5 py-5 sm:px-6 sm:py-6 shadow-[0_0_40px_rgba(59,130,246,0.12)]">
+          <div className="inline-flex items-center rounded-full border border-yellow-300/35 bg-yellow-400/10 px-3 py-1 text-[11px] font-semibold text-yellow-200 tracking-wide">
+            Play. Compete. Win.
+          </div>
+          <h1 className="mt-3 text-3xl sm:text-4xl font-black leading-tight text-white">
+            Play <span className="text-cyan-300">Fun</span> Games.
+            <br />
+            Challenge <span className="text-fuchsia-300">Everyone</span>.
+          </h1>
+          <p className="mt-2 text-sm sm:text-base text-white/80 max-w-xl">
+            Dive into exciting card battles, enjoy live effects, and jump into your favorite game instantly.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={scrollToGames}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-fuchsia-600/25 hover:opacity-90 transition"
+            >
+              Explore Games
+            </button>
+            <button
+              type="button"
+              onClick={() => goTo("/rummy/home")}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:bg-white/10 transition"
+            >
+              Quick Start Rummy
+            </button>
+          </div>
+        </div>
+      </section>
+
       <h2 className="text-2xl sm:text-3xl font-bold px-6 mb-3 flex items-center gap-2.5 tracking-tight relative z-10 text-white">
         <Gamepad2 className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400 shrink-0 drop-shadow-[0_0_12px_rgba(52,211,153,0.45)]" strokeWidth={2.25} />
         <span className="bg-gradient-to-b from-white via-white to-white/75 bg-clip-text text-transparent drop-shadow-[0_2px_16px_rgba(0,0,0,0.35)]">
@@ -825,7 +864,7 @@ export default function Home() {
         <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-6 pb-20 cursor-magnet-zone max-w-6xl mx-auto relative z-10" role="list">
+      <div id="games-section" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-6 pb-20 cursor-magnet-zone max-w-6xl mx-auto relative z-10" role="list">
         {games.map((game, idx) => (
           <div
             key={game.id}
